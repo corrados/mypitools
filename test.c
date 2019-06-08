@@ -16,6 +16,23 @@ int main(int argc, char *argv[])
 	int sendTrailingPulse = 1;       // 1 = Send a trailing pulse with duration equal to "onePulse"
 	                                 // 0 = Don't send a trailing pulse
 
+	char key_poweron[]  = "00000000111101111100000000111111"; // 0xC03F
+	char key_poweroff[] = "00000000111101110100000010111111"; // 0x40BF
+	char* curkey        = key_poweroff; // default behavior
+
+	// parse single input parameter
+	if ( argc == 2 )
+	{
+		if ( strcmp ( argv[1], "KEY_POWERON" ) == 0 )
+		{
+			curkey = key_poweron;
+		}
+		else if ( strcmp ( argv[1], "KEY_POWEROFF" ) == 0 )
+		{
+			curkey = key_poweroff;
+		}
+	}
+
 	int result = irSling(
 		outPin,
 		frequency,
@@ -27,7 +44,7 @@ int main(int argc, char *argv[])
 		oneGap,
 		zeroGap,
 		sendTrailingPulse,
-		"00000000111101111100000000111111");
+		curkey);
 	
 	return result;
 }
