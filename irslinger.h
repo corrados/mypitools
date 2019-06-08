@@ -72,7 +72,7 @@ static inline int irSling(uint32_t outPin,
 
 	size_t codeLen = strlen(code);
 
-	printf("code size is %zu\n", codeLen);
+//	printf("code size is %zu\n", codeLen);
 
 	if (codeLen > MAX_COMMAND_SIZE)
 	{
@@ -111,7 +111,7 @@ static inline int irSling(uint32_t outPin,
 		carrierFrequency(outPin, frequency, dutyCycle, onePulse, irSignal, &pulseCount);
 	}
 
-	printf("pulse count is %i\n", pulseCount);
+//	printf("pulse count is %i\n", pulseCount);
 	// End Generate Code
 
 	// Init pigpio
@@ -135,11 +135,11 @@ static inline int irSling(uint32_t outPin,
 	{
 		int result = gpioWaveTxSend(waveID, PI_WAVE_MODE_ONE_SHOT);
 
-		printf("Result: %i\n", result);
+//		printf("Result: %i\n", result);
 	}
 	else
 	{
-		printf("Wave creation failure!\n %i", waveID);
+//		printf("Wave creation failure!\n %i", waveID);
 	}
 
 	// Wait for the wave to finish transmitting
