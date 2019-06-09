@@ -2,7 +2,7 @@ Fork of IR Slinger by corrados
 ==============================
 
 This fork is intented to support my LED strip since lirc did make problems on my Raspberry Pi Zero.
-This fork is not intented to by merged back to the original IR Slinger repository since my work is just
+This fork is not intented to be merged back to the original IR Slinger repository since my work is just
 a special implementation for my purpose.
 
 Changes
