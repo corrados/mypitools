@@ -1,12 +1,15 @@
 Fork of IR Slinger by corrados
 ==============================
+
 This fork is intented to support my LED strip since lirc did make problems on my Raspberry Pi Zero.
 This fork is not intented to by merged back to the original IR Slinger repository since my work is just
 a special implementation for my purpose.
-Changes:
---------
-- Removed the debug output since I do not want to mess the system log file
-- added support for all remote control commands for my LED stripe in the test.c file
+
+Changes
+-------
+
+* Removed the debug output since I do not want to mess the system log file
+* added support for all remote control commands for my LED stripe in the test.c file
 
 
 IR Slinger
