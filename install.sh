@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # compile ledremote tool
-gcc ledremote.c -lm -lpigpio -pthread -lrt
+gcc ledremote.c -lm -lpigpio -pthread -lrt -o ledremote
 
 # install ledremote tool in user bin directory
 sudo cp ledremote /usr/bin
