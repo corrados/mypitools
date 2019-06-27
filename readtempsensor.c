@@ -149,9 +149,9 @@ outPin = atoi ( TEMPSENSORGPIO ); // if GPIO pin was given by preprocessor use t
    {
 	  /* create DHTXX */
       dht = malloc(sizeof(DHTXXD_t));
-      
+
       if (!dht) return 1;
-      
+
       dht->pi                = pi;
       dht->seconds           = 0;
       dht->_data.pi          = pi;
@@ -162,27 +162,27 @@ outPin = atoi ( TEMPSENSORGPIO ); // if GPIO pin was given by preprocessor use t
       dht->_in_code          = 0;
       dht->_ready            = 0;
       dht->_new_reading      = 0;
-      
+
       set_mode(pi, outPin, PI_INPUT);
-      
+
       dht->_last_edge_tick = get_current_tick(pi) - 10000;
-      
+
       dht->_cb_id = callback_ex(pi, outPin, RISING_EDGE, _cb, dht);
 
       /* read sensor, trigger measurement */
       gpio_write(dht->pi, outPin, 0);
       time_sleep(0.001);
       set_mode(dht->pi, outPin, PI_INPUT);
-      
+
       timestamp = time_time();
-      
+
       /* timeout if no new reading */
       for (i=0; i<5; i++) /* 0.25 seconds */
       {
          time_sleep(0.05);
          if (dht->_new_reading) break;
       }
-      
+
       if (!dht->_new_reading)
       {
          dht->_data.timestamp = timestamp;
@@ -191,7 +191,10 @@ outPin = atoi ( TEMPSENSORGPIO ); // if GPIO pin was given by preprocessor use t
       }
 
 // TEST
-printf("%d %.1f %.1f\n", dht->_data.status, dht->_data.temperature, dht->_data.humidity);
+if (!dht->_data.status)
+{
+	printf("%.1f %.1f\n", dht->_data.temperature, dht->_data.humidity);
+}
 
       /* cancel DHTXX */
       if (dht)
@@ -199,7 +202,7 @@ printf("%d %.1f %.1f\n", dht->_data.status, dht->_data.temperature, dht->_data.h
          if (dht->_cb_id >= 0) callback_cancel(dht->_cb_id);
 
          free(dht);
-      }	  
+      }
 
       pigpio_stop(pi); /* Disconnect from local Pi. */
    }
