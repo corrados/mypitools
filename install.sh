@@ -7,11 +7,20 @@
 read -e -p "Please set GPIO number for IR LED: " -i "22" SET_IRGPIO
 echo "GPIO number for IR LED is set to $SET_IRGPIO"
 
+read -e -p "Please set GPIO number for DHT22 temperature sensor: " -i "4" TEMPSENSORGPIO
+echo "GPIO number for IDHT22 temperature sensor is set to $TEMPSENSORGPIO"
+
 # compile ledremote tool
 gcc ledremote.c -lm -lpigpio -pthread -lrt -o ledremote -DIRGPIO=\"$SET_IRGPIO\"
 
 # install ledremote tool in user bin directory
 sudo cp ledremote /usr/bin
+
+# compile temperature read tool
+gcc -Wall -pthread -o readtempsensor readtempsensor.c -lpigpiod_if2 -DIRGPIO=\"$TEMPSENSORGPIO\"
+
+# install temperature read tool in user bin directory
+sudo cp readtempsensor /usr/bin
 
 # create cron tab entries for the LED stribe (note that the original file will be deleted!)
 CRON_TABLE="0  17    * * *       sudo ledremote KEY_POWERON && sudo ledremote KEY_GREEN
