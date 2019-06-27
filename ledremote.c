@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <math.h>
 #include <pigpio.h>
@@ -161,6 +162,10 @@ int main(int argc, char *argv[])
     int zeroGap = 485;               // The duration of the gap in microseconds when sending a logical 0
     int sendTrailingPulse = 1;       // 1 = Send a trailing pulse with duration equal to "onePulse"
                                      // 0 = Don't send a trailing pulse
+
+#ifdef IRGPIO
+outPin = atoi ( IRGPIO ); // if GPIO pin was given by preprocessor use that one
+#endif
 
     char* curkey = "00000000111101111100000000111111"; // default behavior
 
