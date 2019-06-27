@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# TODO install required apt-get packages
+
+
 # settings
 read -e -p "Please set GPIO number for IR LED: " -i "22" SET_IRGPIO
 echo "GPIO number for IR LED is set to $SET_IRGPIO"
@@ -43,3 +46,5 @@ else
 	echo "Cancelled."
 fi
 
+# run pgpiod at system startup
+systemctl enable pigpiod
