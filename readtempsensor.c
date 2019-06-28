@@ -190,11 +190,11 @@ outPin = atoi ( TEMPSENSORGPIO ); // if GPIO pin was given by preprocessor use t
          dht->_ready          = 1;
       }
 
-// TEST
-if (!dht->_data.status)
-{
-	printf("%.1f %.1f\n", dht->_data.temperature, dht->_data.humidity);
-}
+      // output measurement result on stdout
+      if (!dht->_data.status)
+      {
+	     printf("%.1f %.1f\n", dht->_data.temperature, dht->_data.humidity);
+      }
 
       /* cancel DHTXX */
       if (dht)
