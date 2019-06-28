@@ -1,8 +1,5 @@
 #!/bin/bash
 
-# TODO install required apt-get packages
-
-
 # settings
 read -e -p "Please set GPIO number for IR LED: " -i "22" SET_IRGPIO
 echo "GPIO number for IR LED is set to $SET_IRGPIO"
@@ -10,19 +7,28 @@ echo "GPIO number for IR LED is set to $SET_IRGPIO"
 read -e -p "Please set GPIO number for DHT22 temperature sensor: " -i "4" TEMPSENSORGPIO
 echo "GPIO number for IDHT22 temperature sensor is set to $TEMPSENSORGPIO"
 
+# update system and install required packages
+#echo "first we update the system and install the required packages"
+#apt-get update
+#apt-get upgrade -y
+#apt-get dist-upgrade -y
+#apt-get install build-essential fail2ban git hdparm htop libjack-jackd2-dev net-tools nethogs pigpio qjackctl qt5-default unattended-upgrades vim -y
+#apt-get autoremove -y
+#apt-get autoclean -y
+
 # compile ledremote tool
 echo "compile ledremote"
 gcc ledremote.c -lm -lpigpio -pthread -lrt -o ledremote -DIRGPIO=\"$SET_IRGPIO\"
 
 # install ledremote tool in user bin directory
-sudo cp ledremote /usr/local/bin
+sudo mv ledremote /usr/local/bin
 
 # compile temperature read tool
 echo "compile readtempsensor"
 gcc -Wall -pthread -o readtempsensor readtempsensor.c -lpigpiod_if2 -DIRGPIO=\"$TEMPSENSORGPIO\"
 
 # install temperature read tool in user bin directory
-sudo cp readtempsensor /usr/local/bin
+sudo mv readtempsensor /usr/local/bin
 
 # create cron tab entries for the LED stribe (note that the original file will be deleted!)
 CRON_TABLE="0  17    * * *       sudo ledremote KEY_POWERON && sudo ledremote KEY_GREEN
@@ -59,3 +65,13 @@ fi
 
 # run pgpiod at system startup
 systemctl enable pigpiod
+
+# add the audio overlay
+if grep -Fxq "dtoverlay=pwm-2chan,pin=18,func=2,pin2=13,func2=4" /boot/config.txt
+then
+	echo "audio overlay already set in /boot/config.txt"
+else
+	echo "we append the audio overlay to /boot/config.txt"
+	echo "# enable analog audio on pi zero" >> /boot/config.txt
+	echo "dtoverlay=pwm-2chan,pin=18,func=2,pin2=13,func2=4" >> /boot/config.txt
+fi
