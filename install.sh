@@ -7,15 +7,19 @@ echo "GPIO number for IR LED is set to $SET_IRGPIO"
 read -e -p "Please set GPIO number for DHT22 temperature sensor: " -i "4" TEMPSENSORGPIO
 echo "GPIO number for IDHT22 temperature sensor is set to $TEMPSENSORGPIO"
 
-# update system and install required packages
-#echo "first we update the system and install the required packages"
-#apt-get update
-#apt-get upgrade -y
-#apt-get dist-upgrade -y
-#apt-get install build-essential fail2ban git hdparm htop libjack-jackd2-dev net-tools nethogs pigpio qjackctl qt5-default unattended-upgrades vim -y
-#apt-get autoremove -y
-#apt-get autoclean -y
 
+# SYSTEM UPDATE/INSTALL PACKAGES ###############################################
+# update system and install required packages
+echo "first we update the system and install the required packages"
+apt-get update
+apt-get upgrade -y
+apt-get dist-upgrade -y
+apt-get install build-essential fail2ban git hdparm htop libjack-jackd2-dev net-tools nethogs pigpio qjackctl qt5-default unattended-upgrades vim -y
+apt-get autoremove -y
+apt-get autoclean -y
+
+
+# LED REMOTE ###################################################################
 # compile ledremote tool
 echo "compile ledremote"
 gcc ledremote.c -lm -lpigpio -pthread -lrt -o ledremote -DIRGPIO=\"$SET_IRGPIO\"
@@ -23,6 +27,8 @@ gcc ledremote.c -lm -lpigpio -pthread -lrt -o ledremote -DIRGPIO=\"$SET_IRGPIO\"
 # install ledremote tool in user bin directory
 sudo mv ledremote /usr/local/bin
 
+
+# TEMPERATURE READ TOOL ########################################################
 # compile temperature read tool
 echo "compile readtempsensor"
 gcc -Wall -pthread -o readtempsensor readtempsensor.c -lpigpiod_if2 -DIRGPIO=\"$TEMPSENSORGPIO\"
@@ -30,6 +36,8 @@ gcc -Wall -pthread -o readtempsensor readtempsensor.c -lpigpiod_if2 -DIRGPIO=\"$
 # install temperature read tool in user bin directory
 sudo mv readtempsensor /usr/local/bin
 
+
+# CRON TAB #####################################################################
 # create cron tab entries for the LED stribe (note that the original file will be deleted!)
 CRON_TABLE="0  17    * * *       sudo ledremote KEY_POWERON && sudo ledremote KEY_GREEN
 0  20    * * *       sudo ledremote KEY_ORANGE
@@ -63,9 +71,13 @@ else
 	echo "Cancelled."
 fi
 
+
+# DEAMONS ######################################################################
 # run pgpiod at system startup
 systemctl enable pigpiod
 
+
+# AUDIO SETUP ##################################################################
 # add the audio overlay
 if grep -Fxq "dtoverlay=pwm-2chan,pin=18,func=2,pin2=13,func2=4" /boot/config.txt
 then
@@ -75,3 +87,6 @@ else
 	echo "# enable analog audio on pi zero" >> /boot/config.txt
 	echo "dtoverlay=pwm-2chan,pin=18,func=2,pin2=13,func2=4" >> /boot/config.txt
 fi
+
+# make sure the alsamixer level is correct for the audio output
+amixer set PCM 95%
