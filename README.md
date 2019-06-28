@@ -1,6 +1,8 @@
 My Raspberry Pi Tools
 =====================
 
+![My Raspberry Pi](myraspi.jpg)
+
 Infrared Transmitter based on IR Slinger
 ----------------------------------------
 
