@@ -11,12 +11,14 @@ read -e -p "Please set GPIO number for DHT22 temperature sensor: " -i "4" TEMPSE
 echo "GPIO number for IDHT22 temperature sensor is set to $TEMPSENSORGPIO"
 
 # compile ledremote tool
+echo "compile ledremote"
 gcc ledremote.c -lm -lpigpio -pthread -lrt -o ledremote -DIRGPIO=\"$SET_IRGPIO\"
 
 # install ledremote tool in user bin directory
 sudo cp ledremote /usr/local/bin
 
 # compile temperature read tool
+echo "compile readtempsensor"
 gcc -Wall -pthread -o readtempsensor readtempsensor.c -lpigpiod_if2 -DIRGPIO=\"$TEMPSENSORGPIO\"
 
 # install temperature read tool in user bin directory
