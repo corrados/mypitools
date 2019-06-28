@@ -66,7 +66,7 @@ if [[ $REPLY =~ ^[Yy]$ ]]
 then
 	echo "These cron tab entries are written:"
 	echo "$CRON_TABLE"
-	{ echo "$CRON_TABLE"; } | crontab -u corrados -
+	{ echo "$CRON_TABLE"; } | crontab -u pi -
 else
 	echo "Cancelled."
 fi
