@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
-#include <pigpio.h>
+#include <pigpiod_if2.h>
 
 #define MAX_COMMAND_SIZE 512
 #define MAX_PULSES 12000
@@ -63,6 +63,8 @@ static inline int irSling(uint32_t outPin,
 	int sendTrailingPulse,
 	const char *code)
 {
+	int pi;
+
 	if (outPin > 31)
 	{
 		// Invalid pin number
@@ -110,41 +112,39 @@ static inline int irSling(uint32_t outPin,
 
 
 	// Init pigpio
-	if (gpioInitialise() < 0)
+	pi = pigpio_start(NULL, NULL); /* Connect to local Pi. */
+	
+	if (pi >= 0)
 	{
-		// Initialization failed
-		printf("GPIO Initialization failed\n");
-		return 1;
+	    // Setup the GPIO pin as an output pin
+		set_mode(pi, outPin, PI_OUTPUT);
+        
+	    // Start a new wave
+		wave_clear(pi);
+        
+		wave_add_generic(pi, pulseCount, irSignal);
+	    int waveID = wave_create(pi);
+        
+	    if (waveID >= 0)
+	    {
+	    	int result = wave_send_once(pi, waveID);
+	    }
+        
+	    // Wait for the wave to finish transmitting
+	    while (wave_tx_busy(pi))
+	    {
+	    	time_sleep(0.1);
+	    }
+        
+	    // Delete the wave if it exists
+	    if (waveID >= 0)
+	    {
+	    	wave_delete(pi, waveID);
+	    }
+        
+	    // Cleanup
+	    pigpio_stop(pi); /* Disconnect from local Pi. */
 	}
-
-	// Setup the GPIO pin as an output pin
-	gpioSetMode(outPin, PI_OUTPUT);
-
-	// Start a new wave
-	gpioWaveClear();
-
-	gpioWaveAddGeneric(pulseCount, irSignal);
-	int waveID = gpioWaveCreate();
-
-	if (waveID >= 0)
-	{
-		int result = gpioWaveTxSend(waveID, PI_WAVE_MODE_ONE_SHOT);
-	}
-
-	// Wait for the wave to finish transmitting
-	while (gpioWaveTxBusy())
-	{
-		time_sleep(0.1);
-	}
-
-	// Delete the wave if it exists
-	if (waveID >= 0)
-	{
-		gpioWaveDelete(waveID);
-	}
-
-	// Cleanup
-	gpioTerminate();
 	return 0;
 }
 

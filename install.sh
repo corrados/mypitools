@@ -22,7 +22,7 @@ apt-get autoclean -y
 # LED REMOTE ###################################################################
 # compile ledremote tool
 echo "compile ledremote"
-gcc ledremote.c -lm -lpigpio -pthread -lrt -o ledremote -DIRGPIO=\"$SET_IRGPIO\"
+gcc ledremote.c -lm -lpigpiod_if2 -pthread -lrt -o ledremote -DIRGPIO=\"$SET_IRGPIO\"
 
 # install ledremote tool in user bin directory
 sudo mv ledremote /usr/local/bin
