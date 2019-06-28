@@ -9,143 +9,143 @@
 
 static inline void addPulse(uint32_t onPins, uint32_t offPins, uint32_t duration, gpioPulse_t *irSignal, int *pulseCount)
 {
-	int index = *pulseCount;
+    int index = *pulseCount;
 
-	irSignal[index].gpioOn = onPins;
-	irSignal[index].gpioOff = offPins;
-	irSignal[index].usDelay = duration;
+    irSignal[index].gpioOn = onPins;
+    irSignal[index].gpioOff = offPins;
+    irSignal[index].usDelay = duration;
 
-	(*pulseCount)++;
+    (*pulseCount)++;
 }
 
 // Generates a square wave for duration (microseconds) at frequency (Hz)
 // on GPIO pin outPin. dutyCycle is a floating value between 0 and 1.
 static inline void carrierFrequency(uint32_t outPin, double frequency, double dutyCycle, double duration, gpioPulse_t *irSignal, int *pulseCount)
 {
-	double oneCycleTime = 1000000.0 / frequency; // 1000000 microseconds in a second
-	int onDuration = (int)round(oneCycleTime * dutyCycle);
-	int offDuration = (int)round(oneCycleTime * (1.0 - dutyCycle));
+    double oneCycleTime = 1000000.0 / frequency; // 1000000 microseconds in a second
+    int onDuration = (int)round(oneCycleTime * dutyCycle);
+    int offDuration = (int)round(oneCycleTime * (1.0 - dutyCycle));
 
-	int totalCycles = (int)round(duration / oneCycleTime);
-	int totalPulses = totalCycles * 2;
+    int totalCycles = (int)round(duration / oneCycleTime);
+    int totalPulses = totalCycles * 2;
 
-	int i;
-	for (i = 0; i < totalPulses; i++)
-	{
-		if (i % 2 == 0)
-		{
-			// High pulse
-			addPulse(1 << outPin, 0, onDuration, irSignal, pulseCount);
-		}
-		else
-		{
-			// Low pulse
-			addPulse(0, 1 << outPin, offDuration, irSignal, pulseCount);
-		}
-	}
+    int i;
+    for (i = 0; i < totalPulses; i++)
+    {
+        if (i % 2 == 0)
+        {
+            // High pulse
+            addPulse(1 << outPin, 0, onDuration, irSignal, pulseCount);
+        }
+        else
+        {
+            // Low pulse
+            addPulse(0, 1 << outPin, offDuration, irSignal, pulseCount);
+        }
+    }
 }
 
 // Generates a low signal gap for duration, in microseconds, on GPIO pin outPin
 static inline void gap(uint32_t outPin, double duration, gpioPulse_t *irSignal, int *pulseCount)
 {
-	addPulse(0, 0, duration, irSignal, pulseCount);
+    addPulse(0, 0, duration, irSignal, pulseCount);
 }
 
 static inline int irSling(uint32_t outPin,
-	int frequency,
-	double dutyCycle,
-	int leadingPulseDuration,
-	int leadingGapDuration,
-	int onePulse,
-	int zeroPulse,
-	int oneGap,
-	int zeroGap,
-	int sendTrailingPulse,
-	const char *code)
+                          int frequency,
+                          double dutyCycle,
+                          int leadingPulseDuration,
+                          int leadingGapDuration,
+                          int onePulse,
+                          int zeroPulse,
+                          int oneGap,
+                          int zeroGap,
+                          int sendTrailingPulse,
+                          const char *code)
 {
-	int pi;
+    int pi;
 
-	if (outPin > 31)
-	{
-		// Invalid pin number
-		return 1;
-	}
+    if (outPin > 31)
+    {
+        // Invalid pin number
+        return 1;
+    }
 
-	size_t codeLen = strlen(code);
+    size_t codeLen = strlen(code);
 
-	if (codeLen > MAX_COMMAND_SIZE)
-	{
-		// Command is too big
-		return 1;
-	}
+    if (codeLen > MAX_COMMAND_SIZE)
+    {
+        // Command is too big
+        return 1;
+    }
 
-	gpioPulse_t irSignal[MAX_PULSES];
-	int pulseCount = 0;
+    gpioPulse_t irSignal[MAX_PULSES];
+    int pulseCount = 0;
 
-	// Generate Code
-	carrierFrequency(outPin, frequency, dutyCycle, leadingPulseDuration, irSignal, &pulseCount);
-	gap(outPin, leadingGapDuration, irSignal, &pulseCount);
+    // Generate Code
+    carrierFrequency(outPin, frequency, dutyCycle, leadingPulseDuration, irSignal, &pulseCount);
+    gap(outPin, leadingGapDuration, irSignal, &pulseCount);
 
-	int i;
-	for (i = 0; i < codeLen; i++)
-	{
-		if (code[i] == '0')
-		{
-			carrierFrequency(outPin, frequency, dutyCycle, zeroPulse, irSignal, &pulseCount);
-			gap(outPin, zeroGap, irSignal, &pulseCount);
-		}
-		else if (code[i] == '1')
-		{
-			carrierFrequency(outPin, frequency, dutyCycle, onePulse, irSignal, &pulseCount);
-			gap(outPin, oneGap, irSignal, &pulseCount);
-		}
-		else
-		{
-			printf("Warning: Non-binary digit in command\n");
-		}
-	}
+    int i;
+    for (i = 0; i < codeLen; i++)
+    {
+        if (code[i] == '0')
+        {
+            carrierFrequency(outPin, frequency, dutyCycle, zeroPulse, irSignal, &pulseCount);
+            gap(outPin, zeroGap, irSignal, &pulseCount);
+        }
+        else if (code[i] == '1')
+        {
+            carrierFrequency(outPin, frequency, dutyCycle, onePulse, irSignal, &pulseCount);
+            gap(outPin, oneGap, irSignal, &pulseCount);
+        }
+        else
+        {
+            printf("Warning: Non-binary digit in command\n");
+        }
+    }
 
-	if (sendTrailingPulse)
-	{
-		carrierFrequency(outPin, frequency, dutyCycle, onePulse, irSignal, &pulseCount);
-	}
+    if (sendTrailingPulse)
+    {
+        carrierFrequency(outPin, frequency, dutyCycle, onePulse, irSignal, &pulseCount);
+    }
 
 
-	// Init pigpio
-	pi = pigpio_start(NULL, NULL); /* Connect to local Pi. */
-	
-	if (pi >= 0)
-	{
-	    // Setup the GPIO pin as an output pin
-		set_mode(pi, outPin, PI_OUTPUT);
-        
-	    // Start a new wave
-		wave_clear(pi);
-        
-		wave_add_generic(pi, pulseCount, irSignal);
-	    int waveID = wave_create(pi);
-        
-	    if (waveID >= 0)
-	    {
-	    	int result = wave_send_once(pi, waveID);
-	    }
-        
-	    // Wait for the wave to finish transmitting
-	    while (wave_tx_busy(pi))
-	    {
-	    	time_sleep(0.1);
-	    }
-        
-	    // Delete the wave if it exists
-	    if (waveID >= 0)
-	    {
-	    	wave_delete(pi, waveID);
-	    }
-        
-	    // Cleanup
-	    pigpio_stop(pi); /* Disconnect from local Pi. */
-	}
-	return 0;
+    // Init pigpio
+    pi = pigpio_start(NULL, NULL); /* Connect to local Pi. */
+
+    if (pi >= 0)
+    {
+        // Setup the GPIO pin as an output pin
+        set_mode(pi, outPin, PI_OUTPUT);
+
+        // Start a new wave
+        wave_clear(pi);
+
+        wave_add_generic(pi, pulseCount, irSignal);
+        int waveID = wave_create(pi);
+
+        if (waveID >= 0)
+        {
+            int result = wave_send_once(pi, waveID);
+        }
+
+        // Wait for the wave to finish transmitting
+        while (wave_tx_busy(pi))
+        {
+            time_sleep(0.1);
+        }
+
+        // Delete the wave if it exists
+        if (waveID >= 0)
+        {
+            wave_delete(pi, waveID);
+        }
+
+        // Cleanup
+        pigpio_stop(pi); /* Disconnect from local Pi. */
+    }
+    return 0;
 }
 
 int main(int argc, char *argv[])
@@ -164,7 +164,7 @@ int main(int argc, char *argv[])
                                      // 0 = Don't send a trailing pulse
 
 #ifdef IRGPIO
-outPin = atoi ( IRGPIO ); // if GPIO pin was given by preprocessor use that one
+    outPin = atoi ( IRGPIO ); // if GPIO pin was given by preprocessor use that one
 #endif
 
     char* curkey = "00000000111101111100000000111111"; // default behavior
