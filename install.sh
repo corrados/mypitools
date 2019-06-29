@@ -58,7 +58,8 @@ CRON_TABLE="0  17    * * *       sudo ledremote KEY_POWERON && sudo ledremote KE
 0  0     * * *       sudo ledremote KEY_POWEROFF
 0  1     * * *       sudo ledremote KEY_POWEROFF
 0  2     * * *       sudo ledremote KEY_POWEROFF
-0  3     * * *       sudo ledremote KEY_POWEROFF"
+0  3     * * *       sudo ledremote KEY_POWEROFF
+0   *    * * *       myrunscript.py"
 
 read -p "Your current crontab will be overwritten. Are you sure? " -n 1 -r
 echo
@@ -66,7 +67,7 @@ if [[ $REPLY =~ ^[Yy]$ ]]
 then
 	echo "These cron tab entries are written:"
 	echo "$CRON_TABLE"
-	{ echo "$CRON_TABLE"; } | crontab -u pi -
+	{ echo "$CRON_TABLE"; } | crontab -u $USER -
 else
 	echo "Cancelled."
 fi
@@ -90,3 +91,13 @@ fi
 
 # make sure the alsamixer level is correct for the audio output
 amixer set PCM 95%
+
+
+# WEATHER DATA #################################################################
+echo "create script data file in /var/log and make it writable by the current user $USER"
+sudo touch /var/log/myrunscriptdata.csv
+sudo chmod 664 /var/log/myrunscriptdata.csv
+sudo chown $USER:$USER /var/log/myrunscriptdata.csv
+
+# install run script in user bin directory
+sudo cp myrunscript.py /usr/local/bin

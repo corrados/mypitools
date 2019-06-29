@@ -25,12 +25,22 @@ r       = requests.get(url)
 weather = r.json()
 
 # process weather data
-print("sunrise:        " + datetime.fromtimestamp(int(weather["sys"]["sunrise"])).strftime('%Y-%m-%d %H:%M:%S'))
-print("sunset:         " + datetime.fromtimestamp(int(weather["sys"]["sunset"])).strftime('%Y-%m-%d %H:%M:%S'))
-print("clouds:         " + str(weather["clouds"]["all"]))
-print("temp:           " + str(weather["main"]["temp"]))
-print("local temp:     " + str(loctemp))
-print("humidity:       " + str(weather["main"]["humidity"]))
-print("local humidity: " + str(lochum))
-print(weather["weather"][0]["main"])
-print(weather["weather"][0]["description"])
+temp       = weather["main"]["temp"]
+hum        = weather["main"]["humidity"]
+cloud      = weather["clouds"]["all"]
+curdate    = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+filestring = "{},{},{},{},{},{}\r\n".format(curdate, loctemp, lochum, temp, hum, cloud)
+
+file = open("/var/log/myrunscriptdata.csv", "a+")
+file.write(filestring)
+file.close
+
+#print("sunrise:        " + datetime.fromtimestamp(int(weather["sys"]["sunrise"])).strftime('%Y-%m-%d %H:%M:%S'))
+#print("sunset:         " + datetime.fromtimestamp(int(weather["sys"]["sunset"])).strftime('%Y-%m-%d %H:%M:%S'))
+#print("clouds:         " + str(weather["clouds"]["all"]))
+#print("temp:           " + str(weather["main"]["temp"]))
+#print("local temp:     " + str(loctemp))
+#print("humidity:       " + str(weather["main"]["humidity"]))
+#print("local humidity: " + str(lochum))
+#print(weather["weather"][0]["main"])
+#print(weather["weather"][0]["description"])
