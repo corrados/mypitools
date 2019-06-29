@@ -8,35 +8,6 @@ read -e -p "Please set GPIO number for DHT22 temperature sensor: " -i "4" TEMPSE
 echo "GPIO number for IDHT22 temperature sensor is set to $TEMPSENSORGPIO"
 
 
-# SYSTEM UPDATE/INSTALL PACKAGES ###############################################
-# update system and install required packages
-echo "first we update the system and install the required packages"
-apt-get update
-apt-get upgrade -y
-apt-get dist-upgrade -y
-apt-get install build-essential fail2ban git hdparm htop libjack-jackd2-dev net-tools nethogs pigpio qjackctl qt5-default unattended-upgrades python-configparser vim -y
-apt-get autoremove -y
-apt-get autoclean -y
-
-
-# LED REMOTE ###################################################################
-# compile ledremote tool
-echo "compile ledremote"
-gcc ledremote.c -lm -lpigpiod_if2 -pthread -lrt -o ledremote -DIRGPIO=\"$SET_IRGPIO\"
-
-# install ledremote tool in user bin directory
-sudo mv ledremote /usr/local/bin
-
-
-# TEMPERATURE READ TOOL ########################################################
-# compile temperature read tool
-echo "compile readtempsensor"
-gcc -Wall -pthread -o readtempsensor readtempsensor.c -lpigpiod_if2 -DIRGPIO=\"$TEMPSENSORGPIO\"
-
-# install temperature read tool in user bin directory
-sudo mv readtempsensor /usr/local/bin
-
-
 # CRON TAB #####################################################################
 # create cron tab entries for the LED stribe (note that the original file will be deleted!)
 CRON_TABLE="0  17    * * *       sudo ledremote KEY_POWERON && sudo ledremote KEY_GREEN
@@ -71,6 +42,35 @@ then
 else
 	echo "Cancelled."
 fi
+
+
+# SYSTEM UPDATE/INSTALL PACKAGES ###############################################
+# update system and install required packages
+echo "first we update the system and install the required packages"
+apt-get update
+apt-get upgrade -y
+apt-get dist-upgrade -y
+apt-get install build-essential fail2ban git hdparm htop libjack-jackd2-dev net-tools nethogs pigpio qjackctl qt5-default unattended-upgrades python-configparser vim -y
+apt-get autoremove -y
+apt-get autoclean -y
+
+
+# LED REMOTE ###################################################################
+# compile ledremote tool
+echo "compile ledremote"
+gcc ledremote.c -lm -lpigpiod_if2 -pthread -lrt -o ledremote -DIRGPIO=\"$SET_IRGPIO\"
+
+# install ledremote tool in user bin directory
+sudo mv ledremote /usr/local/bin
+
+
+# TEMPERATURE READ TOOL ########################################################
+# compile temperature read tool
+echo "compile readtempsensor"
+gcc -Wall -pthread -o readtempsensor readtempsensor.c -lpigpiod_if2 -DIRGPIO=\"$TEMPSENSORGPIO\"
+
+# install temperature read tool in user bin directory
+sudo mv readtempsensor /usr/local/bin
 
 
 # DEAMONS ######################################################################
