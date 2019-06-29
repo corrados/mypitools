@@ -9,7 +9,7 @@ import subprocess
 
 # get api key and location from config file
 config = configparser.ConfigParser()
-config.read('config.ini')
+config.read('/home/pi/config.ini')
 api_key  = config['openweathermap']['api']
 location = config['openweathermap']['location']
 

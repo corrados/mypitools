@@ -1,6 +1,7 @@
 #!/bin/bash
 
 # TODO do not use user pi but create a different one (note that 'pi' is hard coded below!)
+# TODO check if config.ini is present in the pi home directory
 
 # settings
 read -e -p "Please set GPIO number for IR LED: " -i "22" SET_IRGPIO
