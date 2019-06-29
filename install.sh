@@ -13,26 +13,27 @@ echo "GPIO number for IDHT22 temperature sensor is set to $TEMPSENSORGPIO"
 
 # CRON TAB #####################################################################
 # create cron tab entries for the LED stribe (note that the original file will be deleted!)
-CRON_TABLE="0  17    * * *       sudo ledremote KEY_POWERON && sudo ledremote KEY_GREEN
-0  20    * * *       sudo ledremote KEY_ORANGE
-0  21    * * *       sudo ledremote KEY_WHITE
-1  21    * * *       sudo ledremote KEY_BRIGHTNESSUP
+# note that ledremote and myrunscript must not start at the same time
+CRON_TABLE="1  17    * * *       sudo ledremote KEY_POWERON && sudo ledremote KEY_GREEN
+1  20    * * *       sudo ledremote KEY_ORANGE
+1  21    * * *       sudo ledremote KEY_WHITE
 2  21    * * *       sudo ledremote KEY_BRIGHTNESSUP
 3  21    * * *       sudo ledremote KEY_BRIGHTNESSUP
 4  21    * * *       sudo ledremote KEY_BRIGHTNESSUP
 5  21    * * *       sudo ledremote KEY_BRIGHTNESSUP
 6  21    * * *       sudo ledremote KEY_BRIGHTNESSUP
 7  21    * * *       sudo ledremote KEY_BRIGHTNESSUP
-0  22    * * *       sudo ledremote KEY_BRIGHTNESSDOWN
+8  21    * * *       sudo ledremote KEY_BRIGHTNESSUP
+1  22    * * *       sudo ledremote KEY_BRIGHTNESSDOWN
 9  22    * * *       sudo ledremote KEY_BRIGHTNESSDOWN
 20 22    * * *       sudo ledremote KEY_BRIGHTNESSDOWN
-0  23    * * *       sudo ledremote KEY_ORANGE
+1  23    * * *       sudo ledremote KEY_ORANGE
 10 23    * * *       sudo ledremote KEY_BRIGHTNESSDOWN
 30 23    * * *       sudo ledremote KEY_POWEROFF
-0  0     * * *       sudo ledremote KEY_POWEROFF
-0  1     * * *       sudo ledremote KEY_POWEROFF
-0  2     * * *       sudo ledremote KEY_POWEROFF
-0  3     * * *       sudo ledremote KEY_POWEROFF
+1  0     * * *       sudo ledremote KEY_POWEROFF
+1  1     * * *       sudo ledremote KEY_POWEROFF
+1  2     * * *       sudo ledremote KEY_POWEROFF
+1  3     * * *       sudo ledremote KEY_POWEROFF
 0   *    * * *       sudo myrunscript.py"
 
 read -p "Your current crontab will be overwritten. Are you sure? " -n 1 -r
@@ -61,7 +62,7 @@ apt-get autoclean -y
 # LED REMOTE ###################################################################
 # compile ledremote tool
 echo "compile ledremote"
-gcc ledremote.c -lm -lpigpiod_if2 -pthread -lrt -o ledremote -DIRGPIO=\"$SET_IRGPIO\"
+gcc ledremote.c -lm -lpigpio -pthread -lrt -o ledremote -DIRGPIO=\"$SET_IRGPIO\"
 
 # install ledremote tool in user bin directory
 sudo mv ledremote /usr/local/bin
@@ -70,15 +71,10 @@ sudo mv ledremote /usr/local/bin
 # TEMPERATURE READ TOOL ########################################################
 # compile temperature read tool
 echo "compile readtempsensor"
-gcc -Wall -pthread -o readtempsensor readtempsensor.c -lpigpiod_if2 -DIRGPIO=\"$TEMPSENSORGPIO\"
+gcc -Wall -pthread -o readtempsensor readtempsensor.c -lpigpio -DIRGPIO=\"$TEMPSENSORGPIO\"
 
 # install temperature read tool in user bin directory
 sudo mv readtempsensor /usr/local/bin
-
-
-# DEAMONS ######################################################################
-# run pgpiod at system startup
-systemctl enable pigpiod
 
 
 # AUDIO SETUP ##################################################################
