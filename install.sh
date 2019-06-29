@@ -38,7 +38,7 @@ if [[ $REPLY =~ ^[Yy]$ ]]
 then
 	echo "These cron tab entries are written:"
 	echo "$CRON_TABLE"
-	{ echo "$CRON_TABLE"; } | crontab -u $USER -
+	{ echo "$CRON_TABLE"; } | crontab -u pi -
 else
 	echo "Cancelled."
 fi
@@ -97,7 +97,7 @@ amixer set PCM 95%
 echo "create script data file in /var/log and make it writable by the current user $USER"
 sudo touch /var/log/myrunscriptdata.csv
 sudo chmod 664 /var/log/myrunscriptdata.csv
-sudo chown $USER:$USER /var/log/myrunscriptdata.csv
+sudo chown pi:pi /var/log/myrunscriptdata.csv
 
 # install run script in user bin directory
 sudo cp myrunscript.py /usr/local/bin
