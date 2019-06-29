@@ -20,14 +20,19 @@ loctemp        = float(loctemphumlist[0])
 lochum         = float(loctemphumlist[1])
 
 # get remote weather data
-url     = "https://api.openweathermap.org/data/2.5/weather?q={}&units=metric&appid={}".format(location, api_key)
-r       = requests.get(url)
-weather = r.json()
+try:
+  url     = "https://api.openweathermap.org/data/2.5/weather?q={}&units=metric&appid={}".format(location, api_key)
+  r       = requests.get(url)
+  weather = r.json()
+  temp    = weather["main"]["temp"]
+  hum     = weather["main"]["humidity"]
+  cloud   = weather["clouds"]["all"]
+except:
+  temp  = -1
+  hum   = -1
+  cloud = -1
 
 # process weather data
-temp       = weather["main"]["temp"]
-hum        = weather["main"]["humidity"]
-cloud      = weather["clouds"]["all"]
 curdate    = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 filestring = "{},{},{},{},{},{}\r\n".format(curdate, loctemp, lochum, temp, hum, cloud)
 
