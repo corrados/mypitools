@@ -33,7 +33,7 @@ CRON_TABLE="0  17    * * *       sudo ledremote KEY_POWERON && sudo ledremote KE
 0  1     * * *       sudo ledremote KEY_POWEROFF
 0  2     * * *       sudo ledremote KEY_POWEROFF
 0  3     * * *       sudo ledremote KEY_POWEROFF
-0   *    * * *       myrunscript.py"
+0   *    * * *       sudo myrunscript.py"
 
 read -p "Your current crontab will be overwritten. Are you sure? " -n 1 -r
 echo
