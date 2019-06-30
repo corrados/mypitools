@@ -7,7 +7,7 @@ set datafile sep ','
 set xlabel 'Date/Time'
 set ylabel 'Temperature/°C'
 set grid
-set style data linespoints
+set style data lines
 
 set output "myrunscript.png"
 set terminal png
