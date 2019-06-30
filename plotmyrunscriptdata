@@ -1,0 +1,22 @@
+#! /usr/bin/gnuplot
+
+set title 'In House Temperature'
+set timefmt '%Y-%m-%d %H:%M'
+set xdata time
+set datafile sep ','
+set xlabel 'Date/Time'
+set ylabel 'Temperature/°C'
+set grid
+set style data linespoints
+
+set output "myrunscript.png"
+set terminal png
+
+plot '/var/log/myrunscriptdata.csv' using 1:2
+
+#plot '/var/log/myrunscriptdata.csv' using 1:2,\
+#     '/var/log/myrunscriptdata.csv' using 1:3
+
+#replot
+#pause -1
+

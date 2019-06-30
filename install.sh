@@ -55,7 +55,7 @@ echo "first we update the system and install the required packages"
 apt-get update
 apt-get upgrade -y
 apt-get dist-upgrade -y
-apt-get install build-essential fail2ban git hdparm htop libjack-jackd2-dev net-tools nethogs pigpio qjackctl qt5-default unattended-upgrades python-configparser vim -y
+apt-get install gnuplot build-essential fail2ban git hdparm htop libjack-jackd2-dev net-tools nethogs pigpio qjackctl qt5-default unattended-upgrades python-configparser vim -y
 apt-get autoremove -y
 apt-get autoclean -y
 
