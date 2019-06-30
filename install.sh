@@ -14,7 +14,10 @@ echo "GPIO number for IDHT22 temperature sensor is set to $TEMPSENSORGPIO"
 # CRON TAB #####################################################################
 # create cron tab entries for the LED stribe (note that the original file will be deleted!)
 # note that ledremote and myrunscript must not start at the same time
+# note that we start/stop multiple times to make sure these commands are received even if some fail
 CRON_TABLE="1  17    * * *       sudo ledremote KEY_POWERON && sudo ledremote KEY_GREEN
+2  17    * * *       sudo ledremote KEY_POWERON && sudo ledremote KEY_GREEN
+3  17    * * *       sudo ledremote KEY_POWERON && sudo ledremote KEY_GREEN
 1  20    * * *       sudo ledremote KEY_ORANGE
 1  21    * * *       sudo ledremote KEY_WHITE
 2  21    * * *       sudo ledremote KEY_BRIGHTNESSUP
@@ -32,8 +35,6 @@ CRON_TABLE="1  17    * * *       sudo ledremote KEY_POWERON && sudo ledremote KE
 30 23    * * *       sudo ledremote KEY_POWEROFF
 1  0     * * *       sudo ledremote KEY_POWEROFF
 1  1     * * *       sudo ledremote KEY_POWEROFF
-1  2     * * *       sudo ledremote KEY_POWEROFF
-1  3     * * *       sudo ledremote KEY_POWEROFF
 0   *    * * *       sudo myrunscript.py"
 
 read -p "Your current crontab will be overwritten. Are you sure? " -n 1 -r
@@ -60,20 +61,16 @@ apt-get autoclean -y
 
 
 # LED REMOTE ###################################################################
-# compile ledremote tool
+# compile and install ledremote tool
 echo "compile ledremote"
 gcc ledremote.c -lm -lpigpio -pthread -lrt -o ledremote -DIRGPIO=\"$SET_IRGPIO\"
-
-# install ledremote tool in user bin directory
 sudo mv ledremote /usr/local/bin
 
 
 # TEMPERATURE READ TOOL ########################################################
-# compile temperature read tool
+# compile and install temperature read tool
 echo "compile readtempsensor"
 gcc -Wall -pthread -o readtempsensor readtempsensor.c -lpigpio -DIRGPIO=\"$TEMPSENSORGPIO\"
-
-# install temperature read tool in user bin directory
 sudo mv readtempsensor /usr/local/bin
 
 
@@ -100,3 +97,4 @@ sudo chown pi:pi /var/log/myrunscriptdata.csv
 
 # install run script in user bin directory
 sudo cp myrunscript.py /usr/local/bin
+
