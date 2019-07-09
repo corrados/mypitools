@@ -1,0 +1,22 @@
+#! /usr/bin/gnuplot
+
+set title 'Temperatures'
+set timefmt '%Y-%m-%d %H:%M'
+set xdata time
+set datafile sep ','
+set xlabel 'Date/Time'
+set ylabel 'Temperature/°C'
+set grid
+set style data lines
+
+set output "myrunscript.png"
+set terminal png
+
+#plot '/var/log/myrunscriptdata.csv' using 1:2
+
+plot '/var/log/myrunscriptdata.csv' using 1:2 title 'inhouse',\
+     '/var/log/myrunscriptdata.csv' using 1:4 title 'outside'
+
+#replot
+#pause -1
+
