@@ -173,10 +173,10 @@ int main(int argc, char *argv[])
     // parse single input parameter
     if ( argc == 2 )
     {
-        if ( strcmp ( argv[1], "KEY_BRIGHTNESSUP  " ) == 0 ) curkey  = "00000000111101110000000011111111"; // 0x00FF
+        if ( strcmp ( argv[1], "KEY_BRIGHTNESSUP" ) == 0 ) curkey  = "00000000111101110000000011111111"; // 0x00FF
         if ( strcmp ( argv[1], "KEY_BRIGHTNESSDOWN" ) == 0 ) curkey  = "00000000111101111000000001111111"; // 0x807F
         if ( strcmp ( argv[1], "KEY_POWEROFF" ) == 0 )       curkey  = "00000000111101110100000010111111"; // 0x40BF
-        if ( strcmp ( argv[1], "KEY_POWERON " ) == 0 )       curkey  = "00000000111101111100000000111111"; // 0xC03F
+        if ( strcmp ( argv[1], "KEY_POWERON" ) == 0 )       curkey  = "00000000111101111100000000111111"; // 0xC03F
         if ( strcmp ( argv[1], "KEY_RED" ) == 0 )            curkey  = "00000000111101110010000011011111"; // 0x20DF
         if ( strcmp ( argv[1], "KEY_GREEN" ) == 0 )          curkey  = "00000000111101111010000001011111"; // 0xA05F
         if ( strcmp ( argv[1], "KEY_BLUE" ) == 0 )           curkey  = "00000000111101110110000010011111"; // 0x609F
