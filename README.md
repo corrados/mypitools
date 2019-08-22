@@ -32,4 +32,4 @@ TODO
 
 The following tasks have to be done to setup my Pi which is not yet supported in the install script:
 - in /etc/dhcpcd.conf change **slaac hwaddr**
-- to support the native resolution of a 4:3 format projector, in Pi-configuration change "Überabtastung" to "Deaktiviert"
+- to support the native resolution of a 4:3 format projector, in Pi-configuration change **Underscan** to **Disabled**
