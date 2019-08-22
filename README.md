@@ -25,3 +25,11 @@ Installation
 
 To install the tools in the Raspberry Pi system, simply call `sudo ./install.sh`. Please be
 aware that this script overwrites any existing cron tab entries!
+
+
+TODO
+----
+
+The following tasks have to be done to setup my Pi which is not yet supported in the install script:
+- in /etc/dhcpcd.conf change **slaac hwaddr**
+- to support the native resolution of a 4:3 format projector, in Pi-configuration change "Überabtastung" to "Deaktiviert"
