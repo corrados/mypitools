@@ -33,3 +33,12 @@ TODO
 The following tasks have to be done to setup my Pi which is not yet supported in the install script:
 - in /etc/dhcpcd.conf change **slaac hwaddr**
 - to support the native resolution of a 4:3 format projector, in Pi-configuration change **Underscan** to **Disabled**
+
+- support wireless socket, codes received by sniffer (git clone --recursive https://github.com/ninjablocks/433Utils.git):
+  - OFF1: 7721987
+  - ON1:  7721996
+  - OFF2: 7697411
+  - ON2:  7697420
+  - OFF3: 7691267
+  - ON3:  7691276
+
