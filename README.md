@@ -34,6 +34,8 @@ The following tasks have to be done to setup my Pi which is not yet supported in
 - in /etc/dhcpcd.conf change **slaac hwaddr**
 - to support the native resolution of a 4:3 format projector, in Pi-configuration change **Underscan** to **Disabled**
 - support TvHeadend installation and configuration
+- do not use user pi but create a different one (note that 'pi' is hard coded below!)
+- check if config.ini is present in the pi home directory
 
 - support wireless socket, codes received by sniffer (git clone --recursive https://github.com/ninjablocks/433Utils.git):
   - OFF1: 7721987
