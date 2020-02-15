@@ -168,7 +168,9 @@ int main(int argc, char *argv[])
     outPin = atoi ( IRGPIO ); // if GPIO pin was given by preprocessor use that one
 #endif
 
-    char* curkey = "0000010010000011"; // default behavior
+    char* curkey   = "0000010010000011"; // default behavior
+    char* curkey2  = "0000010000001011"; // default behavoir
+    int   bUseKey2 = 0;
 
     // parse single input parameter
     if ( argc == 2 )
@@ -205,6 +207,20 @@ int main(int argc, char *argv[])
         if ( strcmp ( argv[1], "1B_M3" ) == 0 )    curkey = "0000010111010111"; // 0x05D7
         if ( strcmp ( argv[1], "1B_M2" ) == 0 )    curkey = "0000010111100100"; // 0x05E4
         if ( strcmp ( argv[1], "1B_M1" ) == 0 )    curkey = "0000010111110101"; // 0x05F5
+
+        if ( strcmp ( argv[1], "1R_3_1B_3" ) == 0 )
+	{
+            curkey   = "0000010000111000"; // 0x0438
+            curkey2  = "0000010100111001"; // 0x0539
+	    bUseKey2 = 1;
+	}
+
+        if ( strcmp ( argv[1], "1R_BRAKE_1B_BRAKE" ) == 0 )
+	{
+            curkey   = "0000010010000011"; // 0x0483
+            curkey2  = "0000010110000010"; // 0x0582
+	    bUseKey2 = 1;
+	}
     }
 
     int result = irSling(outPin,
@@ -218,6 +234,21 @@ int main(int argc, char *argv[])
                          zeroGap,
                          sendTrailingPulse,
                          curkey);
+
+    if ( bUseKey2 )
+    {
+        int result = irSling(outPin,
+                             frequency,
+                             dutyCycle,
+                             leadingPulseDuration,
+                             leadingGapDuration,
+                             onePulse,
+                             zeroPulse,
+                             oneGap,
+                             zeroGap,
+                             sendTrailingPulse,
+                             curkey2);
+    }
 
     return result;
 }
