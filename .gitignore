@@ -4,3 +4,4 @@ config.ini
 myrunscript.png
 projects/legoremote
 projects/sensors.pyc
+projects/__pycache__/

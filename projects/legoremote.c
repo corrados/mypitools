@@ -208,10 +208,17 @@ int main(int argc, char *argv[])
         if ( strcmp ( argv[1], "1B_M2" ) == 0 )    curkey = "0000010111100100"; // 0x05E4
         if ( strcmp ( argv[1], "1B_M1" ) == 0 )    curkey = "0000010111110101"; // 0x05F5
 
-        if ( strcmp ( argv[1], "1R_3_1B_3" ) == 0 )
+        if ( strcmp ( argv[1], "1R_3_1B_M3" ) == 0 )
 	{
             curkey   = "0000010000111000"; // 0x0438
-            curkey2  = "0000010100111001"; // 0x0539
+            curkey2  = "0000010111010111"; // 0x05D7
+	    bUseKey2 = 1;
+	}
+
+        if ( strcmp ( argv[1], "1R_4_1B_M4" ) == 0 )
+	{
+            curkey   = "0000010001001111"; // 0x044F
+            curkey2  = "0000010111000110"; // 0x05C6
 	    bUseKey2 = 1;
 	}
 
@@ -219,6 +226,20 @@ int main(int argc, char *argv[])
 	{
             curkey   = "0000010010000011"; // 0x0483
             curkey2  = "0000010110000010"; // 0x0582
+	    bUseKey2 = 1;
+	}
+
+        if ( strcmp ( argv[1], "1R_M3_1B_3" ) == 0 )
+	{
+            curkey   = "0000010011010110"; // 0x04D6
+            curkey2  = "0000010100111001"; // 0x0539
+	    bUseKey2 = 1;
+	}
+
+        if ( strcmp ( argv[1], "1R_M4_1B_4" ) == 0 )
+	{
+            curkey   = "0000010011000111"; // 0x04C7
+            curkey2  = "0000010101001110"; // 0x054E
 	    bUseKey2 = 1;
 	}
     }
