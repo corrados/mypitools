@@ -13,25 +13,26 @@ if __name__ == '__main__':
                 subprocess.Popen.wait(p)
 
                 # backup a bit
-                p = subprocess.Popen(["./legoremote", "1B_3"])
-                subprocess.Popen.wait(p)
-                p = subprocess.Popen(["./legoremote", "1R_M3"])
-                subprocess.Popen.wait(p)
-                time.sleep(1)
-
-                # turn a bit
-                p = subprocess.Popen(["./legoremote", "1R_4"])
-                subprocess.Popen.wait(p)
-                p = subprocess.Popen(["./legoremote", "1R_BRAKE"])
-                subprocess.Popen.wait(p)
-            else:
                 p = subprocess.Popen(["./legoremote", "1B_M3"])
                 subprocess.Popen.wait(p)
                 p = subprocess.Popen(["./legoremote", "1R_3"])
                 subprocess.Popen.wait(p)
+                time.sleep(1)
+
+                # turn a bit
+                p = subprocess.Popen(["./legoremote", "1R_M4"])
+                subprocess.Popen.wait(p)
+                time.sleep(0.5)
+                p = subprocess.Popen(["./legoremote", "1R_BRAKE"])
+                subprocess.Popen.wait(p)
+            else:
+                p = subprocess.Popen(["./legoremote", "1B_3"])
+                subprocess.Popen.wait(p)
+                p = subprocess.Popen(["./legoremote", "1R_M3"])
+                subprocess.Popen.wait(p)
 
             print ("Measured Distance %.1f cm" % meashdist)
-            time.sleep(1)
+            #time.sleep(1)
  
     except KeyboardInterrupt:
         print("Abort")
