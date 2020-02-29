@@ -11,7 +11,7 @@ def measdist_stat(): # collect multiple measurements and calculate statistics
 
 def simple_lego_car_control():
     meashdist, dummy = measdist_stat(); print ("Measured Distance %.1f cm" % meashdist)
-    if meashdist < 20:
+    if meashdist < 20: # 20 cm is the limit to the obstacle (we need some time to react)
         # stop both motors
         p = subprocess.Popen(["./legoremote", "1R_BRAKE_1B_BRAKE"]); subprocess.Popen.wait(p)
         # backup a bit
