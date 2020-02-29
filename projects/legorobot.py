@@ -5,12 +5,12 @@ from sensors import measdist
 from sensors import sensorscleanup
 
 def measdist_stat(): # collect multiple measurements and calculate statistics
-    x = [0] * 30
+    x = [0] * 20 # specify the statistics length here
     for i in range(0, len(x)): x[i] = measdist()
     return (statistics.mean(x), statistics.stdev(x))
 
 def simple_lego_car_control():
-    meashdist, dummy = measdist_stat(); print ("Measured Distance %.1f cm" % meashdist)
+    meashdist, meashstdev = measdist_stat(); print ("Distance %.1f cm, stdev %.1f cm" % (meashdist, meashstdev))
     if meashdist < 20: # 20 cm is the limit to the obstacle (we need some time to react)
         # stop both motors
         p = subprocess.Popen(["./legoremote", "1R_BRAKE_1B_BRAKE"]); subprocess.Popen.wait(p)
@@ -30,8 +30,6 @@ if __name__ == '__main__':
     try:
         while True:
             simple_lego_car_control()
-            #x_mean, x_stdev = measdist_stat()
-            #print("Mean %.1f cm, stdev %.1f cm" % (x_mean, x_stdev))
  
     except KeyboardInterrupt:
         print("Abort")
