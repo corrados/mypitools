@@ -1,5 +1,6 @@
 import time
 import subprocess
+import statistics
 from sensors import measdist
 from sensors import sensorscleanup
 
@@ -32,9 +33,12 @@ def simple_lego_car_control():
     print ("Measured Distance %.1f cm" % meashdist)
 
 def meas_dist_testing():
-    meashdist = measdist()
-    print("Measured Distance %.1f cm" % meashdist)
-    #time.sleep(0.2)
+    x = [0] * 30
+    for i in range(0, len(x)):
+        x[i] = measdist()
+
+    print("Mean %.1f cm, stdev %.1f cm" % (statistics.mean(x), statistics.stdev(x)))
+
 
 if __name__ == '__main__':
     try:
