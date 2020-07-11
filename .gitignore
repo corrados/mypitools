@@ -3,5 +3,6 @@ readtempsensor
 config.ini
 myrunscript.png
 projects/legoremote
+projects/deebotremote
 projects/sensors.pyc
 projects/__pycache__/

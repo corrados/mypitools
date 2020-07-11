@@ -168,16 +168,16 @@ int main(int argc, char *argv[])
     outPin = atoi ( IRGPIO ); // if GPIO pin was given by preprocessor use that one
 #endif
 
-    char* curkey = "0000010010000011"; // default behavior
+    char* curkey = "111111111101000000101111"; // default behavior
 
     if ( argc == 2 )
     {
-        if ( strcmp ( argv[1], "KEY_HOME" ) == 0 )      curkey = "0000010000001011"; // 0x040B
-        if ( strcmp ( argv[1], "KEY_PLAYPAUSE" ) == 0 ) curkey = "0000010000011010"; // 0x041A
-        if ( strcmp ( argv[1], "KEY_RIGHT" ) == 0 )     curkey = "0000010000101001"; // 0x0429
-        if ( strcmp ( argv[1], "KEY_LEFT" ) == 0 )      curkey = "0000010000111000"; // 0x0438
-        if ( strcmp ( argv[1], "KEY_UP" ) == 0 )        curkey = "0000010001001111"; // 0x044F
-        if ( strcmp ( argv[1], "KEY_DOWN" ) == 0 )      curkey = "0000010001001111"; // 0x044F
+        if ( strcmp ( argv[1], "KEY_HOME" ) == 0 )      curkey = "0111000010001111"; // 0x708F
+        if ( strcmp ( argv[1], "KEY_PLAYPAUSE" ) == 0 ) curkey = "1101000000101111"; // 0xD02F
+        if ( strcmp ( argv[1], "KEY_RIGHT" ) == 0 )     curkey = "1111000000001111"; // 0xF00F
+        if ( strcmp ( argv[1], "KEY_LEFT" ) == 0 )      curkey = "1110000000011111"; // 0xE01F
+        if ( strcmp ( argv[1], "KEY_UP" ) == 0 )        curkey = "1100100000110111"; // 0xC837
+        if ( strcmp ( argv[1], "KEY_DOWN" ) == 0 )      curkey = "1100000000111111"; // 0xC03F
     }
 
     int result = irSling(outPin,
