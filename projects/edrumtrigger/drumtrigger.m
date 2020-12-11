@@ -2,16 +2,15 @@ function drumtrigger
 
 % Drum trigger tests
 
-% using a recording of a Roland snare mesh pad
-
-
-% TEST for continuous audio data capturing and processing
-% ContinuousRecording(0.5, 4000, @(x) Callback(x));
-
-
 close all;
 pkg load signal
 
+
+% TEST for continuous audio data capturing and processing
+% continuous_recording(1, 8000, @(x) processing(x));
+
+
+% using a recording of a Roland snare mesh pad
 org = audioread("snare.wav");
 org = org(:, 1); % just the left channel contains all the data
 
@@ -22,18 +21,7 @@ x_pos_sense = resample(org(730000:980000), 1, 6);
 x_roll      = resample(org(395000:510000), 1, 6);
 % x_roll      = resample(org(395000:410000), 1, 6);
 
-
-x                     = resample(org, 1, 6);
-[all_peaks, hil_filt] = calc_peak_detection(x);
-pos_sense_metric      = calc_pos_sense_metric(x, all_peaks);
-
-figure;
-plot(20 * log10(abs(x))); grid on; hold on;
-plot(all_peaks, 20 * log10(hil_filt(all_peaks)), 'k*');
-plot(all_peaks, pos_sense_metric - 40, 'r*');
-title('black marker: level, red marker: position');
-xlabel('samples'); ylabel('dB');
-ylim([-100, 0]);
+processing(resample(org, 1, 6))
 
 end
 
@@ -72,11 +60,18 @@ while ~no_more_peak
   end
 
   % climb to the maximum of the current peak
-  peak_idx      = peak_start(1);
-  max_idx       = find(hil_filt(1 + peak_idx:end) - hil_filt(peak_idx:end - 1) < 0);
+  peak_idx = peak_start(1);
+  max_idx  = find(hil_filt(1 + peak_idx:end) - hil_filt(peak_idx:end - 1) < 0);
+
+  % second exit condition
+  if isempty(max_idx)
+    no_more_peak = true;
+    continue;
+  end
+
   peak_idx      = peak_idx + max_idx(1) - 1;
   all_peaks     = [all_peaks; peak_idx];
-  last_peak_idx = peak_idx + mask_time;
+  last_peak_idx = min(peak_idx + mask_time, length(hil_filt));
 
   % exponential decay assumption
   decay           = hil_filt(peak_idx) * 10 ^ (-decay_att_db / 20) * 10 .^ (-(0:decay_len - 1) / 20 * decay_grad);
@@ -125,6 +120,7 @@ peak_energy_low = [];
 for i = 1:length(all_peaks)
 
   win_idx            = (all_peaks(i):all_peaks(i) + energy_window_len - 1) - energy_window_len;
+  win_idx            = win_idx((win_idx <= length(hil_low)) && (win_idx > 0));
   peak_energy(i)     = sum(abs(hil(win_idx)) .^ 2);
   peak_energy_low(i) = sum(abs(hil_low(win_idx)) .^ 2);
 
@@ -137,15 +133,26 @@ pos_sense_metric = 10 * log10(peak_energy) - 10 * log10(peak_energy_low);
 end
 
 
-function Callback(x)
+function processing(x)
 
-  plot(x);
-  drawnow;
+% calculate peak detection and positional sensing
+[all_peaks, hil_filt] = calc_peak_detection(x);
+pos_sense_metric      = calc_pos_sense_metric(x, all_peaks);
+
+% plot results
+cla
+plot(20 * log10(abs(x))); grid on; hold on;
+plot(all_peaks, 20 * log10(hil_filt(all_peaks)), 'k*');
+plot(all_peaks, pos_sense_metric - 40, 'r*');
+title('black marker: level, red marker: position');
+xlabel('samples'); ylabel('dB');
+ylim([-100, 0]);
+drawnow;
 
 end
 
 
-function ContinuousRecording(blocklen, Fs, callbackfkt)
+function continuous_recording(blocklen, Fs, callbackfkt)
 
 % continuous recording of audio data and processing in a callback function
 recorder   = audiorecorder(Fs, 16, 1);
