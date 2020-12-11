@@ -132,10 +132,15 @@ hil_low = hilbert(xlow);
 peak_energy     = [];
 peak_energy_low = [];
 
+% figure; plot(20 * log10(abs(hil))); hold on;
+
 for i = 1:length(all_peaks)
 
-  peak_energy(i)     = sum(abs(hil(all_peaks(i):all_peaks(i) + energy_window_len - 1)) .^ 2);
-  peak_energy_low(i) = sum(abs(hil_low(all_peaks(i):all_peaks(i) + energy_window_len - 1)) .^ 2);
+  win_idx            = (all_peaks(i):all_peaks(i) + energy_window_len - 1) - energy_window_len;
+  peak_energy(i)     = sum(abs(hil(win_idx)) .^ 2);
+  peak_energy_low(i) = sum(abs(hil_low(win_idx)) .^ 2);
+
+  % plot(win_idx, 20 * log10(abs(hil(win_idx))), 'k');
 
 end
 
