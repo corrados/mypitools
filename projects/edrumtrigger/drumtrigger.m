@@ -4,6 +4,11 @@ function drumtrigger
 
 % using a recording of a Roland snare mesh pad
 
+
+% TEST for continuous audio data capturing and processing
+% ContinuousRecording(0.5, 4000, @(x) Callback(x));
+
+
 close all;
 pkg load signal
 
@@ -118,6 +123,43 @@ figure;
 subplot(3, 1, 1); plot(20 * log10(abs([hil, hil_iir, above_thresh]))); grid on; title("Hilbert");
 subplot(3, 1, 2); plot(20 * log10(abs(hil_low))); grid on; title("Hilbert with low-pass filter"); ax = axis;
 subplot(3, 1, 3); plot(peak_start_with_mask, pos_sense_metric, 'r*'); grid on; title("Positional sensing metric"); axis([ax(1), ax(2)]);
+
+end
+
+
+function Callback(x)
+
+  plot(x);
+  drawnow;
+
+end
+
+
+function ContinuousRecording(blocklen, Fs, callbackfkt)
+
+% continuous recording of audio data and processing in a callback function
+recorder   = audiorecorder(Fs, 16, 1);
+bDataReady = false;
+
+while true
+
+  while isrecording(recorder)
+    pause(blocklen / 10);
+  end
+
+  if bDataReady
+    x = getaudiodata(recorder);
+  end
+
+  record(recorder, blocklen);
+
+  if bDataReady
+    callbackfkt(x);
+  end
+
+  bDataReady = true;
+
+end
 
 end
 
