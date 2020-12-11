@@ -70,15 +70,20 @@ alpha   = 0.1;
 hil_iir = filter(alpha, [1, alpha - 1], hil);
 
 % simple threshold
-above_thresh = hil_iir > 10 ^ (threshold_db / 20);
-peak_start   = find(diff(above_thresh) > 0);
+above_thresh         = hil_iir > 10 ^ (threshold_db / 20);
+peak_start           = find(diff(above_thresh) > 0);
+peak_start_with_mask = [];
 
-peak_start_with_mask = peak_start(1);
-for i = 2:length(peak_start)
+if ~isempty(peak_start)
 
-  if peak_start(i) > peak_start_with_mask(end) + mask_time_samples
+  peak_start_with_mask = peak_start(1);
+  for i = 2:length(peak_start)
 
-    peak_start_with_mask(length(peak_start_with_mask) + 1) = peak_start(i);
+    if peak_start(i) > peak_start_with_mask(end) + mask_time_samples
+
+      peak_start_with_mask(length(peak_start_with_mask) + 1) = peak_start(i);
+
+    end
 
   end
 
@@ -96,6 +101,8 @@ hil_low = hilbert(xlow);
 % subplot(2, 1, 2); plot(20 * log10(abs(hil_low))); grid on; title("Hilbert with low-pass filter");
 
 peak_start_with_mask = peak_start_with_mask(peak_start_with_mask + energy_window_len - 1 <= length(hil));
+peak_energy          = [];
+peak_energy_low      = [];
 
 for i = 1:length(peak_start_with_mask)
 
@@ -107,10 +114,10 @@ end
 % 10 * log10(peak_energy_low)
 pos_sense_metric = 10 * log10(peak_energy) - 10 * log10(peak_energy_low);
 
-% figure;
-% subplot(3, 1, 1); plot(20 * log10(abs([hil, hil_iir, above_thresh]))); grid on; title("Hilbert");
-% subplot(3, 1, 2); plot(20 * log10(abs(hil_low))); grid on; title("Hilbert with low-pass filter"); ax = axis;
-% subplot(3, 1, 3); plot(peak_start_with_mask, pos_sense_metric, 'r*'); grid on; title("Positional sensing metric"); axis([ax(1), ax(2)]);
+figure;
+subplot(3, 1, 1); plot(20 * log10(abs([hil, hil_iir, above_thresh]))); grid on; title("Hilbert");
+subplot(3, 1, 2); plot(20 * log10(abs(hil_low))); grid on; title("Hilbert with low-pass filter"); ax = axis;
+subplot(3, 1, 3); plot(peak_start_with_mask, pos_sense_metric, 'r*'); grid on; title("Positional sensing metric"); axis([ax(1), ax(2)]);
 
 end
 
