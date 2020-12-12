@@ -71,7 +71,7 @@ energy_window_len = 16; % 2 ms scan time at fs = 8 kHz
 mask_time         = 65; % samples
 
 % the following settings are trigger pad-specific (here, a PD-120 is used)
-decay_len         = 1500; % samples
+decay_len         = 1200;%1500; % samples
 decay_att_db      = 1;%4;%7; % decay attenuation in dB
 decay_grad        = 0.025;%0.05; % decay gradient factor
 
@@ -196,7 +196,7 @@ figure
 % plot results
 cla
 plot(20 * log10(abs([x, hil_filt]))); grid on; hold on;
-plot(all_peaks, 20 * log10(hil_filt(all_peaks)), 'r*');
+plot(all_peaks, 20 * log10(hil_filt(all_peaks)), 'g*');
 plot(all_peaks, pos_sense_metric - 40, 'k*');
 title('red marker: level, black marker: position');
 xlabel('samples'); ylabel('dB');
