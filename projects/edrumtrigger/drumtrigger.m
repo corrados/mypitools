@@ -21,13 +21,19 @@ pkg load signal
 % % x_roll      = resample(org(395000:410000), 1, 6); % snare.wav
 
 
-x = audioread("pd120_pos_sense.wav");
-% x = audioread("pd120_pos_sense2.wav");
+% x = audioread("pd120_pos_sense.wav");
+x = audioread("pd120_pos_sense2.wav");
 % x = audioread("pd120_single_hits.wav");
 % x = audioread("pd120_roll.wav");
 % x = audioread("pd120_middle_velocity.wav");
 % x = audioread("pd120_hot_spot.wav");
 % x = audioread("pd6.wav");
+
+%x_edge   = x(26200:28000);
+%x_middle = x(3000:4200);
+%figure; subplot(2, 1, 1), pwelch(x_middle,[],[],[],[],'twosided','db'); title('middle');
+%subplot(2, 1, 2), pwelch(x_edge,[],[],[],[],'twosided','db'); title('edge');
+%figure; freqz(fir1(80, 0.02));
 
 
 % hil = myhilbert(x);
@@ -60,12 +66,12 @@ function [all_peaks, hil_filt_org] = calc_peak_detection(x)
 
 hil = myhilbert(x);
 
-threshold_db      = -45;
+threshold_db      = -60;%-45;
 energy_window_len = 16; % 2 ms scan time at fs = 8 kHz
 decay_len         = 1500; % samples
-mask_time         = 40; % samples
-decay_att_db      = 10; % decay attenuation in dB
-decay_grad        = 0.05; % decay gradient factor
+mask_time         = 65; % samples
+decay_att_db      = 4;%7; % decay attenuation in dB
+decay_grad        = 0.03;%0.05; % decay gradient factor
 
 % alpha   = 0.1;
 % hil_filt = filter(alpha, [1, alpha - 1], hil);
@@ -122,10 +128,10 @@ while ~no_more_peak
 
 end
 
-% figure; plot(20 * log10([hil_filt_org, hil_filt])); hold on;
-% plot(all_peaks, 20 * log10(hil_filt(all_peaks)), 'k*');
-% plot(decay_x, 20 * log10(decay), 'k');
-% plot(decay_x, 20 * log10(hil_filt_new))
+figure; plot(20 * log10([hil_filt_org, hil_filt])); hold on;
+plot(all_peaks, 20 * log10(hil_filt(all_peaks)), 'k*');
+plot(decay_x, 20 * log10(decay), 'k');
+plot(decay_x, 20 * log10(hil_filt_new))
 
 end
 
@@ -142,7 +148,14 @@ hil = myhilbert(x);
 a       = fir1(lp_ir_len, lp_cutoff);
 xlow    = filter(a, 1, x);
 xlow    = xlow(lp_ir_len / 2:end);
+
+% % TEST
+% alpha = 0.01;
+% xlow  = filter(alpha, [1, alpha - 1], x);
+
 hil_low = myhilbert(xlow);
+
+% figure; plot(20 * log10(abs([hil(1:length(hil_low)), hil_low]))); hold on;
 
 peak_energy     = [];
 peak_energy_low = [];
@@ -170,6 +183,9 @@ function processing(x)
 % calculate peak detection and positional sensing
 [all_peaks, hil_filt] = calc_peak_detection(x);
 pos_sense_metric      = calc_pos_sense_metric(x, all_peaks);
+
+% TEST open figure to keep previous plots
+figure
 
 % plot results
 cla
