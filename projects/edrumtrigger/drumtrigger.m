@@ -57,7 +57,7 @@ hil = filter(a, 1, x);
 % subplot(2, 1, 2), pwelch(hil,[],[],[],[],'twosided','db');
 
 % TEST use normal hilbert for now
-hil = hilbert(x);
+% hil = hilbert(x);
 
 end
 
@@ -68,10 +68,12 @@ hil = myhilbert(x);
 
 threshold_db      = -60;%-45;
 energy_window_len = 16; % 2 ms scan time at fs = 8 kHz
-decay_len         = 1500; % samples
 mask_time         = 65; % samples
-decay_att_db      = 4;%7; % decay attenuation in dB
-decay_grad        = 0.03;%0.05; % decay gradient factor
+
+% the following settings are trigger pad-specific (here, a PD-120 is used)
+decay_len         = 1500; % samples
+decay_att_db      = 1;%4;%7; % decay attenuation in dB
+decay_grad        = 0.025;%0.05; % decay gradient factor
 
 % alpha   = 0.1;
 % hil_filt = filter(alpha, [1, alpha - 1], hil);
@@ -84,6 +86,8 @@ last_peak_idx = 0;
 all_peaks     = [];
 i             = 1;
 no_more_peak  = false;
+
+% figure; plot(20 * log10([abs(x), hil_filt_org])); hold on;
 
 while ~no_more_peak
 
@@ -126,12 +130,14 @@ while ~no_more_peak
   hil_filt(decay_x) = hil_filt_new;
   i                 = i + 1;
 
+  % plot(decay_x, 20 * log10(decay), 'k');
+
 end
 
-figure; plot(20 * log10([hil_filt_org, hil_filt])); hold on;
-plot(all_peaks, 20 * log10(hil_filt(all_peaks)), 'k*');
-plot(decay_x, 20 * log10(decay), 'k');
-plot(decay_x, 20 * log10(hil_filt_new))
+% figure; plot(20 * log10([abs(x), hil_filt_org, hil_filt])); hold on;
+% plot(all_peaks, 20 * log10(hil_filt(all_peaks)), 'k*');
+% plot(decay_x, 20 * log10(decay), 'k');
+% plot(decay_x, 20 * log10(hil_filt_new))
 
 end
 
@@ -164,7 +170,7 @@ peak_energy_low = [];
 
 for i = 1:length(all_peaks)
 
-  win_idx            = (all_peaks(i):all_peaks(i) + energy_window_len - 1) - energy_window_len;
+  win_idx            = (all_peaks(i):all_peaks(i) + energy_window_len - 1) - energy_window_len / 2;
   win_idx            = win_idx((win_idx <= length(hil_low)) & (win_idx > 0));
   peak_energy(i)     = sum(abs(hil(win_idx)) .^ 2);
   peak_energy_low(i) = sum(abs(hil_low(win_idx)) .^ 2);
