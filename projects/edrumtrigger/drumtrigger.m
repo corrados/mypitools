@@ -16,18 +16,41 @@ org = org(:, 1); % just the left channel contains all the data
 
 % figure; plot(20 * log10(abs(org)));
 
+x           = resample(org, 1, 6);
 x_sgl_hits  = resample(org(40000:100000), 1, 6);
 x_pos_sense = resample(org(730000:980000), 1, 6);
 x_roll      = resample(org(395000:510000), 1, 6);
 % x_roll      = resample(org(395000:410000), 1, 6);
 
-processing(resample(org, 1, 6))
+% hil = myhilbert(x);
+% figure; plot(20 * log10(abs([x, hilbert(x)])));
+% figure; plot(20 * log10(abs([x, myhilbert(x)]))); title('myhilbert');
+
+processing(x)
 
 end
 
+
+function hil = myhilbert(x)
+
+a   = fir1(6, 0.4);
+a   = a .* exp(1j * 2 * pi * (0:length(a) - 1) * 0.3) * length(a);
+hil = filter(a, 1, x);
+
+% figure; freqz(a);
+% figure;
+% subplot(2, 1, 1), pwelch(x,[],[],[],[],'twosided','db');
+% subplot(2, 1, 2), pwelch(hil,[],[],[],[],'twosided','db');
+
+% TEST use normal hilbert for now
+hil = hilbert(x);
+
+end
+
+
 function [all_peaks, hil_filt_org] = calc_peak_detection(x)
 
-hil = hilbert(x);
+hil = myhilbert(x);
 
 energy_window_len = 16; % 2 ms scan time at fs = 8 kHz
 decay_len         = 1500; % samples
@@ -104,13 +127,13 @@ energy_window_len = 16; % 2 ms scan time at fs = 8 kHz
 lp_ir_len         = 80; % low-pass filter length
 lp_cutoff         = 0.02; % normalized cut-off of low-pass filter
 
-hil = hilbert(x);
+hil = myhilbert(x);
 
 % low pass filter of the Hilbert signal
 a       = fir1(lp_ir_len, lp_cutoff);
 xlow    = filter(a, 1, x);
 xlow    = xlow(lp_ir_len / 2:end);
-hil_low = hilbert(xlow);
+hil_low = myhilbert(xlow);
 
 peak_energy     = [];
 peak_energy_low = [];
@@ -141,10 +164,10 @@ pos_sense_metric      = calc_pos_sense_metric(x, all_peaks);
 
 % plot results
 cla
-plot(20 * log10(abs(x))); grid on; hold on;
-plot(all_peaks, 20 * log10(hil_filt(all_peaks)), 'k*');
-plot(all_peaks, pos_sense_metric - 40, 'r*');
-title('black marker: level, red marker: position');
+plot(20 * log10(abs([x, hil_filt]))); grid on; hold on;
+plot(all_peaks, 20 * log10(hil_filt(all_peaks)), 'r*');
+plot(all_peaks, pos_sense_metric - 40, 'k*');
+title('red marker: level, black marker: position');
 xlabel('samples'); ylabel('dB');
 ylim([-100, 0]);
 drawnow;
