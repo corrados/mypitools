@@ -23,10 +23,11 @@ Project specifications
 - Research is done using a regular audio card, capture the drum pad output signal and develop
   the algorithms in Octave.
 
-- One goal would be to use a Raspberry Pi Zero as a trigger module. So, it get's a sampled
+- One goal would be to use a Raspberry Pi Zero as a trigger module. So, it gets a sampled
   audio signal from the GIOP (some external hardware needed) and processes it using a C++
   software. It outputs a MIDI signal. Since the Raspberry Pi Zero has only a slow processor,
   it will not be possible to include the complete drum module.
+  As an alternative an Arduino could be used, similar to the [open e-drums](https://open-e-drums.com) project.
 
 - Positional sensing shall be supported.
 
