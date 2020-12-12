@@ -57,3 +57,12 @@ Brainstorming:
     and sounds more crisp. So, the idea is to low-pass filter the signal and at the detection peak we
 	calculate the power ratio of the low-pass filtered signal with the unfiltered signal. This is actual
 	possible metric for the positional sensing.
+
+- First results
+
+  - The following plot shows how the current status of the algorithms perform. At the beginning there are
+    some single hits. Then there comes a region with a snare drum roll. After that, there are single hits
+    which start from the middle, move to the edge and go back to the middle of the pad where the hits are
+    equal strong. As shown by the black markers, the positional sensing seems to work pretty good. Also,
+    the peak detection and velocity estimation seems to be pretty good as well.
+    ![First results plot](first_results.jpg)
