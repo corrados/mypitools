@@ -10,17 +10,25 @@ pkg load signal
 % continuous_recording(1, 8000, @(x) processing(x));
 
 
-% using a recording of a Roland snare mesh pad
-org = audioread("snare.wav");
-org = org(:, 1); % just the left channel contains all the data
+% % using a recording of a Roland snare mesh pad
+% org = audioread("snare.wav");
+% org = org(:, 1); % just the left channel contains all the data
+% % figure; plot(20 * log10(abs(org)));
+% x = resample(org, 1, 6); % snare.wav
+% % x_sgl_hits  = resample(org(40000:100000), 1, 6); % snare.wav
+% % x_pos_sense = resample(org(730000:980000), 1, 6); % snare.wav
+% % x_roll      = resample(org(395000:510000), 1, 6); % snare.wav
+% % x_roll      = resample(org(395000:410000), 1, 6); % snare.wav
 
-% figure; plot(20 * log10(abs(org)));
 
-x           = resample(org, 1, 6);
-x_sgl_hits  = resample(org(40000:100000), 1, 6);
-x_pos_sense = resample(org(730000:980000), 1, 6);
-x_roll      = resample(org(395000:510000), 1, 6);
-% x_roll      = resample(org(395000:410000), 1, 6);
+x = audioread("pd120_pos_sense.wav");
+% x = audioread("pd120_pos_sense2.wav");
+% x = audioread("pd120_single_hits.wav");
+% x = audioread("pd120_roll.wav");
+% x = audioread("pd120_middle_velocity.wav");
+% x = audioread("pd120_hot_spot.wav");
+% x = audioread("pd6.wav");
+
 
 % hil = myhilbert(x);
 % figure; plot(20 * log10(abs([x, hilbert(x)])));
@@ -52,6 +60,7 @@ function [all_peaks, hil_filt_org] = calc_peak_detection(x)
 
 hil = myhilbert(x);
 
+threshold_db      = -45;
 energy_window_len = 16; % 2 ms scan time at fs = 8 kHz
 decay_len         = 1500; % samples
 mask_time         = 40; % samples
@@ -73,7 +82,7 @@ no_more_peak  = false;
 while ~no_more_peak
 
   % find values above threshold, masking regions which are already done
-  above_thresh = (hil_filt > 10 ^ (-40 / 20)) & [zeros(last_peak_idx, 1); ones(length(hil_filt) - last_peak_idx, 1)];
+  above_thresh = (hil_filt > 10 ^ (threshold_db / 20)) & [zeros(last_peak_idx, 1); ones(length(hil_filt) - last_peak_idx, 1)];
   peak_start   = find(diff(above_thresh) > 0);
 
   % exit condition
@@ -143,11 +152,11 @@ peak_energy_low = [];
 for i = 1:length(all_peaks)
 
   win_idx            = (all_peaks(i):all_peaks(i) + energy_window_len - 1) - energy_window_len;
-  win_idx            = win_idx((win_idx <= length(hil_low)) && (win_idx > 0));
+  win_idx            = win_idx((win_idx <= length(hil_low)) & (win_idx > 0));
   peak_energy(i)     = sum(abs(hil(win_idx)) .^ 2);
   peak_energy_low(i) = sum(abs(hil_low(win_idx)) .^ 2);
 
-  % plot(win_idx, 20 * log10(abs(hil(win_idx))), 'k');
+  % plot(win_idx, 20 * log10(abs(hil(win_idx))), 'k.-');
 
 end
 
