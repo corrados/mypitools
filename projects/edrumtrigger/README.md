@@ -20,7 +20,7 @@ I measured my Roland TDW-20 module by using a stereo splitter cable and connecte
 of my PD-120 pad directly to one channel of my sound card input and also to the trigger input of the
 TDW-20 module. Then I connected the analog audio output of the TDW-20 to the other stereo channel of
 my sound card and recorded the signal with Audacity. I now measured the latency between the main
-peak of the pad trigger to the first peak of the synthesized signal vom the TDW-20. As seen in the
+peak of the pad trigger to the first peak of the synthesized signal from the TDW-20. As seen in the
 screen shot, there is a latency of about **7 ms**:
 ![Roland TDW-20 drum module measured latency](roland_td20_latency.jpg)
 
