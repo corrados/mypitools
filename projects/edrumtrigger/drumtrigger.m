@@ -8,7 +8,7 @@ pkg load audio
 
 
 % TEST for continuous audio data capturing and processing
-% continuous_recording(2, 8000, @(x, do_realtime) processing(x, do_realtime));
+% continuous_recording(1, 8000, @(x, do_realtime) processing(x, do_realtime));
 
 % TEST process recordings
 % x = audioread("pd120_pos_sense.wav");
@@ -214,7 +214,7 @@ bDataReady = false;
 while true
 
   while isrecording(recorder)
-    pause(blocklen / 10);
+    pause(blocklen / 1000);
   end
 
   if bDataReady
