@@ -2,6 +2,14 @@
 Test project for electronic drum triggering
 ===========================================
 
+Project log
+-----------
+
+- (12/13/2020) I am very pleased about the current algorithm performance. The algorithm is not yet fine-tuned but
+  already performs pretty well. I have created a short Youtube video of the algorithm (Git commit c83743e) to show
+  the current performance in action: https://youtu.be/6eQjCD-DFjo
+
+
 Commercial module latency
 -------------------------
 
