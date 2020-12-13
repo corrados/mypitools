@@ -71,9 +71,9 @@ Brainstorming:
 - Positional sensing
 
   - It has shown that if you hit the pad close to the edge, the resulting sound has less low frequencies
-    and sounds more crisp. So, the idea is to low-pass filter the signal and at the detection peak we
-	calculate the power ratio of the low-pass filtered signal with the unfiltered signal. This is actual
-	possible metric for the positional sensing.
+    and sounds more crisp. So, the idea is to low-pass filter the signal and at the detected peak position we
+	calculate the power ratio of the low-pass filtered signal with the unfiltered signal. This is then
+	the metric for the positional sensing.
 
 - First results
 
