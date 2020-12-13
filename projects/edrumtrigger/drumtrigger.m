@@ -21,6 +21,13 @@ x = audioread("pd120_pos_sense2.wav");
 % org = audioread("snare.wav"); x = resample(org(:, 1), 1, 6); % PD-120
 
 
+% % TEST quantize to 12 bit resolution as available in ESP32 micro controller
+% iNumBits = 10;%12; % reserve 2 bits for overload headroom -> 10 bits
+% max_val  = max(abs(x));
+% quant    = max_val / (2 ^ (iNumBits - 1) - 1);
+% x        = round(x / quant);
+% x        = x / max(abs(x)) * max_val;
+
 %x_edge   = x(26200:28000);
 %x_middle = x(3000:4200);
 %figure; subplot(2, 1, 1), pwelch(x_middle,[],[],[],[],'twosided','db'); title('middle');
