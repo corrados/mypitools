@@ -185,7 +185,7 @@ cla
 plot(20 * log10(abs([x, hil_filt]))); grid on; hold on;
 plot(all_peaks, 20 * log10(hil_filt(all_peaks)), 'g*');
 plot(all_peaks, pos_sense_metric - 40, 'k*');
-title('red marker: level, black marker: position');
+title('Green marker: level; Black marker: position');
 xlabel('samples'); ylabel('dB');
 ylim([-100, 0]);
 drawnow;
