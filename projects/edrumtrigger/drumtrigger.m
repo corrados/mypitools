@@ -59,7 +59,7 @@ hil = myhilbert(x);
 
 threshold_db      = -60;%-45;
 energy_window_len = 16; % 2 ms scan time at fs = 8 kHz
-mask_time         = 65; % samples
+mask_time         = 65; % samples, 65 samples = 8.125 ms mask time
 
 % the following settings are trigger pad-specific (here, a PD-120 is used)
 decay_len         = 1200;%1500; % samples
