@@ -53,7 +53,7 @@ hil = filter(a, 1, x);
 end
 
 
-function [all_peaks, hil_filt_org] = calc_peak_detection(x)
+function [all_peaks, hil_filt_org, hil] = calc_peak_detection(x)
 
 hil = myhilbert(x);
 
@@ -133,24 +133,19 @@ end
 end
 
 
-function pos_sense_metric = calc_pos_sense_metric(x, all_peaks)
+function pos_sense_metric = calc_pos_sense_metric(hil, all_peaks)
 
 energy_window_len = 16; % 2 ms scan time at fs = 8 kHz
-lp_ir_len         = 80; % low-pass filter length
-lp_cutoff         = 0.02; % normalized cut-off of low-pass filter
-
-hil = myhilbert(x);
 
 % low pass filter of the Hilbert signal
-a       = fir1(lp_ir_len, lp_cutoff);
-xlow    = filter(a, 1, x);
-xlow    = xlow(lp_ir_len / 2:end);
-
-% % TEST
-% alpha = 0.01;
-% xlow  = filter(alpha, [1, alpha - 1], x);
-
-hil_low = myhilbert(xlow);
+% lp_ir_len = 80; % low-pass filter length
+% lp_cutoff = 0.02; % normalized cut-off of low-pass filter
+% a         = fir1(lp_ir_len, lp_cutoff);
+% hil_low   = filter(a, 1, hil);
+% hil_low   = hil_low(lp_ir_len / 2:end);
+% use a simple one-pole IIR filter for less CPU processing and shorter delay
+alpha   = 0.025;
+hil_low = filter(alpha, [1, alpha - 1], hil);
 
 % figure; plot(20 * log10(abs([hil(1:length(hil_low)), hil_low]))); hold on;
 
@@ -178,8 +173,8 @@ end
 function processing(x, do_realtime)
 
 % calculate peak detection and positional sensing
-[all_peaks, hil_filt] = calc_peak_detection(x);
-pos_sense_metric      = calc_pos_sense_metric(x, all_peaks);
+[all_peaks, hil_filt, hil] = calc_peak_detection(x);
+pos_sense_metric           = calc_pos_sense_metric(hil, all_peaks);
 
 if ~do_realtime
   figure % open figure to keep previous plots (not desired for real-time)
@@ -200,7 +195,7 @@ drawnow;
 % velocity/positional sensing mapping and play MIDI notes
 velocity    = (20 * log10(hil_filt(all_peaks)) + 63) / 40 * 127;
 velocity    = max(1, min(127, velocity));
-pos_sensing = (pos_sense_metric - 20.5) / 15 * 127;
+pos_sensing = (pos_sense_metric - 13) / 10 * 127;
 pos_sensing = max(1, min(127, pos_sensing));
 % play_midi(all_peaks, velocity, pos_sensing);
 
