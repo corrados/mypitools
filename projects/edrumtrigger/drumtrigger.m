@@ -6,9 +6,10 @@ close all;
 pkg load signal
 pkg load audio
 
+Fs = 8000; % Hz
 
 % TEST for continuous audio data capturing and processing
-% continuous_recording(1, 8000, @(x, do_realtime) processing(x, do_realtime));
+% continuous_recording(1, Fs, @(x, Fs, do_realtime) processing(x, Fs, do_realtime));
 
 % TEST process recordings
 % x = audioread("pd120_pos_sense.wav");
@@ -19,7 +20,11 @@ x = audioread("pd120_pos_sense2.wav");
 % x = audioread("pd120_hot_spot.wav");
 % x = audioread("pd6.wav");
 % org = audioread("snare.wav"); x = resample(org(:, 1), 1, 6); % PD-120
+% x = audioread("snare.wav"); x = x(:, 1); Fs = 48e3; % PD-120
 
+
+% % TEST use 4 kHz sampling rate, TODO fix the "must be adjusted for the sampling rate"
+% x = resample(x, 1, 2); Fs = Fs / 2;
 
 % % TEST quantize to 12 bit resolution as available in ESP32 micro controller
 % iNumBits = 10;%12; % reserve 2 bits for overload headroom -> 10 bits
@@ -38,14 +43,14 @@ x = audioread("pd120_pos_sense2.wav");
 % figure; plot(20 * log10(abs([x, hilbert(x)])));
 % figure; plot(20 * log10(abs([x, myhilbert(x)]))); title('myhilbert');
 
-processing(x, false);
+processing(x, Fs, false);
 
 end
 
 
 function hil = myhilbert(x)
 
-a   = fir1(6, 0.4);
+a   = fir1(6, 0.4); % TODO must be adjusted for the sampling rate
 a   = a .* exp(1j * 2 * pi * (0:length(a) - 1) * 0.3) * length(a);
 hil = filter(a, 1, x);
 
@@ -60,18 +65,18 @@ hil = filter(a, 1, x);
 end
 
 
-function [all_peaks, hil_filt_org, hil] = calc_peak_detection(x)
+function [all_peaks, hil_filt_org, hil] = calc_peak_detection(x, Fs)
 
 hil = myhilbert(x);
 
-threshold_db      = -60;%-45;
-energy_window_len = 16; % 2 ms scan time at fs = 8 kHz
-mask_time         = 65; % samples, 65 samples = 8.125 ms mask time
+threshold_db      = -64;%-45;
+energy_window_len = round(2e-3 * Fs); % scan time (e.g. 2 ms)
+mask_time         = round(8.125e-3 * Fs); % mask time (e.g. 8.125 ms)
 
 % the following settings are trigger pad-specific (here, a PD-120 is used)
-decay_len         = 1200;%1500; % samples
-decay_att_db      = 1;%4;%7; % decay attenuation in dB
-decay_grad        = 0.025;%0.05; % decay gradient factor
+decay_len    = round(0.2 * Fs); % decay time (e.g. 200 ms)
+decay_att_db = 1;%4;%7; % decay attenuation in dB
+decay_grad   = 200 / Fs; % decay gradient factor
 
 % alpha   = 0.1;
 % hil_filt = filter(alpha, [1, alpha - 1], hil);
@@ -140,9 +145,9 @@ end
 end
 
 
-function pos_sense_metric = calc_pos_sense_metric(hil, all_peaks)
+function pos_sense_metric = calc_pos_sense_metric(hil, Fs, all_peaks)
 
-energy_window_len = 16; % 2 ms scan time at fs = 8 kHz
+energy_window_len = round(2e-3 * Fs); % scan time (e.g. 2 ms)
 
 % low pass filter of the Hilbert signal
 % lp_ir_len = 80; % low-pass filter length
@@ -151,7 +156,7 @@ energy_window_len = 16; % 2 ms scan time at fs = 8 kHz
 % hil_low   = filter(a, 1, hil);
 % hil_low   = hil_low(lp_ir_len / 2:end);
 % use a simple one-pole IIR filter for less CPU processing and shorter delay
-alpha   = 0.025;
+alpha   = 0.025; % TODO must be adjusted for the sampling rate
 hil_low = filter(alpha, [1, alpha - 1], hil);
 
 % figure; plot(20 * log10(abs([hil(1:length(hil_low)), hil_low]))); hold on;
@@ -177,11 +182,11 @@ pos_sense_metric = 10 * log10(peak_energy) - 10 * log10(peak_energy_low);
 end
 
 
-function processing(x, do_realtime)
+function processing(x, Fs, do_realtime)
 
 % calculate peak detection and positional sensing
-[all_peaks, hil_filt, hil] = calc_peak_detection(x);
-pos_sense_metric           = calc_pos_sense_metric(hil, all_peaks);
+[all_peaks, hil_filt, hil] = calc_peak_detection(x, Fs);
+pos_sense_metric           = calc_pos_sense_metric(hil, Fs, all_peaks);
 
 if ~do_realtime
   figure % open figure to keep previous plots (not desired for real-time)
@@ -228,7 +233,7 @@ while true
   record(recorder, blocklen);
 
   if bDataReady
-    callbackfkt(x, true);
+    callbackfkt(x, Fs, true);
   end
 
   bDataReady = true;
