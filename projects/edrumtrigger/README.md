@@ -77,9 +77,9 @@ Brainstorming:
 
 - First results
 
-  - The following plot shows how the current status of the algorithms perform. At the beginning there are
-    some single hits. Then there comes a region with a snare drum roll. After that, there are single hits
+  - The following plot shows how the current status of the algorithms performs. At the beginning there are
+    some single hits. Then there follows a region with a snare drum roll. After that, there are single hits
     which start from the middle, move to the edge and go back to the middle of the pad where the hits are
-    equal strong. As shown by the black markers, the positional sensing seems to work pretty good. Also,
+    equally strong. As shown by the black markers, the positional sensing seems to work pretty well. Also,
     the peak detection and velocity estimation seems to be pretty good as well.
     ![First results plot](first_results.jpg)
