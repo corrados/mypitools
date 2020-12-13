@@ -4,23 +4,13 @@ function drumtrigger
 
 close all;
 pkg load signal
+pkg load audio
 
 
 % TEST for continuous audio data capturing and processing
-% continuous_recording(1, 8000, @(x) processing(x));
+% continuous_recording(2, 8000, @(x, do_realtime) processing(x, do_realtime));
 
-
-% % using a recording of a Roland snare mesh pad
-% org = audioread("snare.wav");
-% org = org(:, 1); % just the left channel contains all the data
-% % figure; plot(20 * log10(abs(org)));
-% x = resample(org, 1, 6); % snare.wav
-% % x_sgl_hits  = resample(org(40000:100000), 1, 6); % snare.wav
-% % x_pos_sense = resample(org(730000:980000), 1, 6); % snare.wav
-% % x_roll      = resample(org(395000:510000), 1, 6); % snare.wav
-% % x_roll      = resample(org(395000:410000), 1, 6); % snare.wav
-
-
+% TEST process recordings
 % x = audioread("pd120_pos_sense.wav");
 x = audioread("pd120_pos_sense2.wav");
 % x = audioread("pd120_single_hits.wav");
@@ -28,6 +18,8 @@ x = audioread("pd120_pos_sense2.wav");
 % x = audioread("pd120_middle_velocity.wav");
 % x = audioread("pd120_hot_spot.wav");
 % x = audioread("pd6.wav");
+% org = audioread("snare.wav"); x = resample(org(:, 1), 1, 6); % PD-120
+
 
 %x_edge   = x(26200:28000);
 %x_middle = x(3000:4200);
@@ -35,12 +27,11 @@ x = audioread("pd120_pos_sense2.wav");
 %subplot(2, 1, 2), pwelch(x_edge,[],[],[],[],'twosided','db'); title('edge');
 %figure; freqz(fir1(80, 0.02));
 
-
 % hil = myhilbert(x);
 % figure; plot(20 * log10(abs([x, hilbert(x)])));
 % figure; plot(20 * log10(abs([x, myhilbert(x)]))); title('myhilbert');
 
-processing(x)
+processing(x, false);
 
 end
 
@@ -56,7 +47,7 @@ hil = filter(a, 1, x);
 % subplot(2, 1, 1), pwelch(x,[],[],[],[],'twosided','db');
 % subplot(2, 1, 2), pwelch(hil,[],[],[],[],'twosided','db');
 
-% TEST use normal hilbert for now
+% TEST use built-in hilbert filter instead of my own implementation for reference
 % hil = hilbert(x);
 
 end
@@ -184,14 +175,15 @@ pos_sense_metric = 10 * log10(peak_energy) - 10 * log10(peak_energy_low);
 end
 
 
-function processing(x)
+function processing(x, do_realtime)
 
 % calculate peak detection and positional sensing
 [all_peaks, hil_filt] = calc_peak_detection(x);
 pos_sense_metric      = calc_pos_sense_metric(x, all_peaks);
 
-% TEST open figure to keep previous plots
-figure
+if ~do_realtime
+  figure % open figure to keep previous plots (not desired for real-time)
+end
 
 % plot results
 cla
@@ -202,6 +194,13 @@ title('red marker: level, black marker: position');
 xlabel('samples'); ylabel('dB');
 ylim([-100, 0]);
 drawnow;
+
+
+% TEST
+% velocity mapping and play MIDI notes
+velocity = (20 * log10(hil_filt(all_peaks)) + 50) / 30 * 127;
+velocity = max(1, min(127, velocity));
+% play_midi(all_peaks, velocity);
 
 end
 
@@ -225,10 +224,30 @@ while true
   record(recorder, blocklen);
 
   if bDataReady
-    callbackfkt(x);
+    callbackfkt(x, true);
   end
 
   bDataReady = true;
+
+end
+
+end
+
+
+function play_midi(all_peaks, velocity)
+
+dev = mididevice("output", 0);
+x   = now;
+y   = x;
+
+for i = 1:length(all_peaks)
+
+  while y < x + all_peaks(i) / 8000 / 1e5
+    pause(0.0001);
+    y = now;
+  end
+
+  midisend(dev, midimsg("note", 10, 38, velocity(i), 0.01));
 
 end
 
