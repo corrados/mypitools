@@ -197,10 +197,12 @@ drawnow;
 
 
 % TEST
-% velocity mapping and play MIDI notes
-velocity = (20 * log10(hil_filt(all_peaks)) + 50) / 30 * 127;
-velocity = max(1, min(127, velocity));
-% play_midi(all_peaks, velocity);
+% velocity/positional sensing mapping and play MIDI notes
+velocity    = (20 * log10(hil_filt(all_peaks)) + 63) / 40 * 127;
+velocity    = max(1, min(127, velocity));
+pos_sensing = (pos_sense_metric - 20.5) / 15 * 127;
+pos_sensing = max(1, min(127, pos_sensing));
+% play_midi(all_peaks, velocity, pos_sensing);
 
 end
 
@@ -234,20 +236,21 @@ end
 end
 
 
-function play_midi(all_peaks, velocity)
+function play_midi(all_peaks, velocity, pos_sensing)
 
-dev = mididevice("output", 0);
+dev = mididevice("output", "Lexicon Mac USB 1"); % Lexicon Omega -> TDW-20
 x   = now;
 y   = x;
 
 for i = 1:length(all_peaks)
 
   while y < x + all_peaks(i) / 8000 / 1e5
-    pause(0.0001);
+    pause(0.00001);
     y = now;
   end
 
-  midisend(dev, midimsg("note", 10, 38, velocity(i), 0.01));
+  midisend(dev, midimsg("controlchange", 10, 16, pos_sensing(i))); % positional sensing
+  midisend(dev, midimsg("note",          10, 38, velocity(i), 0.02));
 
 end
 
