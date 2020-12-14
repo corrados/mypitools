@@ -145,6 +145,8 @@ end
 
 function pos_sense_metric = calc_pos_sense_metric(hil, Fs, all_peaks)
 
+energy_window_len = round(2e-3 * Fs); % scan time (e.g. 2 ms)
+
 % low pass filter of the Hilbert signal
 % lp_ir_len = 80; % low-pass filter length
 % lp_cutoff = 0.02; % normalized cut-off of low-pass filter
@@ -155,17 +157,25 @@ function pos_sense_metric = calc_pos_sense_metric(hil, Fs, all_peaks)
 alpha   = 0.025; % TODO must be adjusted for the sampling rate
 hil_low = filter(alpha, [1, alpha - 1], hil);
 
-peak_energy_db     = [];
-peak_energy_low_db = [];
+% figure; plot(20 * log10(abs([hil(1:length(hil_low)), hil_low]))); hold on;
+
+peak_energy     = [];
+peak_energy_low = [];
+
+% figure; plot(20 * log10(abs(hil))); hold on;
 
 for i = 1:length(all_peaks)
 
-  peak_energy_db(i)     = 10 * log10(abs(hil(all_peaks(i))) .^ 2);
-  peak_energy_low_db(i) = 10 * log10(abs(hil_low(all_peaks(i))) .^ 2);
+  win_idx            = (all_peaks(i):all_peaks(i) + energy_window_len - 1) - energy_window_len / 2;
+  win_idx            = win_idx((win_idx <= length(hil_low)) & (win_idx > 0));
+  peak_energy(i)     = sum(abs(hil(win_idx)) .^ 2);
+  peak_energy_low(i) = sum(abs(hil_low(win_idx)) .^ 2);
+
+  % plot(win_idx, 20 * log10(abs(hil(win_idx))), 'k.-');
 
 end
 
-pos_sense_metric = peak_energy_db - peak_energy_low_db;
+pos_sense_metric = 10 * log10(peak_energy) - 10 * log10(peak_energy_low);
 
 end
 
@@ -195,7 +205,7 @@ drawnow;
 % velocity/positional sensing mapping and play MIDI notes
 velocity    = (20 * log10(hil_filt(all_peaks)) + 63) / 40 * 127;
 velocity    = max(1, min(127, velocity));
-pos_sensing = (pos_sense_metric / 17) * 127 - 3;
+pos_sensing = (pos_sense_metric - 13) / 10 * 127;
 pos_sensing = max(1, min(127, pos_sensing));
 % play_midi(all_peaks, velocity, pos_sensing);
 
