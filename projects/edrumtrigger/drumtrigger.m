@@ -166,6 +166,12 @@ peak_energy_low = [];
 
 for i = 1:length(all_peaks)
 
+  % The peak detection was performed on the moving averaged filtered signal but
+  % for positional sensing we need to use the original Hilbert transformed signal
+  % since we have to calculate a separate low-pass filter. Since the detected
+  % peak position in the moving averaged filtered signal might be in an attenuated
+  % region of the original Hilbert transformed signal, we average the powers of
+  % the filtered and un-filtered signals around the detected peak position.
   win_idx            = (all_peaks(i):all_peaks(i) + energy_window_len - 1) - energy_window_len / 2;
   win_idx            = win_idx((win_idx <= length(hil_low)) & (win_idx > 0));
   peak_energy(i)     = sum(abs(hil(win_idx)) .^ 2);
