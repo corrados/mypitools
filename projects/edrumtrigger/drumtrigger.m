@@ -26,6 +26,9 @@ x = audioread("pd120_pos_sense2.wav");
 % % TEST use 4 kHz sampling rate, TODO fix the "must be adjusted for the sampling rate"
 % x = resample(x, 1, 2); Fs = Fs / 2;
 
+% % TEST simulate a DC offset -> TODO the algorithms needs a DC offset compensation
+% x = x + 0.01;
+
 % % TEST quantize to 12 bit resolution as available in ESP32 micro controller
 % iNumBits = 10;%12; % reserve 2 bits for overload headroom -> 10 bits
 % max_val  = max(abs(x));
@@ -69,20 +72,20 @@ function [all_peaks, hil_filt_org, hil] = calc_peak_detection(x, Fs)
 
 hil = myhilbert(x);
 
-threshold_db      = -64;%-45;
+threshold_db      = -64;
 energy_window_len = round(2e-3 * Fs); % scan time (e.g. 2 ms)
 mask_time         = round(8.125e-3 * Fs); % mask time (e.g. 8.125 ms)
 
 % the following settings are trigger pad-specific (here, a PD-120 is used)
 decay_len    = round(0.2 * Fs); % decay time (e.g. 200 ms)
-decay_att_db = 1;%4;%7; % decay attenuation in dB
+decay_att_db = 1; % decay attenuation in dB
 decay_grad   = 200 / Fs; % decay gradient factor
 
 % alpha   = 0.1;
 % hil_filt = filter(alpha, [1, alpha - 1], hil);
 
 % moving average filter
-hil_filt     = abs(filter(ones(energy_window_len, 1) / energy_window_len, 1, hil));
+hil_filt     = abs(filter(ones(energy_window_len, 1) / energy_window_len, 1, hil)); % moving average
 hil_filt_org = hil_filt;
 
 last_peak_idx = 0;
@@ -117,7 +120,8 @@ while ~no_more_peak
   all_peaks     = [all_peaks; peak_idx];
   last_peak_idx = min(peak_idx + mask_time, length(hil_filt));
 
-  % exponential decay assumption
+  % exponential decay assumption (note that we must not use hil_filt_org since a
+  % previous peak might not be faded out and the peak detection works on hil_filt)
   decay           = hil_filt(peak_idx) * 10 ^ (-decay_att_db / 20) * 10 .^ (-(0:decay_len - 1) / 20 * decay_grad);
   decay_x         = peak_idx + (0:decay_len - 1);
   valid_decay_idx = decay_x <= length(hil_filt);
@@ -136,8 +140,8 @@ while ~no_more_peak
 
 end
 
-% figure; plot(20 * log10([abs(x), hil_filt_org, hil_filt, decay_all])); hold on;
-% plot(all_peaks, 20 * log10(hil_filt(all_peaks)), 'k*');
+% figure; plot(20 * log10([hil_filt_org, hil_filt, decay_all])); hold on;
+% plot(all_peaks, 20 * log10(hil_filt_org(all_peaks)), 'k*');
 
 end
 
