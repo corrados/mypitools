@@ -89,8 +89,7 @@ last_peak_idx = 0;
 all_peaks     = [];
 i             = 1;
 no_more_peak  = false;
-
-% figure; plot(20 * log10([abs(x), hil_filt_org])); hold on;
+decay_all     = nan(size(x)); % only for debugging
 
 while ~no_more_peak
 
@@ -133,14 +132,12 @@ while ~no_more_peak
   hil_filt(decay_x) = hil_filt_new;
   i                 = i + 1;
 
-  % plot(decay_x, 20 * log10(decay), 'k');
+  decay_all(decay_x) = decay; % only for debugging
 
 end
 
-% figure; plot(20 * log10([abs(x), hil_filt_org, hil_filt])); hold on;
+% figure; plot(20 * log10([abs(x), hil_filt_org, hil_filt, decay_all])); hold on;
 % plot(all_peaks, 20 * log10(hil_filt(all_peaks)), 'k*');
-% plot(decay_x, 20 * log10(decay), 'k');
-% plot(decay_x, 20 * log10(hil_filt_new))
 
 end
 
