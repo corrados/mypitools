@@ -3,8 +3,11 @@
 
 # control a Behringer XAIR mixer with a nanoKONTROL connected to a Raspberry Pi
 
+import sys
+sys.path.append('python-x32/src')
 from re import match
 from alsa_midi import SequencerClient, WRITE_PORT, MidiBytesEvent, NoteOnEvent, NoteOffEvent
+from pythonx32 import x32
 
 
 def main():
@@ -22,6 +25,9 @@ def main():
     raise Exception('No nanoKONTROL MIDI device found. Is the nanoKONTROL connected?')
   nanoKONTROL_port = filtered_port[0];
   port.connect_from(nanoKONTROL_port)
+
+  # TEST
+  mixer = x32.BehringerX32('127.0.0.1', 10300, False)
 
   # parse MIDI inevents
   try:
