@@ -3,4 +3,4 @@
 	url = https://github.com/pmaillot/X32-Behringer.git
 [submodule "projects/xairremote/python-x32"]
 	path = projects/xairremote/python-x32
-	url = https://github.com/tjoracoder/python-x32.git
+	url = https://github.com/corrados/python-x32.git
