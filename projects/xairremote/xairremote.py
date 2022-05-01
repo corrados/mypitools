@@ -4,7 +4,7 @@
 # control a Behringer XAIR mixer with a nanoKONTROL connected to a Raspberry Pi
 
 import sys
-sys.path.append('python-x32/src')
+sys.path.append('python-x32/src/pythonx32')
 from re import match
 from alsa_midi import SequencerClient, WRITE_PORT, MidiBytesEvent, NoteOnEvent, NoteOffEvent
 from pythonx32 import x32
