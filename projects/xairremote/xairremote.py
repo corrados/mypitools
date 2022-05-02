@@ -28,7 +28,7 @@ def main():
   port.connect_from(nanoKONTROL_port)
 
   # initialize connection to Behringer mixer
-  mixer = x32.BehringerX32("127.0.0.1", 10336, False)
+  mixer = x32.BehringerX32("127.0.0.1", 10300, False)
   mixer.ping()
 
   # parse MIDI inevents
