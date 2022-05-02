@@ -39,6 +39,12 @@ def main():
   #    mixer.ping()
   #    print(get_ip().split('.'))
 
+  # query all current fader values
+  mixer._timeout = 1
+  fader_init_val = [0] * 9
+  for i in range(8):
+      fader_init_val[i] = mixer.get_value(f'/ch/{i + 1:#02}/mix/fader')[0]
+
   # parse MIDI inevents
   try:
     MIDI_statusbyte = 0
@@ -63,9 +69,14 @@ def main():
             channel = t[c][2] + 1
             #print(t[c])
             if t[c][1] == "f": # fader
-                value = [MIDI_databyte2 / 127]
-                mixer.set_value(f'/ch/{channel:#02}/mix/fader', value, False)
-                #print(f'/ch/{channel:#02}/mix/fader' {value})
+                value     = [MIDI_databyte2 / 127]
+                ini_value = fader_init_val[channel - 1]
+                # only apply value if current fader value is not too far off
+                if ini_value < 0 or (ini_value >= 0 and abs(ini_value - value[0]) < 0.1):
+                    fader_init_val[channel - 1] = -1 # invalidate initial value
+                    mixer.set_value(f'/ch/{channel:#02}/mix/fader', value, False)
+                    print(mixer.get_value(f'/ch/{channel:#02}/mix/fader'))
+                    #print(f'/ch/{channel:#02}/mix/fader' {value})
             if t[c][1] == "d": # dial
                 value = [MIDI_databyte2 / 127]
                 mixer.set_value(f'/ch/{channel:#02}/mix/pan', value, False)
