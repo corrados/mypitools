@@ -28,8 +28,8 @@ def main():
   port.connect_from(nanoKONTROL_port)
 
   # initialize connection to Behringer mixer
-  #mixer = x32.BehringerX32("127.0.0.1", 10330, False)
-  #mixer.ping()
+  mixer = x32.BehringerX32("127.0.0.1", 10336, False)
+  mixer.ping()
 
   # parse MIDI inevents
   try:
@@ -52,12 +52,15 @@ def main():
         t = nanoKONTROL_MIDI_lookup()
         c = (MIDI_statusbyte, MIDI_databyte1)
         if c in t:
-            print(t[c])
-
-            if MIDI_statusbyte == 0XB0:
-                channel = MIDI_databyte1
-                #mixer.set_value(f'/ch/{channel:#02}/mix/fader', [MIDI_databyte2 / 127], False)
-                #print(f'/ch/{channel:#02}/mix/fader')
+            channel = t[c][2] + 1
+            if t[c][1] == "f": # fader
+                value = [MIDI_databyte2 / 127]
+                mixer.set_value(f'/ch/{channel:#02}/mix/fader', value, False)
+                #print(f'/ch/{channel:#02}/mix/fader' {value})
+            if t[c][1] == "d": # dial
+                value = [MIDI_databyte2 / 127]
+                mixer.set_value(f'/ch/{channel:#02}/mix/pan', value, False)
+                #print(f'/ch/{channel:#02}/mix/pan {value}')
 
         #event_s = " ".join(f"{b}" for b in event.midi_bytes)
         #print(f"{event_s}")
