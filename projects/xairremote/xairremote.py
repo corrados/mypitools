@@ -20,10 +20,17 @@ import sys
 sys.path.append('python-x32/src')
 sys.path.append('python-x32/src/pythonx32')
 from re import match
+import threading
+import time
+import socket
 from alsa_midi import SequencerClient, WRITE_PORT, MidiBytesEvent, NoteOnEvent, NoteOffEvent
 from pythonx32 import x32
 
+found_addr = -1
+
 def main():
+  global found_addr
+
   # setup the MIDI sequencer client for xairremote
   client = SequencerClient("xairremote")
   port   = client.create_port("output", caps = WRITE_PORT)
@@ -39,17 +46,20 @@ def main():
   nanoKONTROL_port = filtered_port[0];
   port.connect_from(nanoKONTROL_port)
 
-  # initialize connection to Behringer mixer
-  mixer = x32.BehringerX32("127.0.0.1", 10301, False)
+  # search for a mixer and initialize the connection to the mixer
+  local_port = 10300
+
+# TODO use get_ip to get addr_subnet, no need to define it as a constant
+  addr_subnet = "192.168.178"
+
+  while found_addr < 0:
+      for i in range(2, 255):
+          x = threading.Thread(target=try_to_ping_mixer, args=(addr_subnet, local_port + 1, i,))
+          x.start()
+      time.sleep(2)
+
+  mixer = x32.BehringerX32(f"{addr_subnet}.{found_addr}", local_port, False)
   mixer.ping()
-  #mixer._timeout = 1
-  #try:
-  #    mixer.ping()
-  #except:
-  #    mixer.__del__()
-  #    mixer = x32.BehringerX32("127.0.0.1", 10301, False)
-  #    mixer.ping()
-  #    print(get_ip().split('.'))
 
   # query all current fader values
   mixer._timeout = 1
@@ -95,6 +105,31 @@ def main():
         #print(f"{event_s}")
   except KeyboardInterrupt:
     pass
+
+def try_to_ping_mixer(addr_subnet, start_port, i):
+    global found_addr
+    search_mixer = x32.BehringerX32(f"{addr_subnet}.{i}", start_port + i, False)
+    search_mixer._timeout = 1 # just one second time-out
+    try:
+        search_mixer.ping()
+        found_addr = i
+    except:
+        pass
+    search_mixer.__del__()
+
+# taken from stack overflow "Finding local IP addresses using Python's stdlib"
+def get_ip():
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    s.settimeout(0)
+    try:
+        # doesn't even have to be reachable
+        s.connect(('10.255.255.255', 1))
+        IP = s.getsockname()[0]
+    except Exception:
+        IP = '127.0.0.1'
+    finally:
+        s.close()
+    return IP
 
 def nanoKONTROL_MIDI_lookup():
     # (scene, type, value), types: "f" is fader, "d" is dial, "b1" is button 1, "b2" is button 2
