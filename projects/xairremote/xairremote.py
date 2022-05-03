@@ -1,15 +1,27 @@
-
-
+#******************************************************************************
+# * Copyright (c) 2022
+# * Author: Volker Fischer
+# *****************************************************************************
+# * This program is free software; you can redistribute it and/or modify it under
+# * the terms of the GNU General Public License as published by the Free Software
+# * Foundation; either version 2 of the License, or (at your option) any later
+# * version.
+# * This program is distributed in the hope that it will be useful, but WITHOUT
+# * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# * FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+# * details.
+# * You should have received a copy of the GNU General Public License along with
+# * this program; if not, write to the Free Software Foundation, Inc.,
+# * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+#******************************************************************************
 
 # control a Behringer XAIR mixer with a nanoKONTROL connected to a Raspberry Pi
-
 import sys
 sys.path.append('python-x32/src')
 sys.path.append('python-x32/src/pythonx32')
 from re import match
 from alsa_midi import SequencerClient, WRITE_PORT, MidiBytesEvent, NoteOnEvent, NoteOffEvent
 from pythonx32 import x32
-
 
 def main():
   # setup the MIDI sequencer client for xairremote
@@ -48,8 +60,6 @@ def main():
   # parse MIDI inevents
   try:
     MIDI_statusbyte = 0
-    MIDI_databyte1  = 0
-    MIDI_databyte2  = 0
     while True:
       event = client.event_input(prefer_bytes = True)
       if event is not None and isinstance(event, MidiBytesEvent):
@@ -67,19 +77,18 @@ def main():
         c = (MIDI_statusbyte, MIDI_databyte1)
         if c in t:
             channel = t[c][2] + 1
-            #print(t[c])
             if t[c][1] == "f": # fader
-                value     = [MIDI_databyte2 / 127]
+                value     = MIDI_databyte2 / 127
                 ini_value = fader_init_val[channel - 1]
                 # only apply value if current fader value is not too far off
-                if ini_value < 0 or (ini_value >= 0 and abs(ini_value - value[0]) < 0.1):
+                if ini_value < 0 or (ini_value >= 0 and abs(ini_value - value) < 0.1):
                     fader_init_val[channel - 1] = -1 # invalidate initial value
-                    mixer.set_value(f'/ch/{channel:#02}/mix/fader', value, False)
-                    print(mixer.get_value(f'/ch/{channel:#02}/mix/fader'))
+                    mixer.set_value(f'/ch/{channel:#02}/mix/fader', [value], False)
+                    #print(mixer.get_value(f'/ch/{channel:#02}/mix/fader'))
                     #print(f'/ch/{channel:#02}/mix/fader' {value})
             if t[c][1] == "d": # dial
-                value = [MIDI_databyte2 / 127]
-                mixer.set_value(f'/ch/{channel:#02}/mix/pan', value, False)
+                value = MIDI_databyte2 / 127
+                mixer.set_value(f'/ch/{channel:#02}/mix/pan', [value], False)
                 #print(f'/ch/{channel:#02}/mix/pan {value}')
 
         #event_s = " ".join(f"{b}" for b in event.midi_bytes)
