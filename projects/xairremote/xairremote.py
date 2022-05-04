@@ -16,6 +16,7 @@
 #******************************************************************************
 
 # control a Behringer XAIR mixer with a nanoKONTROL connected to a Raspberry Pi
+import os
 import sys
 sys.path.append('python-x32/src')
 sys.path.append('python-x32/src/pythonx32')
@@ -103,6 +104,10 @@ def main():
             if MIDI_table[c][0] == 3 and MIDI_table[c][1] == "d": # dial in last SCENE
                 value = MIDI_databyte2 / 127
                 mixer.set_value(f'/ch/{channel:#02}/mix/pan', [value], False)
+
+            if MIDI_table[c][0] == 3 and MIDI_table[c][1] == "b2": # button 2 of last fader in last SCENE
+                if MIDI_databyte2 == 0: # on turing LED off
+                    os.system('sudo shutdown -h now')
 
         #event_s = " ".join(f"{b}" for b in event.midi_bytes)
         #print(f"{event_s}")
