@@ -29,7 +29,7 @@ from pythonx32 import x32
 found_addr = -1
 
 def main():
-  global found_addr
+  global found_addr, fader_init_val, bus_init_val
 
   # setup the MIDI sequencer client for xairremote
   client = SequencerClient("xairremote")
@@ -58,17 +58,11 @@ def main():
 
     mixer = x32.BehringerX32(f"{addr_subnet}.{found_addr}", local_port, False)
 
-    # query all current fader values
-    bus_ch = 5; # define here the bus channel you want to control
-    fader_init_val = [0] * 9 # nanoKONTROL has 9 faders
-    bus_init_val   = [0] * 9
-    for i in range(8):
-      fader_init_val[i] = mixer.get_value(f'/ch/{i + 1:#02}/mix/fader')[0]
-      bus_init_val[i]   = mixer.get_value(f'/ch/{i + 1:#02}/mix/{bus_ch:#02}/level')[0]
-
     # parse MIDI inevents
-    MIDI_statusbyte = 0
+    bus_ch          = 5; # define here the bus channel you want to control
     MIDI_table      = nanoKONTROL_MIDI_lookup() # create MIDI table for nanoKONTROL
+    MIDI_statusbyte = 0
+    cur_SCENE       = -1
     while True:
       event = client.event_input(prefer_bytes = True)
       if event is not None and isinstance(event, MidiBytesEvent):
@@ -85,6 +79,10 @@ def main():
         c = (MIDI_statusbyte, MIDI_databyte1)
         if c in MIDI_table:
             channel = MIDI_table[c][2] + 1
+            # reset fader init values if SCENE has changed
+            if cur_SCENE is not MIDI_table[c][0]:
+                query_all_faders(mixer, bus_ch)
+                cur_SCENE = MIDI_table[c][0]
 
             if MIDI_table[c][0] == 0 and MIDI_table[c][1] == "f": # fader in first SCENE
                 value     = MIDI_databyte2 / 127
@@ -110,6 +108,14 @@ def main():
         #print(f"{event_s}")
   except KeyboardInterrupt:
     pass
+
+def query_all_faders(mixer, bus_ch): # query all current fader values
+    global fader_init_val, bus_init_val
+    fader_init_val = [0] * 9 # nanoKONTROL has 9 faders
+    bus_init_val   = [0] * 9
+    for i in range(8):
+      fader_init_val[i] = mixer.get_value(f'/ch/{i + 1:#02}/mix/fader')[0]
+      bus_init_val[i]   = mixer.get_value(f'/ch/{i + 1:#02}/mix/{bus_ch:#02}/level')[0]
 
 def try_to_ping_mixer(addr_subnet, start_port, i):
     global found_addr
