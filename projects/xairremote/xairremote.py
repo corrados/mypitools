@@ -46,27 +46,29 @@ def main():
   nanoKONTROL_port = filtered_port[0];
   port.connect_from(nanoKONTROL_port)
 
-  # search for a mixer and initialize the connection to the mixer
-  local_port = 10300
+  try:
+    # search for a mixer and initialize the connection to the mixer
+    local_port  = 10300
+    addr_subnet = '.'.join(get_ip().split('.')[0:3]) # only use first three numbers of local IP address
 
-# TODO use get_ip to get addr_subnet, no need to define it as a constant
-  addr_subnet = "192.168.178"
-
-  while found_addr < 0:
+    while found_addr < 0:
       for i in range(2, 255):
-          threading.Thread(target = try_to_ping_mixer, args = (addr_subnet, local_port + 1, i, )).start()
+        threading.Thread(target = try_to_ping_mixer, args = (addr_subnet, local_port + 1, i, )).start()
       time.sleep(2) # time-out is 1 second -> wait two-times the time-out
 
-  mixer = x32.BehringerX32(f"{addr_subnet}.{found_addr}", local_port, False)
+    mixer = x32.BehringerX32(f"{addr_subnet}.{found_addr}", local_port, False)
 
-  # query all current fader values
-  fader_init_val = [0] * 9
-  for i in range(8):
+    # query all current fader values
+    bus_ch = 5; # define here the bus channel you want to control
+    fader_init_val = [0] * 9 # nanoKONTROL has 9 faders
+    bus_init_val   = [0] * 9
+    for i in range(8):
       fader_init_val[i] = mixer.get_value(f'/ch/{i + 1:#02}/mix/fader')[0]
+      bus_init_val[i]   = mixer.get_value(f'/ch/{i + 1:#02}/mix/{bus_ch:#02}/level')[0]
 
-  # parse MIDI inevents
-  try:
+    # parse MIDI inevents
     MIDI_statusbyte = 0
+    MIDI_table      = nanoKONTROL_MIDI_lookup() # create MIDI table for nanoKONTROL
     while True:
       event = client.event_input(prefer_bytes = True)
       if event is not None and isinstance(event, MidiBytesEvent):
@@ -80,18 +82,27 @@ def main():
             MIDI_databyte2  = event.midi_bytes[1]
 
         # send corresponding OSC commands to the mixer
-        t = nanoKONTROL_MIDI_lookup()
         c = (MIDI_statusbyte, MIDI_databyte1)
-        if c in t:
-            channel = t[c][2] + 1
-            if t[c][1] == "f": # fader
+        if c in MIDI_table:
+            channel = MIDI_table[c][2] + 1
+
+            if MIDI_table[c][0] == 0 and MIDI_table[c][1] == "f": # fader in first SCENE
                 value     = MIDI_databyte2 / 127
                 ini_value = fader_init_val[channel - 1]
                 # only apply value if current fader value is not too far off
                 if ini_value < 0 or (ini_value >= 0 and abs(ini_value - value) < 0.1):
                     fader_init_val[channel - 1] = -1 # invalidate initial value
                     mixer.set_value(f'/ch/{channel:#02}/mix/fader', [value], False)
-            if t[c][1] == "d": # dial
+
+            if MIDI_table[c][0] == 1 and MIDI_table[c][1] == "f": # bus fader in second SCENE
+                value     = MIDI_databyte2 / 127
+                ini_value = bus_init_val[channel - 1]
+                # only apply value if current fader value is not too far off
+                if ini_value < 0 or (ini_value >= 0 and abs(ini_value - value) < 0.1):
+                    bus_init_val[channel - 1] = -1 # invalidate initial value
+                    mixer.set_value(f'/ch/{channel:#02}/mix/{bus_ch:#02}/level', [value], False)
+
+            if MIDI_table[c][0] == 3 and MIDI_table[c][1] == "d": # dial in last SCENE
                 value = MIDI_databyte2 / 127
                 mixer.set_value(f'/ch/{channel:#02}/mix/pan', [value], False)
 
