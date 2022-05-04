@@ -23,7 +23,7 @@ from re import match
 import threading
 import time
 import socket
-from alsa_midi import SequencerClient, WRITE_PORT, MidiBytesEvent, NoteOnEvent, NoteOffEvent
+from alsa_midi import SequencerClient, WRITE_PORT, MidiBytesEvent
 from pythonx32 import x32
 
 found_addr = -1
@@ -54,15 +54,12 @@ def main():
 
   while found_addr < 0:
       for i in range(2, 255):
-          x = threading.Thread(target=try_to_ping_mixer, args=(addr_subnet, local_port + 1, i,))
-          x.start()
-      time.sleep(2)
+          threading.Thread(target = try_to_ping_mixer, args = (addr_subnet, local_port + 1, i, )).start()
+      time.sleep(2) # time-out is 1 second -> wait two-times the time-out
 
   mixer = x32.BehringerX32(f"{addr_subnet}.{found_addr}", local_port, False)
-  mixer.ping()
 
   # query all current fader values
-  mixer._timeout = 1
   fader_init_val = [0] * 9
   for i in range(8):
       fader_init_val[i] = mixer.get_value(f'/ch/{i + 1:#02}/mix/fader')[0]
@@ -94,12 +91,9 @@ def main():
                 if ini_value < 0 or (ini_value >= 0 and abs(ini_value - value) < 0.1):
                     fader_init_val[channel - 1] = -1 # invalidate initial value
                     mixer.set_value(f'/ch/{channel:#02}/mix/fader', [value], False)
-                    #print(mixer.get_value(f'/ch/{channel:#02}/mix/fader'))
-                    #print(f'/ch/{channel:#02}/mix/fader' {value})
             if t[c][1] == "d": # dial
                 value = MIDI_databyte2 / 127
                 mixer.set_value(f'/ch/{channel:#02}/mix/pan', [value], False)
-                #print(f'/ch/{channel:#02}/mix/pan {value}')
 
         #event_s = " ".join(f"{b}" for b in event.midi_bytes)
         #print(f"{event_s}")
@@ -114,8 +108,9 @@ def try_to_ping_mixer(addr_subnet, start_port, i):
         search_mixer.ping()
         found_addr = i
     except:
-        pass
-    search_mixer.__del__()
+        pass # no mixer found -> do nothing
+    finally:
+        search_mixer.__del__()
 
 # taken from stack overflow "Finding local IP addresses using Python's stdlib"
 def get_ip():
