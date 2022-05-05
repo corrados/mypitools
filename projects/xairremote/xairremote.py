@@ -27,10 +27,11 @@ import socket
 from alsa_midi import SequencerClient, WRITE_PORT, MidiBytesEvent
 from pythonx32 import x32
 
-found_addr = -1
+found_addr   = -1
+is_raspberry = os.uname()[4][:3] == 'arm'
 
 def main():
-  global found_addr, fader_init_val, bus_init_val
+  global found_addr, fader_init_val, bus_init_val, is_raspberry
 
   # setup the MIDI sequencer client for xairremote
   client = SequencerClient("xairremote")
@@ -92,6 +93,9 @@ def main():
                 if ini_value < 0 or (ini_value >= 0 and abs(ini_value - value) < 0.1):
                     fader_init_val[channel - 1] = -1 # invalidate initial value
                     mixer.set_value(f'/ch/{channel:#02}/mix/fader', [value], False)
+                    switch_pi_board_led(False)
+                else:
+                    switch_pi_board_led(True)
 
             if MIDI_table[c][0] == 1 and MIDI_table[c][1] == "f": # bus fader in second SCENE
                 value     = MIDI_databyte2 / 127
@@ -100,12 +104,15 @@ def main():
                 if ini_value < 0 or (ini_value >= 0 and abs(ini_value - value) < 0.1):
                     bus_init_val[channel - 1] = -1 # invalidate initial value
                     mixer.set_value(f'/ch/{channel:#02}/mix/{bus_ch:#02}/level', [value], False)
+                    switch_pi_board_led(False)
+                else:
+                    switch_pi_board_led(True)
 
             if MIDI_table[c][0] == 3 and MIDI_table[c][1] == "d": # dial in last SCENE
                 value = MIDI_databyte2 / 127
                 mixer.set_value(f'/ch/{channel:#02}/mix/pan', [value], False)
 
-            if MIDI_table[c][0] == 3 and MIDI_table[c][1] == "b2": # button 2 of last fader in last SCENE
+            if is_raspberry and MIDI_table[c][0] == 3 and MIDI_table[c][1] == "b2": # button 2 of last fader in last SCENE
                 if MIDI_databyte2 == 0: # on turing LED off
                     os.system('sudo shutdown -h now')
 
@@ -133,6 +140,16 @@ def try_to_ping_mixer(addr_subnet, start_port, i):
         pass # no mixer found -> do nothing
     finally:
         search_mixer.__del__()
+
+def switch_pi_board_led(new_state):
+    global is_raspberry
+    if is_raspberry and switch_pi_board_led.state and not new_state:
+        os.system('echo none | sudo tee /sys/class/leds/led0/trigger')
+        switch_pi_board_led.state = False
+    if is_raspberry and not switch_pi_board_led.state and new_state:
+        os.system('echo default-on | sudo tee /sys/class/leds/led0/trigger')
+        switch_pi_board_led.state = True
+switch_pi_board_led.state = True # function name as static variable
 
 # taken from stack overflow "Finding local IP addresses using Python's stdlib"
 def get_ip():
