@@ -76,52 +76,53 @@ def main():
 
       if event is not None and isinstance(event, MidiBytesEvent):
         if len(event.midi_bytes) == 3:
-            # status byte has changed
-            MIDI_statusbyte = event.midi_bytes[0]
-            MIDI_databyte1  = event.midi_bytes[1]
-            MIDI_databyte2  = event.midi_bytes[2]
+          # status byte has changed
+          MIDI_statusbyte = event.midi_bytes[0]
+          MIDI_databyte1  = event.midi_bytes[1]
+          MIDI_databyte2  = event.midi_bytes[2]
         elif len(event.midi_bytes) == 2:
-            MIDI_databyte1  = event.midi_bytes[0]
-            MIDI_databyte2  = event.midi_bytes[1]
+          MIDI_databyte1  = event.midi_bytes[0]
+          MIDI_databyte2  = event.midi_bytes[1]
 
-        # send corresponding OSC commands to the mixer
-        c = (MIDI_statusbyte, MIDI_databyte1)
-        if c in MIDI_table:
+        if len(event.midi_bytes) == 2 or len(event.midi_bytes) == 3:
+          # send corresponding OSC commands to the mixer
+          c = (MIDI_statusbyte, MIDI_databyte1)
+          if c in MIDI_table:
             channel = MIDI_table[c][2] + 1
             # reset fader init values if SCENE has changed
             if cur_SCENE is not MIDI_table[c][0]:
-                query_all_faders(mixer, bus_ch)
-                cur_SCENE = MIDI_table[c][0]
+              query_all_faders(mixer, bus_ch)
+              cur_SCENE = MIDI_table[c][0]
 
             if MIDI_table[c][0] == 0 and MIDI_table[c][1] == "f": # fader in first SCENE
-                value     = MIDI_databyte2 / 127
-                ini_value = fader_init_val[channel - 1]
-                # only apply value if current fader value is not too far off
-                if ini_value < 0 or (ini_value >= 0 and abs(ini_value - value) < 0.1):
-                    fader_init_val[channel - 1] = -1 # invalidate initial value
-                    mixer.set_value(f'/ch/{channel:#02}/mix/fader', [value], False)
-                    switch_pi_board_led(False)
-                else:
-                    switch_pi_board_led(True)
+              value     = MIDI_databyte2 / 127
+              ini_value = fader_init_val[channel - 1]
+              # only apply value if current fader value is not too far off
+              if ini_value < 0 or (ini_value >= 0 and abs(ini_value - value) < 0.1):
+                fader_init_val[channel - 1] = -1 # invalidate initial value
+                mixer.set_value(f'/ch/{channel:#02}/mix/fader', [value], False)
+                switch_pi_board_led(False)
+              else:
+                switch_pi_board_led(True)
 
             if MIDI_table[c][0] == 1 and MIDI_table[c][1] == "f": # bus fader in second SCENE
-                value     = MIDI_databyte2 / 127
-                ini_value = bus_init_val[channel - 1]
-                # only apply value if current fader value is not too far off
-                if ini_value < 0 or (ini_value >= 0 and abs(ini_value - value) < 0.1):
-                    bus_init_val[channel - 1] = -1 # invalidate initial value
-                    mixer.set_value(f'/ch/{channel:#02}/mix/{bus_ch:#02}/level', [value], False)
-                    switch_pi_board_led(False)
-                else:
-                    switch_pi_board_led(True)
+              value     = MIDI_databyte2 / 127
+              ini_value = bus_init_val[channel - 1]
+              # only apply value if current fader value is not too far off
+              if ini_value < 0 or (ini_value >= 0 and abs(ini_value - value) < 0.1):
+                bus_init_val[channel - 1] = -1 # invalidate initial value
+                mixer.set_value(f'/ch/{channel:#02}/mix/{bus_ch:#02}/level', [value], False)
+                switch_pi_board_led(False)
+              else:
+                switch_pi_board_led(True)
 
             if MIDI_table[c][0] == 3 and MIDI_table[c][1] == "d": # dial in last SCENE
-                value = MIDI_databyte2 / 127
-                mixer.set_value(f'/ch/{channel:#02}/mix/pan', [value], False)
+              value = MIDI_databyte2 / 127
+              mixer.set_value(f'/ch/{channel:#02}/mix/pan', [value], False)
 
             if is_raspberry and MIDI_table[c][0] == 3 and MIDI_table[c][1] == "b2": # button 2 of last fader in last SCENE
-                if MIDI_databyte2 == 0: # on turing LED off
-                    os.system('sudo shutdown -h now')
+              if MIDI_databyte2 == 0: # on turing LED off
+                os.system('sudo shutdown -h now')
 
         #event_s = " ".join(f"{b}" for b in event.midi_bytes)
         #print(f"{event_s}")
@@ -141,21 +142,21 @@ def try_to_ping_mixer(addr_subnet, start_port, i):
     search_mixer = x32.BehringerX32(f"{addr_subnet}.{i}", start_port + i, False)
     search_mixer._timeout = 1 # just one second time-out
     try:
-        search_mixer.ping()
-        found_addr = i
+      search_mixer.ping()
+      found_addr = i
     except:
-        pass # no mixer found -> do nothing
+      pass # no mixer found -> do nothing
     finally:
-        search_mixer.__del__()
+      search_mixer.__del__()
 
 def switch_pi_board_led(new_state):
     global is_raspberry
     if is_raspberry and switch_pi_board_led.state and not new_state:
-        os.system('echo none | sudo tee /sys/class/leds/led0/trigger')
-        switch_pi_board_led.state = False
+      os.system('echo none | sudo tee /sys/class/leds/led0/trigger')
+      switch_pi_board_led.state = False
     if is_raspberry and not switch_pi_board_led.state and new_state:
-        os.system('echo default-on | sudo tee /sys/class/leds/led0/trigger')
-        switch_pi_board_led.state = True
+      os.system('echo default-on | sudo tee /sys/class/leds/led0/trigger')
+      switch_pi_board_led.state = True
 switch_pi_board_led.state = True # function name as static variable
 
 # taken from stack overflow "Finding local IP addresses using Python's stdlib"
@@ -163,13 +164,13 @@ def get_ip():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     s.settimeout(0)
     try:
-        # doesn't even have to be reachable
-        s.connect(('10.255.255.255', 1))
-        IP = s.getsockname()[0]
+      # doesn't even have to be reachable
+      s.connect(('10.255.255.255', 1))
+      IP = s.getsockname()[0]
     except Exception:
-        IP = '127.0.0.1'
+      IP = '127.0.0.1'
     finally:
-        s.close()
+      s.close()
     return IP
 
 def nanoKONTROL_MIDI_lookup():
@@ -213,6 +214,6 @@ def nanoKONTROL_MIDI_lookup():
             (0XB5, 16): (3, "b2", 5), (0XB6, 16): (3, "b2", 6), (0XB7, 16): (3, "b2", 7), (0XB8, 16): (3, "b2", 8)}
 
 if __name__ == '__main__':
-    main()
+  main()
 
 
