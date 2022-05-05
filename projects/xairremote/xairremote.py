@@ -72,6 +72,7 @@ def main():
           raise KeyboardInterrupt
       except:
         client.drop_input() # fix "ALSAError: No space left on device"
+        continue # avoid "UnboundLocalError: local variable 'event' referenced before assignment"
 
       if event is not None and isinstance(event, MidiBytesEvent):
         if len(event.midi_bytes) == 3:
