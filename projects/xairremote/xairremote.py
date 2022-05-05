@@ -66,7 +66,13 @@ def main():
     MIDI_statusbyte = 0
     cur_SCENE       = -1
     while True:
-      event = client.event_input(prefer_bytes = True)
+      try:
+        event = client.event_input(prefer_bytes = True)
+      except KeyboardInterrupt:
+          raise KeyboardInterrupt
+      except:
+        client.drop_input() # fix "ALSAError: No space left on device"
+
       if event is not None and isinstance(event, MidiBytesEvent):
         if len(event.midi_bytes) == 3:
             # status byte has changed
