@@ -150,14 +150,16 @@ def try_to_ping_mixer(addr_subnet, start_port, i):
 mutex = threading.Lock()
 def switch_pi_board_led(new_state): # call this function in a separate thread since it might take long to execute
     global is_raspberry, mutex
-    mutex.acquire()
-    if is_raspberry and switch_pi_board_led.state and not new_state:
-      os.system('echo none | sudo tee /sys/class/leds/led0/trigger')
-      switch_pi_board_led.state = False
-    if is_raspberry and not switch_pi_board_led.state and new_state:
-      os.system('echo default-on | sudo tee /sys/class/leds/led0/trigger')
-      switch_pi_board_led.state = True
-    mutex.release()
+    # check outside mutex: we rely on fact that flag is set immediately in mutex region
+    if new_state is not switch_pi_board_led.state:
+      mutex.acquire()
+      if is_raspberry and switch_pi_board_led.state and not new_state:
+        switch_pi_board_led.state = False
+        os.system('echo none | sudo tee /sys/class/leds/led0/trigger')
+      if is_raspberry and not switch_pi_board_led.state and new_state:
+        switch_pi_board_led.state = True
+        os.system('echo default-on | sudo tee /sys/class/leds/led0/trigger')
+      mutex.release()
 switch_pi_board_led.state = True # function name as static variable
 
 # taken from stack overflow "Finding local IP addresses using Python's stdlib"
