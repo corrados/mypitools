@@ -89,35 +89,33 @@ def main():
           c = (MIDI_statusbyte, MIDI_databyte1)
           if c in MIDI_table:
             channel = MIDI_table[c][2] + 1
+            value   = MIDI_databyte2 / 127
             # reset fader init values if SCENE has changed
             if cur_SCENE is not MIDI_table[c][0]:
               query_all_faders(mixer, bus_ch)
               cur_SCENE = MIDI_table[c][0]
 
             if MIDI_table[c][0] == 0 and MIDI_table[c][1] == "f": # fader in first SCENE
-              value     = MIDI_databyte2 / 127
               ini_value = fader_init_val[channel - 1]
               # only apply value if current fader value is not too far off
               if ini_value < 0 or (ini_value >= 0 and abs(ini_value - value) < 0.1):
                 fader_init_val[channel - 1] = -1 # invalidate initial value
                 mixer.set_value(f'/ch/{channel:#02}/mix/fader', [value], False)
-                switch_pi_board_led(False)
+                threading.Thread(target = switch_pi_board_led, args = (False, )).start() # takes time to process
               else:
-                switch_pi_board_led(True)
+                threading.Thread(target = switch_pi_board_led, args = (True, )).start() # takes time to process
 
             if MIDI_table[c][0] == 1 and MIDI_table[c][1] == "f": # bus fader in second SCENE
-              value     = MIDI_databyte2 / 127
               ini_value = bus_init_val[channel - 1]
               # only apply value if current fader value is not too far off
               if ini_value < 0 or (ini_value >= 0 and abs(ini_value - value) < 0.1):
                 bus_init_val[channel - 1] = -1 # invalidate initial value
                 mixer.set_value(f'/ch/{channel:#02}/mix/{bus_ch:#02}/level', [value], False)
-                switch_pi_board_led(False)
+                threading.Thread(target = switch_pi_board_led, args = (False, )).start() # takes time to process
               else:
-                switch_pi_board_led(True)
+                threading.Thread(target = switch_pi_board_led, args = (True, )).start() # takes time to process
 
             if MIDI_table[c][0] == 3 and MIDI_table[c][1] == "d": # dial in last SCENE
-              value = MIDI_databyte2 / 127
               mixer.set_value(f'/ch/{channel:#02}/mix/pan', [value], False)
 
             if is_raspberry and MIDI_table[c][0] == 3 and MIDI_table[c][1] == "b2": # button 2 of last fader in last SCENE
@@ -149,14 +147,17 @@ def try_to_ping_mixer(addr_subnet, start_port, i):
     finally:
       search_mixer.__del__()
 
-def switch_pi_board_led(new_state):
-    global is_raspberry
+mutex = threading.Lock()
+def switch_pi_board_led(new_state): # call this function in a separate thread since it might take long to execute
+    global is_raspberry, mutex
+    mutex.acquire()
     if is_raspberry and switch_pi_board_led.state and not new_state:
       os.system('echo none | sudo tee /sys/class/leds/led0/trigger')
       switch_pi_board_led.state = False
     if is_raspberry and not switch_pi_board_led.state and new_state:
       os.system('echo default-on | sudo tee /sys/class/leds/led0/trigger')
       switch_pi_board_led.state = True
+    mutex.release()
 switch_pi_board_led.state = True # function name as static variable
 
 # taken from stack overflow "Finding local IP addresses using Python's stdlib"
