@@ -15,14 +15,13 @@ found_addr   = -1
 is_raspberry = os.uname()[4][:3] == 'arm'
 
 def main():
-  global found_addr, fader_init_val, bus_init_val, is_raspberry
+  global found_addr, found_port, fader_init_val, bus_init_val, is_raspberry
 
   # setup the MIDI sequencer client for xairremote
   client = SequencerClient("xairremote")
   port   = client.create_port("output", caps = WRITE_PORT)
   queue  = client.create_queue()
   queue.start()
-  client.drain_output()
 
   # get the nanoKONTROL ALSA midi port
   dest_ports    = client.list_ports(output = True)
@@ -38,11 +37,12 @@ def main():
     addr_subnet = '.'.join(get_ip().split('.')[0:3]) # only use first three numbers of local IP address
 
     while found_addr < 0:
-      for i in range(2, 255):
-        threading.Thread(target = try_to_ping_mixer, args = (addr_subnet, local_port + 1, i, )).start()
-      time.sleep(2) # time-out is 1 second -> wait two-times the time-out
+      for j in range(10023, 10025): # X32:10023, XAIR:10024 -> check both
+        for i in range(2, 255):
+          threading.Thread(target = try_to_ping_mixer, args = (addr_subnet, local_port + 1, i, j, )).start()
+        time.sleep(2) # time-out is 1 second -> wait two-times the time-out
 
-    mixer = x32.BehringerX32(f"{addr_subnet}.{found_addr}", local_port, False)
+    mixer = x32.BehringerX32(f"{addr_subnet}.{found_addr}", local_port, False, 10, found_port)
 
     # parse MIDI inevents
     bus_ch          = 5; # define here the bus channel you want to control
@@ -119,13 +119,13 @@ def query_all_faders(mixer, bus_ch): # query all current fader values
       fader_init_val[i] = mixer.get_value(f'/ch/{i + 1:#02}/mix/fader')[0]
       bus_init_val[i]   = mixer.get_value(f'/ch/{i + 1:#02}/mix/{bus_ch:#02}/level')[0]
 
-def try_to_ping_mixer(addr_subnet, start_port, i):
-    global found_addr
-    search_mixer = x32.BehringerX32(f"{addr_subnet}.{i}", start_port + i, False)
-    search_mixer._timeout = 1 # just one second time-out
+def try_to_ping_mixer(addr_subnet, start_port, i, j):
+    global found_addr, found_port
+    search_mixer = x32.BehringerX32(f"{addr_subnet}.{i}", start_port + i, False, 1, j) # just one second time-out
     try:
       search_mixer.ping()
       found_addr = i
+      found_port = j
     except:
       pass # no mixer found -> do nothing
     finally:
