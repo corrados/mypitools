@@ -35,12 +35,16 @@ def main():
     # search for a mixer and initialize the connection to the mixer
     local_port  = 10300
     addr_subnet = '.'.join(get_ip().split('.')[0:3]) # only use first three numbers of local IP address
-
     while found_addr < 0:
-      for j in range(10023, 10025): # X32:10023, XAIR:10024 -> check both
-        for i in range(2, 255):
-          threading.Thread(target = try_to_ping_mixer, args = (addr_subnet, local_port + 1, i, j, )).start()
-        time.sleep(2) # time-out is 1 second -> wait two-times the time-out
+      for j in range(10024, 10022, -1): # X32:10023, XAIR:10024 -> check both
+        print(j)
+        if found_addr < 0:
+          for i in range(2, 255):
+            threading.Thread(target = try_to_ping_mixer, args = (addr_subnet, local_port + 1, i, j, )).start()
+            if found_addr >= 0:
+              break
+        if found_addr < 0:
+          time.sleep(2) # time-out is 1 second -> wait two-times the time-out
 
     mixer = x32.BehringerX32(f"{addr_subnet}.{found_addr}", local_port, False, 10, found_port)
 
@@ -121,14 +125,14 @@ def query_all_faders(mixer, bus_ch): # query all current fader values
 
 def try_to_ping_mixer(addr_subnet, start_port, i, j):
     global found_addr, found_port
-    search_mixer = x32.BehringerX32(f"{addr_subnet}.{i}", start_port + i, False, 1, j) # just one second time-out
+    #print(f"{addr_subnet}.{i}:{start_port + i + j}")
+    search_mixer = x32.BehringerX32(f"{addr_subnet}.{i}", start_port + i + j, False, 1, j) # just one second time-out
     try:
       search_mixer.ping()
+      search_mixer.__del__() # important to delete object before changing found_addr
       found_addr = i
       found_port = j
     except:
-      pass # no mixer found -> do nothing
-    finally:
       search_mixer.__del__()
 
 mutex = threading.Lock()
