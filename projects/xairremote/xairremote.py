@@ -37,7 +37,6 @@ def main():
     addr_subnet = '.'.join(get_ip().split('.')[0:3]) # only use first three numbers of local IP address
     while found_addr < 0:
       for j in range(10024, 10022, -1): # X32:10023, XAIR:10024 -> check both
-        print(j)
         if found_addr < 0:
           for i in range(2, 255):
             threading.Thread(target = try_to_ping_mixer, args = (addr_subnet, local_port + 1, i, j, )).start()
