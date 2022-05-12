@@ -82,7 +82,7 @@ def main():
             if MIDI_table[c][0] == 0 and MIDI_table[c][1] == "f": # fader in first SCENE
               ini_value = fader_init_val[channel - 1]
               # only apply value if current fader value is not too far off
-              if ini_value < 0 or (ini_value >= 0 and abs(ini_value - value) < 0.1):
+              if ini_value < 0 or (ini_value >= 0 and abs(ini_value - value) < 0.01):
                 fader_init_val[channel - 1] = -1 # invalidate initial value
                 mixer.set_value(f'/ch/{channel:#02}/mix/fader', [value], False)
                 threading.Thread(target = switch_pi_board_led, args = (False, )).start() # takes time to process
@@ -92,7 +92,7 @@ def main():
             if MIDI_table[c][0] == 1 and MIDI_table[c][1] == "f": # bus fader in second SCENE
               ini_value = bus_init_val[channel - 1]
               # only apply value if current fader value is not too far off
-              if ini_value < 0 or (ini_value >= 0 and abs(ini_value - value) < 0.1):
+              if ini_value < 0 or (ini_value >= 0 and abs(ini_value - value) < 0.01):
                 bus_init_val[channel - 1] = -1 # invalidate initial value
                 mixer.set_value(f'/ch/{channel:#02}/mix/{bus_ch:#02}/level', [value], False)
                 threading.Thread(target = switch_pi_board_led, args = (False, )).start() # takes time to process
