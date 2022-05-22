@@ -5,6 +5,8 @@ a Behringer X-AIR or X32 digital mixer. The nanoKONTROL is connected to a Raspbe
 using USB and the connection from the Raspberry Pi to the Behringer mixer is either via wireless LAN (WiFi) or
 an Ethernet cable. The protocol used to talk to the Behringer mixer is OSC (using the library [python-x32](https://github.com/tjoracoder/python-x32)).
 
+You can see the script in action in this [Youtube video](https://youtu.be/CBD8GMQ4UX4).
+
 
 ## Setup Raspberry Pi
 
