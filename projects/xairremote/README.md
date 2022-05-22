@@ -1,12 +1,12 @@
 # Python script to control a Behringer XAIR mixer with a Korg nanoKONTROL connected to a Raspberry Pi
 
-The Python script xairremote.py implements the connection between the Korg nanoKONTROL MIDI mixer with
-a Behringer X-AIR or X32 digital mixer. The nanoKONTROL is connected to a Raspberry Pi (e.g. a Pi Zero W)
-with USB and the connection from the Raspberry Pi to the Behringer mixer is either via wireless LAN or
-an Ethernet cable. The protocol used to talk to the Behringer mixer is OSC.
+The Python script [xairremote.py](xairremote.py) implements the connection between the Korg nanoKONTROL MIDI mixer with
+a Behringer X-AIR or X32 digital mixer. The nanoKONTROL is connected to a Raspberry Pi (e.g. a Raspberry Pi Zero W)
+using USB and the connection from the Raspberry Pi to the Behringer mixer is either via wireless LAN (WiFi) or
+an Ethernet cable. The protocol used to talk to the Behringer mixer is OSC (using the library [python-x32](https://github.com/tjoracoder/python-x32)).
 
 
-## Setup Raspberry Pi Zero W
+## Setup Raspberry Pi
 
 Use the following commands to setup the Raspberry Pi and start the script:
 
