@@ -71,6 +71,17 @@ else
 fi
 
 
+# EXTERNAL USB HDD #############################################################
+if grep -Fxq "/dev/sda1 /media/piarchiv ntfs defaults 0 0" /etc/fstab
+then
+	echo "audio overlay already set in /etc/fstab"
+else
+	echo "we append the SDA1 to /etc/fstab"
+	sudo echo "# auto mount external HDD" | sudo tee /etc/fstab >/dev/null
+	sudo echo "/dev/sda1 /media/piarchiv ntfs defaults 0 0" | sudo tee /etc/fstab >/dev/null
+fi
+
+
 ## FIX UNATTENDED UPGRADES FOR RASPIAN ##########################################
 #if test -f "/etc/apt/apt.conf.d/50unattended-upgrades"; then
 #	if grep -Fq "Raspbian" /etc/apt/apt.conf.d/50unattended-upgrades
