@@ -105,8 +105,8 @@ then
 	echo "audio overlay already set in /boot/config.txt"
 else
 	echo "we append the audio overlay to /boot/config.txt"
-	sudo echo "# enable analog audio on pi zero" >> /boot/config.txt
-	sudo echo "dtoverlay=pwm-2chan,pin=18,func=2,pin2=13,func2=4" >> /boot/config.txt
+	sudo echo "# enable analog audio on pi zero" | sudo tee /boot/config.txt >/dev/null
+	sudo echo "dtoverlay=pwm-2chan,pin=18,func=2,pin2=13,func2=4" | sudo tee /boot/config.txt >/dev/null
 fi
 
 # make sure the alsamixer level is correct for the audio output
