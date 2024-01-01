@@ -55,7 +55,7 @@ echo "first we update the system and install the required packages"
 sudo apt-get update
 sudo apt-get upgrade -y
 sudo apt-get dist-upgrade -y
-sudo apt-get install gnuplot build-essential fail2ban git hdparm htop libjack-jackd2-dev net-tools nethogs pigpio qjackctl qt5-default unattended-upgrades python-configparser vim -y
+sudo apt-get install gnuplot build-essential fail2ban git hdparm htop libjack-jackd2-dev net-tools nethogs pigpio qjackctl qtbase5-dev qtchooser qt5-qmake unattended-upgrades python-configparser vim -y
 sudo apt-get autoremove -y
 sudo apt-get autoclean -y
 
@@ -110,7 +110,7 @@ else
 fi
 
 # make sure the alsamixer level is correct for the audio output
-amixer set PCM 95%
+amixer set Master 95%
 
 
 # WEATHER DATA #################################################################
