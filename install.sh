@@ -61,7 +61,7 @@ sudo apt-get autoclean -y
 
 
 # SSH ##########################################################################
-if [ -d ".ssh" ]; then
+if [ -d "~/.ssh" ]; then
   echo "The SSH directory is present, nothing to do."
 else
   mkdir ~/.ssh
@@ -105,8 +105,8 @@ then
 	echo "audio overlay already set in /boot/config.txt"
 else
 	echo "we append the audio overlay to /boot/config.txt"
-	echo "# enable analog audio on pi zero" >> /boot/config.txt
-	echo "dtoverlay=pwm-2chan,pin=18,func=2,pin2=13,func2=4" >> /boot/config.txt
+	sudo echo "# enable analog audio on pi zero" >> /boot/config.txt
+	sudo echo "dtoverlay=pwm-2chan,pin=18,func=2,pin2=13,func2=4" >> /boot/config.txt
 fi
 
 # make sure the alsamixer level is correct for the audio output
