@@ -8,6 +8,9 @@ read -e -p "Please set GPIO number for DHT22 temperature sensor: " -i "4" TEMPSE
 echo "GPIO number for IDHT22 temperature sensor is set to $TEMPSENSORGPIO"
 
 
+echo "TODO MANUALLY: Use raspi-config to enable VNC."
+
+
 # CRON TAB #####################################################################
 # create cron tab entries for the LED stribe (note that the original file will be deleted!)
 # note that ledremote and myrunscript must not start at the same time
