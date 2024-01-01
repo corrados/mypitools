@@ -57,6 +57,17 @@ apt-get autoremove -y
 apt-get autoclean -y
 
 
+# SSH ##########################################################################
+if [ -d ".ssh" ]; then
+  echo "The SSH directory is present, nothing to do."
+else
+  mkdir ~/.ssh
+  chmod 700 ~/.ssh
+  touch authorized_keys
+  ssh-keygen
+fi
+
+
 ## FIX UNATTENDED UPGRADES FOR RASPIAN ##########################################
 #if test -f "/etc/apt/apt.conf.d/50unattended-upgrades"; then
 #	if grep -Fq "Raspbian" /etc/apt/apt.conf.d/50unattended-upgrades
