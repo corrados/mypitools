@@ -61,7 +61,7 @@ sudo apt-get autoclean -y
 
 
 # SSH ##########################################################################
-if [ -d "~/.ssh" ]; then
+if [ -d "/home/pi/.ssh" ]; then
   echo "The SSH directory is present, nothing to do."
 else
   mkdir ~/.ssh
