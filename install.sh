@@ -82,6 +82,16 @@ else
 fi
 
 
+# USB TV CARD DRIVER ############################################################
+if [ -f "/lib/firmware/dvb-usb-terratec-htc-stick-drxk.fw" ]
+then
+  echo "USB TV card driver already installed"
+else
+  wget https://github.com/OpenELEC/dvb-firmware/raw/master/firmware/dvb-usb-terratec-htc-stick-drxk.fw
+  sudo mv dvb-usb-terratec-htc-stick-drxk.fw /lib/firmware
+fi
+
+
 ## FIX UNATTENDED UPGRADES FOR RASPIAN ##########################################
 #if test -f "/etc/apt/apt.conf.d/50unattended-upgrades"; then
 #	if grep -Fq "Raspbian" /etc/apt/apt.conf.d/50unattended-upgrades
