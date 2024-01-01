@@ -57,17 +57,17 @@ apt-get autoremove -y
 apt-get autoclean -y
 
 
-# FIX UNATTENDED UPGRADES FOR RASPIAN ##########################################
-if test -f "/etc/apt/apt.conf.d/50unattended-upgrades"; then
-	if grep -Fq "Raspbian" /etc/apt/apt.conf.d/50unattended-upgrades
-	then
-		echo "unattended upgrades configuration already fixed for Raspian"
-	else
-		echo "we fix the unattended upgrades configuration file"
-		sudo sed -i '/Unattended-Upgrade::Origins-Pattern {/a "origin=Raspbian,codename=${distro_codename},label=Raspbian";' /etc/apt/apt.conf.d/50unattended-upgrades
-		sudo sed -i '/Unattended-Upgrade::Origins-Pattern {/a "origin=Raspberry Pi Foundation,codename=${distro_codename},label=Raspberry Pi Foundation";' /etc/apt/apt.conf.d/50unattended-upgrades
-	fi
-fi
+## FIX UNATTENDED UPGRADES FOR RASPIAN ##########################################
+#if test -f "/etc/apt/apt.conf.d/50unattended-upgrades"; then
+#	if grep -Fq "Raspbian" /etc/apt/apt.conf.d/50unattended-upgrades
+#	then
+#		echo "unattended upgrades configuration already fixed for Raspian"
+#	else
+#		echo "we fix the unattended upgrades configuration file"
+#		sudo sed -i '/Unattended-Upgrade::Origins-Pattern {/a "origin=Raspbian,codename=${distro_codename},label=Raspbian";' /etc/apt/apt.conf.d/50unattended-upgrades
+#		sudo sed -i '/Unattended-Upgrade::Origins-Pattern {/a "origin=Raspberry Pi Foundation,codename=${distro_codename},label=Raspberry Pi Foundation";' /etc/apt/apt.conf.d/50unattended-upgrades
+#	fi
+#fi
 
 
 # LED REMOTE ###################################################################
