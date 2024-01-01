@@ -72,13 +72,13 @@ fi
 
 
 # EXTERNAL USB HDD #############################################################
-if grep -Fxq "/dev/sda1 /media/piarchiv ntfs defaults 0 0" /etc/fstab
+if grep -Fxq "/dev/sda1 /media/piarchiv ntfs defaults,nofail 0 0" /etc/fstab
 then
 	echo "audio overlay already set in /etc/fstab"
 else
 	echo "we append the SDA1 to /etc/fstab"
 	sudo echo "# auto mount external HDD" | sudo tee /etc/fstab >/dev/null
-	sudo echo "/dev/sda1 /media/piarchiv ntfs defaults 0 0" | sudo tee /etc/fstab >/dev/null
+	sudo echo "/dev/sda1 /media/piarchiv ntfs defaults,nofail 0 0" | sudo tee /etc/fstab >/dev/null
 fi
 
 
