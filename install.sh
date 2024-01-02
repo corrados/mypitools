@@ -82,6 +82,17 @@ else
 fi
 
 
+# VNC ##########################################################################
+if sudo grep -Fxq "Authentication=VncAuth" /root/.vnc/config.d/vncserver-x11
+then
+	echo "VNC authentication fix already set in /root/.vnc/config.d/vncserver-x11"
+else
+	echo "fix VNC authentication in /root/.vnc/config.d/vncserver-x11"
+	sudo vncpasswd -service
+	sudo echo "Authentication=VncAuth" | sudo tee -a /root/.vnc/config.d/vncserver-x11 >/dev/null
+fi
+
+
 # EXTERNAL USB HDD #############################################################
 if grep -Fxq "/dev/sda1 /media/piarchiv ext4 defaults,nofail 0 0" /etc/fstab
 then
