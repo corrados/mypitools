@@ -89,8 +89,9 @@ then
 	echo "VNC authentication fix already set in /root/.vnc/config.d/vncserver-x11"
 else
 	echo "fix VNC authentication in /root/.vnc/config.d/vncserver-x11"
-	sudo vncpasswd -service
+	sudo vncpasswd -legacy -service
 	sudo echo "Authentication=VncAuth" | sudo tee -a /root/.vnc/config.d/vncserver-x11 >/dev/null
+	sudo echo "Encryption=PreferOn" | sudo tee -a /root/.vnc/config.d/vncserver-x11 >/dev/null
 fi
 
 
