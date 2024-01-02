@@ -96,13 +96,13 @@ fi
 
 
 # EXTERNAL USB HDD #############################################################
-if grep -Fxq "/dev/sda1 /media/piarchiv ext4 defaults,nofail 0 0" /etc/fstab
+if grep -Fxq "/dev/sda1 /media/pi/piarchiv ext4 defaults,nofail 0 0" /etc/fstab
 then
 	echo "SDA1 auto mount already set in /etc/fstab"
 else
 	echo "we append the SDA1 auto mount to /etc/fstab"
 	sudo echo "# auto mount external HDD on SDA1" | sudo tee -a /etc/fstab >/dev/null
-	sudo echo "/dev/sda1 /media/piarchiv ext4 defaults,nofail 0 0" | sudo tee -a /etc/fstab >/dev/null
+	sudo echo "/dev/sda1 /media/pi/piarchiv ext4 defaults,nofail 0 0" | sudo tee -a /etc/fstab >/dev/null
 	sudo systemctl daemon-reload
 fi
 
