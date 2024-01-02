@@ -92,6 +92,16 @@ else
 fi
 
 
+# DISABLE SCREEN SAVER ##########################################################
+if grep -Fxq "xserver-command=X -s 0 -p 0 -dpms" /etc/lightdm/lightdm.conf
+then
+	echo "screen saver already disabled in /etc/lightdm/lightdm.conf"
+else
+  echo "we change /etc/lightdm/lightdm.conf to disable the screen saver"
+  sudo sed -i "s/#xserver-command=X.*/xserver-command=X -s 0 -p 0 -dpms/g" /etc/lightdm/lightdm.conf
+fi
+
+
 ## FIX UNATTENDED UPGRADES FOR RASPIAN ##########################################
 #if test -f "/etc/apt/apt.conf.d/50unattended-upgrades"; then
 #	if grep -Fq "Raspbian" /etc/apt/apt.conf.d/50unattended-upgrades
