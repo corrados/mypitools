@@ -83,6 +83,7 @@ fi
 
 
 # VNC ##########################################################################
+# NOTE: possible bug in RaspbianOS: https://github.com/raspberrypi/bookworm-feedback/issues/41
 if sudo grep -Fxq "Authentication=VncAuth" /root/.vnc/config.d/vncserver-x11
 then
 	echo "VNC authentication fix already set in /root/.vnc/config.d/vncserver-x11"
