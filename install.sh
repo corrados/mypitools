@@ -77,7 +77,7 @@ if [ -d "/home/pi/.ssh" ]; then
 else
   mkdir ~/.ssh
   chmod 700 ~/.ssh
-  touch authorized_keys
+  touch ~/.ssh/authorized_keys
   ssh-keygen
 fi
 
