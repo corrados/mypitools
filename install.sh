@@ -49,6 +49,19 @@ else
 fi
 
 
+# SSH SECURITY #################################################################
+if grep -Fxq "PasswordAuthentication yes" /etc/ssh/sshd_config
+then
+  read -p "Do you want to disable SSH password login? " -n 1 -r
+  echo
+  if [[ $REPLY =~ ^[Yy]$ ]]
+  then
+    echo "SSH password login will be disabled now"
+    sudo sed -i "s/#PasswordAuthentication yes.*/PasswordAuthentication no/g" /etc/ssh/sshd_config
+  fi
+fi
+
+
 # SYSTEM UPDATE/INSTALL PACKAGES ###############################################
 # update system and install required packages
 echo "first we update the system and install the required packages"
