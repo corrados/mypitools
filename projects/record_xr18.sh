@@ -11,8 +11,11 @@ do
     killall drumgizmo
     killall jackd
 
+    FILENAME=/home/pi/$(date +"%Y%m%d_%H%M").wav
+    echo recording to $FILENAME
+
     # record multi-channel audio from XR18
-    AUDIODEV="hw:XR18,0"; rec -c 18 recording.wav
+    AUDIODEV="hw:XR18,0"; rec -c 18 $FILENAME
 
   fi
 
