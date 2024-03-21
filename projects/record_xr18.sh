@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# create /mnt/usb directory and add the following line to /etc/fstab to mount USB stick:
+# /dev/sda1       /mnt/usb        auto    defaults,nofail,sync,uid=1000,gid=1000,umask=022        0       0
+
 while [ 1 ]
 do
 
