@@ -7,7 +7,7 @@ while [ 1 ]
 do
 
   # check for XR18 connected
-  if [ $(aplay -l|grep -c "X18XR18") -eq 1 ]; then
+  if [ $(aplay -l|grep -c "XR18") -eq 1 ]; then
 
     ## XR18 connected, we are no longer in edrumulus mode -> kill all edrumulus processes
     #killall ecasound
