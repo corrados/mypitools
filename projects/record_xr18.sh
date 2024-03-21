@@ -11,16 +11,17 @@ do
   # check for XR18 connected
   if [ $(aplay -l|grep -c "XR18") -eq 1 ]; then
 
-    ## XR18 connected, we are no longer in edrumulus mode -> kill all edrumulus processes
-    #killall ecasound
-    #killall drumgizmo
-    #killall jackd
+    # XR18 connected, we are no longer in edrumulus mode -> kill all edrumulus processes
+    # note that this is important to free audio device for recording
+    killall ecasound
+    killall drumgizmo
+    killall jackd
 
     FILENAME=/mnt/usb/$(date +"%Y%m%d_%H%M").wav
     echo recording to $FILENAME
 
     # record multi-channel audio from XR18
-    AUDIODEV="hw:XR18,0"; rec -c 18 $FILENAME
+    export AUDIODEV="hw:XR18,0"; rec -c 18 $FILENAME
 
   fi
 
