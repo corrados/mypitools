@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# sudo apt install libsox-fmt-all
+#
 # create /mnt/usb directory and add the following line to /etc/fstab to mount USB stick:
 # /dev/sda1       /mnt/usb        auto    defaults,nofail,sync,uid=1000,gid=1000,umask=022        0       0
 
