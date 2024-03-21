@@ -14,7 +14,7 @@ do
     #killall drumgizmo
     #killall jackd
 
-    FILENAME=/home/pi/$(date +"%Y%m%d_%H%M").wav
+    FILENAME=/mnt/usb/$(date +"%Y%m%d_%H%M").wav
     echo recording to $FILENAME
 
     # record multi-channel audio from XR18
