@@ -21,7 +21,7 @@ do
     echo recording to $FILENAME
 
     # record multi-channel audio from XR18
-    export AUDIODEV="hw:XR18,0"; rec -c 18 $FILENAME
+    export AUDIODEV="hw:XR18,0"; rec --buffer 262144 -c 18 $FILENAME
 
   fi
 
