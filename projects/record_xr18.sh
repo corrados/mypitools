@@ -13,8 +13,10 @@ do
 
     # XR18 connected, we are no longer in edrumulus mode -> kill all edrumulus processes
     # note that this is important to free audio device for recording
-    killall ecasound
     killall drumgizmo
+    killall ttymidi
+    sudo systemctl stop pigpiod
+    killall ecasound
     killall jackd
 
     FILENAME=/mnt/usb/$(date +"%Y%m%d_%H%M").wav
