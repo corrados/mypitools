@@ -4,6 +4,9 @@
 #
 # create /mnt/usb directory and add the following line to /etc/fstab to mount USB stick:
 # /dev/sda1       /mnt/usb        auto    defaults,nofail,sync,uid=1000,gid=1000,umask=022        0       0
+#
+# in rc.local:
+# su pi -c 'cd /home/pi;./record_xr18.sh' &
 
 while [ 1 ]
 do
@@ -20,19 +23,40 @@ do
     killall ecasound
     killall jackd
 
-    FILENAME=/mnt/usb/$(date +"%Y%m%d_%H%M").wav
-    echo recording to $FILENAME
-
     # record multi-channel audio from XR18
+    FILENAME=/mnt/usb/$(date +"%Y%m%d_%H%M").wav
 
-    # TEST using jack audio
-    #jackd -R -T -P70 -t2000 -d alsa -dhw:S3 -p 2048 -n 6 -r 48000 -s &
-    jackd -R -T -P70 -t2000 -d alsa -dhw:XR18 -p 2048 -n 6 -r 48000 -s &
-    sleep 3
-    jack_capture --port system:capture*  $FILENAME
+    # TESTS using jack audio
+    #echo recording to $FILENAME
+    #echo "TEST: starting recording"
+    #jackd -R -T -P70 -t2000 -d alsa -dhw:XR18 -p 2048 -n 6 -r 48000 -s &
 
+
+    # starting jack audio
+    #jackd -R -T -P70 -t2000 -d alsa -dhw:S3 -p 2048 -n 6 -r 48000 -s >/dev/null 2>&1 &
+    jackd -R -T -P70 -t2000 -d alsa -dhw:XR18 -p 2048 -n 6 -r 48000 -s >/dev/null 2>&1 &
+    sleep 2
+
+
+    # TESTS using jack_capture
+    #echo play|jack_transport #>/dev/null 2>&1
+    #jack_capture --jack-transport --silent --disable-console --port system:capture* $FILENAME >/dev/null 2>&1
+    #jack_capture --jack-transport --port system:capture* $FILENAME #>/dev/null 2>&1
+    #echo play|jack_transport >/dev/null 2>&1
+    #jack_capture --jack-transport --silent --disable-console --port system:capture* $FILENAME &#>/dev/null 2>&1
+    #sleep 2
+    #echo play|jack_transport #>/dev/null 2>&1
+
+    # TESTS using rec
     ##export AUDIODEV="hw:XR18,0"; rec --buffer 262144 -c 18 -b 24 $FILENAME
     #export AUDIODEV="hw:S3,0"; rec --buffer 262144 -c 18 -b 24 $FILENAME remix 1 1 1 1 1 1 1 1 1 2 2 2 2 2 2 2 2 2
+
+
+    # starting jack_capture
+    jack_capture --silent --disable-console --port system:capture* $FILENAME >/dev/null 2>&1
+
+
+    #echo "TEST: recording stopped"
 
   fi
 
