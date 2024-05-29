@@ -18,6 +18,12 @@
 #*******************************************************************************
 
 import sys, sqlite3, datetime
+import matplotlib.pyplot as plt
+import matplotlib.dates as dates
+
+# settings
+target_scale = 79
+
 
 database = sys.argv[1]
 print("database: ", database)
@@ -27,13 +33,24 @@ cursor = con.cursor()
 #cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
 #print(cursor.fetchall())
 
+scale_measurements = []
+
 cursor.execute("SELECT * FROM scaleMeasurements")
 rows = cursor.fetchall()
 for row in rows:
-  #print(row)
-  #print(row[3:5])
   weight = row[4]
   timestamp = row[3] / 1000
   output_date = datetime.datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M')
-  print((output_date, weight))
+  scale_measurements.append((output_date, weight))
+
+x, y = zip(*scale_measurements)
+x = dates.datestr2num(x)
+
+plt.plot(x, y, '.')
+plt.plot(plt.gca().axes.get_xlim(), [target_scale, target_scale], 'r--')
+plt.gcf().autofmt_xdate()
+plt.gca().xaxis.set_major_formatter(dates.DateFormatter('%Y-%m-%d'))
+plt.title('Scale Measurements')
+plt.grid()
+plt.show()
 
