@@ -33,24 +33,51 @@ cursor = con.cursor()
 #cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
 #print(cursor.fetchall())
 
-scale_measurements = []
 
-cursor.execute("SELECT * FROM scaleMeasurements")
+# Band Data --------------------------------------------------------------------
+band_data = []
+cursor.execute("SELECT * FROM MI_BAND_ACTIVITY_SAMPLE")
 rows = cursor.fetchall()
 for row in rows:
-  weight = row[4]
-  timestamp = row[3] / 1000
-  output_date = datetime.datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M')
-  scale_measurements.append((output_date, weight))
+  rate = row[6]
+  if rate < 250 and rate > 0:
+    timestamp = row[0]
+    raw_intensity = row[3] / 255 * 40 # convert range to 0 to 40
+    output_date = datetime.datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M')
+    band_data.append((output_date, rate, raw_intensity))
 
-x, y = zip(*scale_measurements)
+
+x, y, z = zip(*band_data)
 x = dates.datestr2num(x)
 
-plt.plot(x, y, '.')
-plt.plot(plt.gca().axes.get_xlim(), [target_scale, target_scale], 'r--')
+plt.plot(x, z, 'k')
+plt.plot(x, y, 'b')
 plt.gcf().autofmt_xdate()
 plt.gca().xaxis.set_major_formatter(dates.DateFormatter('%Y-%m-%d'))
-plt.title('Scale Measurements')
+plt.title('Band Data')
 plt.grid()
 plt.show()
+
+
+## Scale Measurements -----------------------------------------------------------
+#scale_measurements = []
+#
+#cursor.execute("SELECT * FROM scaleMeasurements")
+#rows = cursor.fetchall()
+#for row in rows:
+#  weight = row[4]
+#  timestamp = row[3] / 1000
+#  output_date = datetime.datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M')
+#  scale_measurements.append((output_date, weight))
+#
+#x, y = zip(*scale_measurements)
+#x = dates.datestr2num(x)
+#
+#plt.plot(x, y, '.')
+#plt.plot(plt.gca().axes.get_xlim(), [target_scale, target_scale], 'r--')
+#plt.gcf().autofmt_xdate()
+#plt.gca().xaxis.set_major_formatter(dates.DateFormatter('%Y-%m-%d'))
+#plt.title('Scale Measurements')
+#plt.grid()
+#plt.show()
 
