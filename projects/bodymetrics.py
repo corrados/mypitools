@@ -25,16 +25,13 @@ import matplotlib.dates as dates
 target_scale = 79
 
 
-database = sys.argv[1]
-print("database: ", database)
-con = sqlite3.connect(database)
-cursor = con.cursor()
-
-#cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
-#print(cursor.fetchall())
+database_band = sys.argv[1] + "Gadgetbridge"
+database_scale = sys.argv[1] + "openScale.db"
 
 
 # Band Data --------------------------------------------------------------------
+con = sqlite3.connect(database_band)
+cursor = con.cursor()
 band_data = []
 cursor.execute("SELECT * FROM MI_BAND_ACTIVITY_SAMPLE")
 rows = cursor.fetchall()
@@ -44,14 +41,14 @@ for row in rows:
     timestamp = row[0]
     raw_intensity = row[3] / 255 * 40 # convert range to 0 to 40
     output_date = datetime.datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M')
-    band_data.append((output_date, rate, raw_intensity))
+    band_data.append((output_date, rate, raw_intensity, None))
 
 
-x, y, z = zip(*band_data)
+x, a, b, c = zip(*band_data)
 x = dates.datestr2num(x)
 
-plt.plot(x, z, 'k')
-plt.plot(x, y, 'b')
+plt.plot(x, b, 'k')
+plt.plot(x, a, 'b')
 plt.gcf().autofmt_xdate()
 plt.gca().xaxis.set_major_formatter(dates.DateFormatter('%Y-%m-%d'))
 plt.title('Band Data')
@@ -59,25 +56,27 @@ plt.grid()
 plt.show()
 
 
-## Scale Measurements -----------------------------------------------------------
-#scale_measurements = []
-#
-#cursor.execute("SELECT * FROM scaleMeasurements")
-#rows = cursor.fetchall()
-#for row in rows:
-#  weight = row[4]
-#  timestamp = row[3] / 1000
-#  output_date = datetime.datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M')
-#  scale_measurements.append((output_date, weight))
-#
-#x, y = zip(*scale_measurements)
-#x = dates.datestr2num(x)
-#
-#plt.plot(x, y, '.')
-#plt.plot(plt.gca().axes.get_xlim(), [target_scale, target_scale], 'r--')
-#plt.gcf().autofmt_xdate()
-#plt.gca().xaxis.set_major_formatter(dates.DateFormatter('%Y-%m-%d'))
-#plt.title('Scale Measurements')
-#plt.grid()
-#plt.show()
+# Scale Measurements -----------------------------------------------------------
+con = sqlite3.connect(database_scale)
+cursor = con.cursor()
+scale_measurements = []
+
+cursor.execute("SELECT * FROM scaleMeasurements")
+rows = cursor.fetchall()
+for row in rows:
+  weight = row[4]
+  timestamp = row[3] / 1000
+  output_date = datetime.datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M')
+  scale_measurements.append((output_date, weight))
+
+x, y = zip(*scale_measurements)
+x = dates.datestr2num(x)
+
+plt.plot(x, y, '.')
+plt.plot(plt.gca().axes.get_xlim(), [target_scale, target_scale], 'r--')
+plt.gcf().autofmt_xdate()
+plt.gca().xaxis.set_major_formatter(dates.DateFormatter('%Y-%m-%d'))
+plt.title('Scale Measurements')
+plt.grid()
+plt.show()
 
