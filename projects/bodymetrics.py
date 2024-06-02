@@ -78,17 +78,17 @@ with open(database_special, 'r') as file:
     parts = line.split(',')
     date_time_str = parts[0].strip()
     output_date = datetime.datetime.strptime(date_time_str, '%Y-%m-%d %H:%M:%S')
-    data.append((output_date, None, None, None, None, parts[1]))
+    data.append((output_date, None, None, None, None, 100 / float(parts[1])))
 
 # Plot -------------------------------------------------------------------------
 x, a, b, c, d, e = zip(*data)
 plt.plot(x, b, 'k') # activity
 plt.plot(x, a, 'b') # rate
-plt.plot(x, c, 'r.') # scale
+plt.plot(x, c, 'k.') # scale
 plt.plot(x, d, 'g.') # pressure
 plt.plot(x, e, 'r*') # special
 plt.gcf().autofmt_xdate()
-plt.gca().xaxis.set_major_formatter(dates.DateFormatter('%Y-%m-%d'))
+plt.gca().xaxis.set_major_formatter(dates.DateFormatter('%Y-%m-%d,%H'))
 plt.title('All Data')
 plt.grid()
 plt.show()
