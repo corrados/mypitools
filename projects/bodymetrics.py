@@ -27,7 +27,8 @@ min_scale = 72
 path = sys.argv[1]
 database_bands = [path + "/Gadgetbridge"]
 database_scale = path + "/openScale.db"
-database_pressure = path + "/Blutdruck.txt"
+database_pressure = path + "/pressure.txt"
+database_special = path + "/special.txt"
 data = []
 
 # Band Data --------------------------------------------------------------------
@@ -42,7 +43,7 @@ for database_band in database_bands:
      timestamp = row[0]
      raw_intensity = row[3] / 255 * 40 # convert range to 0 to 40
      output_date = datetime.datetime.fromtimestamp(timestamp)
-     data.append((output_date, rate, raw_intensity, None, None))
+     data.append((output_date, rate, raw_intensity, None, None, None))
 
 # Scale Measurements -----------------------------------------------------------
 con = sqlite3.connect(database_scale)
@@ -55,7 +56,7 @@ for row in rows:
   if weight > min_scale:
     timestamp = row[3] / 1000
     output_date = datetime.datetime.fromtimestamp(timestamp)
-    data.append((output_date, None, None, weight, None))
+    data.append((output_date, None, None, weight, None, None))
 
 # Pressure ---------------------------------------------------------------------
 blood_pressure_data = []
@@ -68,14 +69,24 @@ with open(database_pressure, 'r') as file:
       readings = [reading.strip() for reading in parts[1:]]
       for reading in readings:
         pressure = int(reading.split('/')[0])
-        data.append((output_date, None, None, None, pressure))
+        data.append((output_date, None, None, None, pressure, None))
+
+# Special ----------------------------------------------------------------------
+special_data = []
+with open(database_special, 'r') as file:
+  for line in file:
+    parts = line.split(',')
+    date_time_str = parts[0].strip()
+    output_date = datetime.datetime.strptime(date_time_str, '%Y-%m-%d %H:%M:%S')
+    data.append((output_date, None, None, None, None, parts[1]))
 
 # Plot -------------------------------------------------------------------------
-x, a, b, c, d = zip(*data)
+x, a, b, c, d, e = zip(*data)
 plt.plot(x, b, 'k') # activity
 plt.plot(x, a, 'b') # rate
 plt.plot(x, c, 'r.') # scale
 plt.plot(x, d, 'g.') # pressure
+plt.plot(x, e, 'r*') # special
 plt.gcf().autofmt_xdate()
 plt.gca().xaxis.set_major_formatter(dates.DateFormatter('%Y-%m-%d'))
 plt.title('All Data')
