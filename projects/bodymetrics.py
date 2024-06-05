@@ -91,10 +91,10 @@ with open(database_special, 'r') as file:
 x, a, b, c, d, e, f = zip(*data)
 plt.plot(x, b, 'k') # activity
 plt.plot(x, a, 'b') # rate
-plt.plot(x, f, 'y.') # comparison
+plt.plot(x, f, 'g.') # comparison
 plt.plot(x, c, 'k.') # scale
-plt.plot(x, d, 'g.') # pressure
-plt.plot(x, e, 'r*') # special
+plt.plot(x, d, 'r.') # pressure
+plt.plot(x, e, 'y*') # special
 plt.gcf().autofmt_xdate()
 plt.gca().xaxis.set_major_formatter(dates.DateFormatter('%Y-%m-%d,%H'))
 plt.title('All Data')
