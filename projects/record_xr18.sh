@@ -11,8 +11,8 @@
 monitor_xr18() {
   while [ 1 ]
   do
-    #if [ $(aplay -l | grep -c "XR18") -eq 0 ]; then
-    if [ $(aplay -l | grep -c "S3") -eq 0 ]; then
+    if [ $(aplay -l | grep -c "XR18") -eq 0 ]; then
+    #if [ $(aplay -l | grep -c "S3") -eq 0 ]; then
       sudo shutdown -h now
     fi
     sleep 1
@@ -23,8 +23,8 @@ while [ 1 ]
 do
 
   # check for XR18 connected
-  #if [ $(aplay -l|grep -c "XR18") -eq 1 ]; then
-  if [ $(aplay -l|grep -c "S3") -eq 1 ]; then
+  if [ $(aplay -l|grep -c "XR18") -eq 1 ]; then
+  #if [ $(aplay -l|grep -c "S3") -eq 1 ]; then
 
     # monitor sound card connection in the background
     monitor_xr18 &
@@ -41,8 +41,8 @@ do
     FILENAME=/mnt/usb/$(date +"%Y%m%d_%H%M").ogg
 
     # starting jack audio
-    JACK_NO_AUDIO_RESERVATION=1 jackd -R -T -P70 -t2000 -d alsa -dhw:S3 -p 2048 -n 6 -r 48000 -s >/dev/null 2>&1 &
-    #JACK_NO_AUDIO_RESERVATION=1 jackd -R -T -P70 -t2000 -d alsa -dhw:XR18 -p 2048 -n 6 -r 48000 -s >/dev/null 2>&1 &
+    #JACK_NO_AUDIO_RESERVATION=1 jackd -R -T -P70 -t2000 -d alsa -dhw:S3 -p 2048 -n 6 -r 48000 -s >/dev/null 2>&1 &
+    JACK_NO_AUDIO_RESERVATION=1 jackd -R -T -P70 -t2000 -d alsa -dhw:XR18 -p 2048 -n 6 -r 48000 -s >/dev/null 2>&1 &
     sleep 2
 
     # starting jack_capture, NOTE: disabled pthread_create in start_keypress_thread to make it work
