@@ -27,7 +27,7 @@ do
     killall jackd >/dev/null 2>&1
 
     # record multi-channel audio from XR18
-    FILENAME=/mnt/usb/$(date +"%Y%m%d_%H%M").wav
+    FILENAME=/mnt/usb/$(date +"%Y%m%d_%H%M").ogg
 
     # TESTS using jack audio
     #echo recording to $FILENAME
@@ -61,7 +61,7 @@ do
 
     # starting jack_capture
     # NOTE: Disabled pthread_create in start_keypress_thread to make it work!
-    /home/corrados/jack_capture/jack_capture --silent --disable-console --port system:capture* $FILENAME >/dev/null 2>&1
+    /home/corrados/jack_capture/jack_capture -f ogg --silent --disable-console --port system:capture* $FILENAME >/dev/null 2>&1
     #/home/corrados/jack_capture/jack_capture --verbose --disable-console --port system:capture* $FILENAME >log2.txt 2>log2.txt
 
     exit 0
