@@ -82,8 +82,8 @@ def read_and_plot(path, do_pdf=False):
       comparison_y.append(int(cur_c[1]))
 
   # Plot -----------------------------------------------------------------------
-  plt.plot(band_x,       band_i,       'k')
-  plt.plot(band_x,       band_r,       'b')
+  plt.plot(band_x,       band_i,       'k', linewidth=1)
+  plt.plot(band_x,       band_r,       'b', linewidth=1)
   plt.plot(comparison_x, comparison_y, 'b.')
   plt.plot(scale_x,      scale_y,      'k.')
   plt.plot(pressure_x,   pressure_y,   'r.')
@@ -124,7 +124,7 @@ def load_rr(path, last_num_plots=4, create_pdf=False, do_plot=True):
         ax = axs[i % num_plots]
       else:
         ax = axs # if only one plot, axs is not a list
-      ax.plot(approx_time_axis, x)
+      ax.plot(approx_time_axis, x, linewidth=1)
       ax.plot(approx_time_axis[s], x[s], 'r*', label=f"{num_s} detected peaks")
       ax.set_title(f"{cur_date.strftime('%Y-%m-%d %H:%M')} RR" + title_text)
       ax.set_xlabel('minutes')
