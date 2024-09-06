@@ -83,7 +83,7 @@ def read_and_plot(path, do_pdf=False):
   plt.plot(x, f, 'b.') # comparison
   plt.plot(x, c, 'k.') # scale
   plt.plot(x, d, 'r.') # pressure
-  plt.plot(x, e, 'y*') # special
+  plt.plot(x, e, 'yD') # special
   plt.gcf().autofmt_xdate()
   plt.gca().xaxis.set_major_formatter(dates.DateFormatter('%Y-%m-%d,%H'))
   plt.title('All Data')
