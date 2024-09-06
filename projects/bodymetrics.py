@@ -103,44 +103,44 @@ def read_and_plot(path):
   plt.show()
 
 
-def load_rr(path, last_num_plots=4, create_pdf=False, create_special=False, create_hr=False):
+def load_rr(path, last_num_plots=4, create_pdf=False, create_special=False, create_hr=False, do_plot=True):
   files = glob.glob(path + '/*.csv')
   if last_num_plots > 0 and len(files) > last_num_plots:
     files = files[-last_num_plots:]
   N = len(files)
-  num_plots = 4
+
+  num_plots   = 4
   special_val = []
   hr_all_time = []
   hr_all_data = []
   for i, file in enumerate(files):
-    if i % num_plots == 0:
-      fig, axs = plt.subplots(min(N - i, num_plots), 1, figsize=(8, 10))
-    if isinstance(axs, np.ndarray):
-      ax = axs[i % num_plots]
-    else:
-      ax = axs # if only one plot, axs is not a list
-
     x, approx_time_axis, s, tot_min, cur_date, hr_time, hr_data = analyze(file)
     hr_all_time.extend(hr_time)
     hr_all_data.extend(hr_data)
 
-    num_s = len(s)
+    num_s      = len(s)
     title_text = ""
-    ratio = float('inf')
+    ratio      = float('inf')
     if num_s > 0:
-      ratio = tot_min / num_s
+      ratio      = tot_min / num_s
       title_text = f", one peak per {round(ratio)} minutes"
-
     special_val.append([cur_date, ratio])
 
-    ax.plot(approx_time_axis, x)
-    ax.plot(approx_time_axis[s], x[s], 'r*')
-    ax.set_title(f"{cur_date} RR" + title_text)
-    ax.set_xlabel('minutes')
-    ax.set_ylabel('RR/ms')
-    ax.axis([0, approx_time_axis[-1], 0, 2000])
-    ax.grid(True)
-    fig.tight_layout()
+    if do_plot:
+      if i % num_plots == 0:
+        fig, axs = plt.subplots(min(N - i, num_plots), 1, figsize=(8, 10))
+      if isinstance(axs, np.ndarray):
+        ax = axs[i % num_plots]
+      else:
+        ax = axs # if only one plot, axs is not a list
+      ax.plot(approx_time_axis, x)
+      ax.plot(approx_time_axis[s], x[s], 'r*')
+      ax.set_title(f"{cur_date} RR" + title_text)
+      ax.set_xlabel('minutes')
+      ax.set_ylabel('RR/ms')
+      ax.axis([0, approx_time_axis[-1], 0, 2000])
+      ax.grid(True)
+      fig.tight_layout()
   plt.show()
 
   if create_hr:
@@ -158,10 +158,10 @@ def load_rr(path, last_num_plots=4, create_pdf=False, create_special=False, crea
       plt.figure(i)
       plt.savefig(f'rr{i}.pdf')
       plt.close()
-
+  return special_val
 
 def analyze(file):
-  data = []
+  data    = []
   hr_time = []
   hr_data = []
 
@@ -190,5 +190,5 @@ def analyze(file):
 
 if __name__ == "__main__":
   read_and_plot(sys.argv[1])
-  #load_rr(sys.argv[1], last_num_plots=8)
+  #load_rr(sys.argv[1], last_num_plots=7)
 
