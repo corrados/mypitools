@@ -23,7 +23,7 @@ from scipy.signal import medfilt
 import matplotlib.pyplot as plt
 import matplotlib.dates as dates
 
-def read_and_plot(path):
+def read_and_plot(path, do_pdf=False):
   min_scale         = 72
   database_bands    = [path + "/Gadgetbridge"]
   database_scale    = path + "/openScale.db"
@@ -70,7 +70,7 @@ def read_and_plot(path):
           data.append((output_date, None, None, None, pressure, None, None))
 
   # Special, Comparison --------------------------------------------------------
-  special, comparison = load_rr(path, last_num_plots=0, do_plot=False, create_pdf=True)
+  special, comparison = load_rr(path, last_num_plots=0, do_plot=False, create_pdf=do_pdf)
   for cur_s in special:
     data.append((cur_s[0], None, None, None, None, 100 / float(cur_s[1]), None))
   for cur_c in comparison:
@@ -167,6 +167,6 @@ def analyze(file):
 
 
 if __name__ == "__main__":
-  read_and_plot(sys.argv[1])
+  read_and_plot(sys.argv[1], len(sys.argv) > 2)
   load_rr(sys.argv[1])
 
