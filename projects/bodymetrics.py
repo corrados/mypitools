@@ -95,7 +95,6 @@ def load_rr(path, last_num_plots=4, create_pdf=False, do_plot=True):
   files = glob.glob(path + '/*.csv')
   if last_num_plots > 0 and len(files) > last_num_plots:
     files = files[-last_num_plots:]
-  N = len(files)
 
   num_plots   = 4
   special_val = []
@@ -116,7 +115,7 @@ def load_rr(path, last_num_plots=4, create_pdf=False, do_plot=True):
 
     if do_plot or create_pdf:
       if i % num_plots == 0:
-        fig, axs = plt.subplots(min(N - i, num_plots), 1, figsize=(8, 10))
+        fig, axs = plt.subplots(min(len(files) - i, num_plots), 1, figsize=(8, 10))
       if isinstance(axs, np.ndarray):
         ax = axs[i % num_plots]
       else:
