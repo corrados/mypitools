@@ -17,7 +17,9 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
 #*******************************************************************************
 
-import sys, sqlite3, datetime
+import os, sys, glob, sqlite3, datetime
+import numpy as np
+from scipy.signal import medfilt
 import matplotlib.pyplot as plt
 import matplotlib.dates as dates
 
@@ -101,6 +103,92 @@ def read_and_plot(path):
   plt.show()
 
 
+def load_rr(path, last_num_plots=4, create_pdf=False, create_special=False, create_hr=False):
+  files = glob.glob(path + '/*.csv')
+  if last_num_plots > 0 and len(files) > last_num_plots:
+    files = files[-last_num_plots:]
+  N = len(files)
+  num_plots = 4
+  special_val = []
+  hr_all_time = []
+  hr_all_data = []
+  for i, file in enumerate(files):
+    if i % num_plots == 0:
+      fig, axs = plt.subplots(min(N - i, num_plots), 1, figsize=(8, 10))
+    if isinstance(axs, np.ndarray):
+      ax = axs[i % num_plots]
+    else:
+      ax = axs # if only one plot, axs is not a list
+
+    x, approx_time_axis, s, tot_min, cur_date, hr_time, hr_data = analyze(file)
+    hr_all_time.extend(hr_time)
+    hr_all_data.extend(hr_data)
+
+    num_s = len(s)
+    title_text = ""
+    ratio = float('inf')
+    if num_s > 0:
+      ratio = tot_min / num_s
+      title_text = f", one peak per {round(ratio)} minutes"
+
+    special_val.append([cur_date, ratio])
+
+    ax.plot(approx_time_axis, x)
+    ax.plot(approx_time_axis[s], x[s], 'r*')
+    ax.set_title(f"{cur_date} RR" + title_text)
+    ax.set_xlabel('minutes')
+    ax.set_ylabel('RR/ms')
+    ax.axis([0, approx_time_axis[-1], 0, 2000])
+    ax.grid(True)
+    fig.tight_layout()
+  plt.show()
+
+  if create_hr:
+    with open("comparison.txt", "w") as f:
+      for time, data in zip(hr_all_time, hr_all_data):
+        f.write(f"{time}, {data}\n")
+
+  if create_special:
+    with open("special.txt", "w") as f:
+      for cur_date, value in special_val:
+        f.write(f"{cur_date}, {value}\n")
+
+  if create_pdf:
+    for i in plt.get_fignums():
+      plt.figure(i)
+      plt.savefig(f'rr{i}.pdf')
+      plt.close()
+
+
+def analyze(file):
+  data = []
+  hr_time = []
+  hr_data = []
+
+  with open(file, 'r') as f:
+    for line in f:
+      elements = line.strip().split(',')
+      cur_datetime = elements[0].split('.')[0]
+      hr_time.append(cur_datetime)
+      hr_data.append(float(elements[1]))
+      if len(elements[2].split()) > 0:
+        data_values = list(map(float, elements[2].split()))
+        data.extend(data_values)
+
+  data = np.array(data)
+  y = data - medfilt(data, kernel_size=3)
+  noise_limit = 100
+  z = np.where(np.abs(y) > noise_limit)[0]
+  s = z[np.where(np.diff(z) == 1)[0]]
+
+  tot_time_minutes = (datetime.datetime.strptime(hr_time[-1], '%Y-%m-%d %H:%M:%S') -
+                     datetime.datetime.strptime(hr_time[0], '%Y-%m-%d %H:%M:%S')).total_seconds() / 60
+  approx_time_axis = np.linspace(0, tot_time_minutes, len(data))
+
+  return data, approx_time_axis, s, round(tot_time_minutes), hr_time[0], hr_time, hr_data
+
+
 if __name__ == "__main__":
   read_and_plot(sys.argv[1])
+  #load_rr(sys.argv[1], last_num_plots=8)
 
