@@ -70,7 +70,7 @@ def read_and_plot(path):
           data.append((output_date, None, None, None, pressure, None, None))
 
   # Special, Comparison --------------------------------------------------------
-  special, comparison = load_rr(path, last_num_plots=0, do_plot=False)
+  special, comparison = load_rr(path, last_num_plots=0, do_plot=False, create_pdf=True)
   for cur_s in special:
     data.append((cur_s[0], None, None, None, None, 100 / float(cur_s[1]), None))
   for cur_c in comparison:
@@ -88,7 +88,7 @@ def read_and_plot(path):
   plt.gca().xaxis.set_major_formatter(dates.DateFormatter('%Y-%m-%d,%H'))
   plt.title('All Data')
   plt.grid()
-  plt.show()
+  plt.show(block=False)
 
 
 def load_rr(path, last_num_plots=4, create_pdf=False, do_plot=True):
@@ -114,7 +114,7 @@ def load_rr(path, last_num_plots=4, create_pdf=False, do_plot=True):
       title_text = f", one peak per {round(ratio)} minutes"
     special_val.append([cur_date, ratio])
 
-    if do_plot:
+    if do_plot or create_pdf:
       if i % num_plots == 0:
         fig, axs = plt.subplots(min(N - i, num_plots), 1, figsize=(8, 10))
       if isinstance(axs, np.ndarray):
@@ -129,12 +129,12 @@ def load_rr(path, last_num_plots=4, create_pdf=False, do_plot=True):
       ax.axis([0, approx_time_axis[-1], 0, 2000])
       ax.grid(True)
       fig.tight_layout()
-  plt.show()
+  plt.show(block=not create_pdf)
 
   if create_pdf:
     for i in plt.get_fignums():
       plt.figure(i)
-      plt.savefig(f'rr{i}.pdf')
+      plt.savefig(path + f'/rr{i}.pdf')
       plt.close()
   return special_val, zip(hr_all_time, hr_all_data)
 
@@ -168,5 +168,5 @@ def analyze(file):
 
 if __name__ == "__main__":
   read_and_plot(sys.argv[1])
-  #load_rr(sys.argv[1], last_num_plots=7)
+  load_rr(sys.argv[1])
 
