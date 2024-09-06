@@ -80,7 +80,7 @@ def read_and_plot(path, do_pdf=False):
   x, a, b, c, d, e, f = zip(*data)
   plt.plot(x, b, 'k') # activity
   plt.plot(x, a, 'b') # rate
-  plt.plot(x, f, 'g.') # comparison
+  plt.plot(x, f, 'b.') # comparison
   plt.plot(x, c, 'k.') # scale
   plt.plot(x, d, 'r.') # pressure
   plt.plot(x, e, 'y*') # special
