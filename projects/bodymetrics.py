@@ -125,11 +125,12 @@ def load_rr(path, last_num_plots=4, create_pdf=False, do_plot=True):
       else:
         ax = axs # if only one plot, axs is not a list
       ax.plot(approx_time_axis, x)
-      ax.plot(approx_time_axis[s], x[s], 'r*')
+      ax.plot(approx_time_axis[s], x[s], 'r*', label=f"{num_s} detected peaks")
       ax.set_title(f"{cur_date.strftime('%Y-%m-%d %H:%M')} RR" + title_text)
       ax.set_xlabel('minutes')
       ax.set_ylabel('RR/ms')
       ax.axis([0, approx_time_axis[-1], 0, 2000])
+      ax.legend()
       ax.grid(True)
       fig.tight_layout()
   plt.show(block=not create_pdf)
