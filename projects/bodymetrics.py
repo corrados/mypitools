@@ -88,7 +88,7 @@ def read_and_plot(path, do_pdf=False):
   plt.gca().xaxis.set_major_formatter(dates.DateFormatter('%Y-%m-%d,%H'))
   plt.title('All Data')
   plt.grid()
-  plt.show(block=False)
+  plt.show(block=not do_pdf)
 
 
 def load_rr(path, last_num_plots=4, create_pdf=False, do_plot=True):
@@ -167,6 +167,8 @@ def analyze(file):
 
 
 if __name__ == "__main__":
-  read_and_plot(sys.argv[1], len(sys.argv) > 2)
-  load_rr(sys.argv[1])
+  do_rr = len(sys.argv) > 2
+  read_and_plot(sys.argv[1], do_rr)
+  if do_rr:
+    load_rr(sys.argv[1])
 
