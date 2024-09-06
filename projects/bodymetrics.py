@@ -24,14 +24,11 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as dates
 
 def read_and_plot(path):
-  # settings/initializations
-  min_scale = 72
-  database_bands = [path + "/Gadgetbridge"]
-  database_scale = path + "/openScale.db"
+  min_scale         = 72
+  database_bands    = [path + "/Gadgetbridge"]
+  database_scale    = path + "/openScale.db"
   database_pressure = path + "/pressure.txt"
-  database_special = path + "/special.txt"
-  database_comparison = path + "/comparison.txt"
-  data = []
+  data              = []
 
   # Band Data ------------------------------------------------------------------
   for database_band in database_bands:
@@ -46,14 +43,6 @@ def read_and_plot(path):
        raw_intensity = row[3] / 255 * 40 # convert range to 0 to 40
        output_date = datetime.datetime.fromtimestamp(timestamp)
        data.append((output_date, rate, raw_intensity, None, None, None, None))
-
-  # Comparison Data ------------------------------------------------------------
-  with open(database_comparison, 'r') as file:
-    for line in file:
-      parts = line.split(',')
-      date_time_str = parts[0].strip()
-      output_date = datetime.datetime.strptime(date_time_str, '%Y-%m-%d %H:%M:%S')
-      data.append((output_date, None, None, None, None, None, int(parts[1])))
 
   # Scale Measurements ---------------------------------------------------------
   con = sqlite3.connect(database_scale)
@@ -80,13 +69,12 @@ def read_and_plot(path):
           pressure = int(reading.split('/')[0])
           data.append((output_date, None, None, None, pressure, None, None))
 
-  # Special --------------------------------------------------------------------
-  with open(database_special, 'r') as file:
-    for line in file:
-      parts = line.split(',')
-      date_time_str = parts[0].strip()
-      output_date = datetime.datetime.strptime(date_time_str, '%Y-%m-%d %H:%M:%S')
-      data.append((output_date, None, None, None, None, 100 / float(parts[1]), None))
+  # Special, Comparison --------------------------------------------------------
+  special, comparison = load_rr(path, last_num_plots=0, do_plot=False)
+  for cur_s in special:
+    data.append((cur_s[0], None, None, None, None, 100 / float(cur_s[1]), None))
+  for cur_c in comparison:
+    data.append((cur_c[0], None, None, None, None, None, int(cur_c[1])))
 
   # Plot -----------------------------------------------------------------------
   x, a, b, c, d, e, f = zip(*data)
@@ -103,7 +91,7 @@ def read_and_plot(path):
   plt.show()
 
 
-def load_rr(path, last_num_plots=4, create_pdf=False, create_special=False, create_hr=False, do_plot=True):
+def load_rr(path, last_num_plots=4, create_pdf=False, do_plot=True):
   files = glob.glob(path + '/*.csv')
   if last_num_plots > 0 and len(files) > last_num_plots:
     files = files[-last_num_plots:]
@@ -143,22 +131,12 @@ def load_rr(path, last_num_plots=4, create_pdf=False, create_special=False, crea
       fig.tight_layout()
   plt.show()
 
-  if create_hr:
-    with open("comparison.txt", "w") as f:
-      for time, data in zip(hr_all_time, hr_all_data):
-        f.write(f"{time}, {data}\n")
-
-  if create_special:
-    with open("special.txt", "w") as f:
-      for cur_date, value in special_val:
-        f.write(f"{cur_date}, {value}\n")
-
   if create_pdf:
     for i in plt.get_fignums():
       plt.figure(i)
       plt.savefig(f'rr{i}.pdf')
       plt.close()
-  return special_val
+  return special_val, zip(hr_all_time, hr_all_data)
 
 def analyze(file):
   data    = []
