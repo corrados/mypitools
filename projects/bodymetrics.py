@@ -32,28 +32,27 @@ def read_and_plot(path, do_pdf=False):
 
   # Band Data ------------------------------------------------------------------
   for database_band in database_bands:
-   con = sqlite3.connect(database_band)
+   con    = sqlite3.connect(database_band)
    cursor = con.cursor()
    cursor.execute("SELECT * FROM MI_BAND_ACTIVITY_SAMPLE")
    rows = cursor.fetchall()
    for row in rows:
      rate = row[6]
      if rate < 250 and rate > 0:
-       timestamp = row[0]
+       timestamp     = row[0]
        raw_intensity = row[3] / 255 * 40 # convert range to 0 to 40
-       output_date = datetime.datetime.fromtimestamp(timestamp)
+       output_date   = datetime.datetime.fromtimestamp(timestamp)
        data.append((output_date, rate, raw_intensity, None, None, None, None))
 
   # Scale Measurements ---------------------------------------------------------
   con = sqlite3.connect(database_scale)
   cursor = con.cursor()
-
   cursor.execute("SELECT * FROM scaleMeasurements")
   rows = cursor.fetchall()
   for row in rows:
     weight = row[4]
     if weight > min_scale:
-      timestamp = row[3] / 1000
+      timestamp   = row[3] / 1000
       output_date = datetime.datetime.fromtimestamp(timestamp)
       data.append((output_date, None, None, weight, None, None, None))
 
@@ -74,7 +73,8 @@ def read_and_plot(path, do_pdf=False):
   for cur_s in special:
     data.append((cur_s[0], None, None, None, None, 100 / float(cur_s[1]), None))
   for cur_c in comparison:
-    data.append((cur_c[0], None, None, None, None, None, int(cur_c[1])))
+    if int(cur_c[1]) > 20: # only plausible values
+      data.append((cur_c[0], None, None, None, None, None, int(cur_c[1])))
 
   # Plot -----------------------------------------------------------------------
   x, a, b, c, d, e, f = zip(*data)
@@ -139,7 +139,7 @@ def load_rr(path, last_num_plots=4, create_pdf=False, do_plot=True):
   return special_val, zip(hr_all_time, hr_all_data)
 
 def analyze(file):
-  data    = []
+  data    = np.array([])
   hr_time = []
   hr_data = []
 
@@ -150,13 +150,10 @@ def analyze(file):
       hr_time.append(cur_datetime)
       hr_data.append(float(elements[1]))
       if len(elements[2].split()) > 0:
-        data_values = list(map(float, elements[2].split()))
-        data.extend(data_values)
+        data = np.append(data, list(map(float, elements[2].split())))
 
-  data = np.array(data)
   y = data - medfilt(data, kernel_size=3)
-  noise_limit = 100
-  z = np.where(np.abs(y) > noise_limit)[0]
+  z = np.where(np.abs(y) > 100)[0] # only signal above noise level
   s = z[np.where(np.diff(z) == 1)[0]]
 
   tot_time_minutes = (datetime.datetime.strptime(hr_time[-1], '%Y-%m-%d %H:%M:%S') -
