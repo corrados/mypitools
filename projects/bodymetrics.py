@@ -24,13 +24,9 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as dates
 
 def read_and_plot(path, do_pdf=False):
-  db_band     = path + "/Gadgetbridge"
-  db_scale    = path + "/openScale.db"
-  db_pressure = path + "/pressure.txt"
-
-  # Band Data ------------------------------------------------------------------
+  # Band Data
   (band_x, band_r, band_i) = ([], [], [])
-  cursor = sqlite3.connect(db_band).cursor().execute("SELECT * FROM MI_BAND_ACTIVITY_SAMPLE")
+  cursor = sqlite3.connect(path + "/Gadgetbridge").cursor().execute("SELECT * FROM MI_BAND_ACTIVITY_SAMPLE")
   for row in cursor.fetchall():
     rate = row[6]
     if rate < 250 and rate > 20:
@@ -38,18 +34,18 @@ def read_and_plot(path, do_pdf=False):
       band_r.append(rate)
       band_i.append(row[3] / 255 * 40) # convert range to 0 to 40
 
-  # Scale Measurements ---------------------------------------------------------
+  # Scale Measurements
   (scale_x, scale_y) = ([], [])
-  cursor = sqlite3.connect(db_scale).cursor().execute("SELECT * FROM scaleMeasurements")
+  cursor = sqlite3.connect(path + "/openScale.db").cursor().execute("SELECT * FROM scaleMeasurements")
   for row in cursor.fetchall():
     weight = row[4]
     if weight > 72: # min scale
       scale_x.append(datetime.datetime.fromtimestamp(row[3] / 1000))
       scale_y.append(weight)
 
-  # Pressure -------------------------------------------------------------------
+  # Pressure
   (pressure_x, pressure_y) = ([], [])
-  with open(db_pressure, 'r') as file:
+  with open(path + "/pressure.txt", 'r') as file:
     for line in file:
       if line.strip():
         parts = line.split(',')
@@ -57,7 +53,7 @@ def read_and_plot(path, do_pdf=False):
           pressure_x.append(datetime.datetime.strptime(parts[0].strip(), '%Y-%m-%d %H:%M:%S'))
           pressure_y.append(int(reading.split('/')[0]))
 
-  # Special, Comparison --------------------------------------------------------
+  # Special, Comparison
   (special_x, special_y, comparison_x, comparison_y) = ([], [], [], [])
   special, comparison = load_rr(path, last_num_plots=0, do_plot=False, create_pdf=do_pdf)
   for cur_s in special:
@@ -68,7 +64,7 @@ def read_and_plot(path, do_pdf=False):
       comparison_x.append(cur_c[0])
       comparison_y.append(int(cur_c[1]))
 
-  # Plot -----------------------------------------------------------------------
+  # Plot
   plt.plot(band_x,       band_i,       'k', linewidth=1)
   plt.plot(band_x,       band_r,       'b', linewidth=1)
   plt.plot(comparison_x, comparison_y, 'b.')
@@ -104,6 +100,7 @@ def load_rr(path, last_num_plots=4, create_pdf=False, do_plot=True):
       title_text = f", one peak per {round(ratio)} minutes"
     special_val.append([cur_date, ratio])
 
+    # Plot
     if do_plot or create_pdf:
       num_plots = 4
       if i % num_plots == 0:
