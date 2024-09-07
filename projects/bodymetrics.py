@@ -38,10 +38,9 @@ def read_and_plot(path, do_pdf=False):
    for row in rows:
      rate = row[6]
      if rate < 250 and rate > 20:
-       raw_intensity = row[3] / 255 * 40 # convert range to 0 to 40
        band_x.append(datetime.datetime.fromtimestamp(row[0]))
        band_r.append(rate)
-       band_i.append(raw_intensity)
+       band_i.append(row[3] / 255 * 40) # convert range to 0 to 40
 
   # Scale Measurements ---------------------------------------------------------
   (scale_x, scale_y) = ([], [])
