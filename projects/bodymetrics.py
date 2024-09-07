@@ -24,29 +24,24 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as dates
 
 def read_and_plot(path, do_pdf=False):
-  database_bands    = [path + "/Gadgetbridge"]
-  database_scale    = path + "/openScale.db"
-  database_pressure = path + "/pressure.txt"
+  db_band     = path + "/Gadgetbridge"
+  db_scale    = path + "/openScale.db"
+  db_pressure = path + "/pressure.txt"
 
   # Band Data ------------------------------------------------------------------
   (band_x, band_r, band_i) = ([], [], [])
-  for database_band in database_bands:
-   cursor = sqlite3.connect(database_band).cursor()
-   cursor.execute("SELECT * FROM MI_BAND_ACTIVITY_SAMPLE")
-   rows = cursor.fetchall()
-   for row in rows:
-     rate = row[6]
-     if rate < 250 and rate > 20:
-       band_x.append(datetime.datetime.fromtimestamp(row[0]))
-       band_r.append(rate)
-       band_i.append(row[3] / 255 * 40) # convert range to 0 to 40
+  cursor = sqlite3.connect(db_band).cursor().execute("SELECT * FROM MI_BAND_ACTIVITY_SAMPLE")
+  for row in cursor.fetchall():
+    rate = row[6]
+    if rate < 250 and rate > 20:
+      band_x.append(datetime.datetime.fromtimestamp(row[0]))
+      band_r.append(rate)
+      band_i.append(row[3] / 255 * 40) # convert range to 0 to 40
 
   # Scale Measurements ---------------------------------------------------------
   (scale_x, scale_y) = ([], [])
-  cursor = sqlite3.connect(database_scale).cursor()
-  cursor.execute("SELECT * FROM scaleMeasurements")
-  rows = cursor.fetchall()
-  for row in rows:
+  cursor = sqlite3.connect(db_scale).cursor().execute("SELECT * FROM scaleMeasurements")
+  for row in cursor.fetchall():
     weight = row[4]
     if weight > 72: # min scale
       scale_x.append(datetime.datetime.fromtimestamp(row[3] / 1000))
@@ -54,20 +49,16 @@ def read_and_plot(path, do_pdf=False):
 
   # Pressure -------------------------------------------------------------------
   (pressure_x, pressure_y) = ([], [])
-  with open(database_pressure, 'r') as file:
+  with open(db_pressure, 'r') as file:
     for line in file:
       if line.strip():
         parts = line.split(',')
-        date_time_str = parts[0].strip()
-        output_date = datetime.datetime.strptime(date_time_str, '%Y-%m-%d %H:%M:%S')
-        readings = [reading.strip() for reading in parts[1:]]
-        for reading in readings:
-          pressure_x.append(output_date)
+        for reading in [reading.strip() for reading in parts[1:]]:
+          pressure_x.append(datetime.datetime.strptime(parts[0].strip(), '%Y-%m-%d %H:%M:%S'))
           pressure_y.append(int(reading.split('/')[0]))
 
   # Special, Comparison --------------------------------------------------------
-  (special_x,    special_y)    = ([], [])
-  (comparison_x, comparison_y) = ([], [])
+  (special_x, special_y, comparison_x, comparison_y) = ([], [], [], [])
   special, comparison = load_rr(path, last_num_plots=0, do_plot=False, create_pdf=do_pdf)
   for cur_s in special:
     special_x.append(cur_s[0])
@@ -99,16 +90,13 @@ def load_rr(path, last_num_plots=4, create_pdf=False, do_plot=True):
   if last_num_plots > 0 and len(files) > last_num_plots:
     files = files[-last_num_plots:]
 
-  num_plots   = 4
-  special_val = []
-  hr_all_time = []
-  hr_all_data = []
+  (special_val, hr_all_time, hr_all_data) = ([], [], [])
   for i, file in enumerate(files):
-    x, approx_time_axis, s, tot_min, cur_date, hr_time, hr_data = analyze(file)
+    rr, approx_time_axis, pos, tot_min, cur_date, hr_time, hr_data = analyze(file)
     hr_all_time.extend(hr_time)
     hr_all_data.extend(hr_data)
 
-    num_s      = len(s)
+    num_s      = len(pos)
     title_text = ""
     ratio      = float('inf')
     if num_s > 0:
@@ -117,14 +105,15 @@ def load_rr(path, last_num_plots=4, create_pdf=False, do_plot=True):
     special_val.append([cur_date, ratio])
 
     if do_plot or create_pdf:
+      num_plots = 4
       if i % num_plots == 0:
         fig, axs = plt.subplots(min(len(files) - i, num_plots), 1, figsize=(8, 10))
       if isinstance(axs, np.ndarray):
         ax = axs[i % num_plots]
       else:
         ax = axs # if only one plot, axs is not a list
-      ax.plot(approx_time_axis, x, linewidth=1)
-      ax.plot(approx_time_axis[s], x[s], 'r*', label=f"{num_s} detected peaks")
+      ax.plot(approx_time_axis, rr, linewidth=1)
+      ax.plot(approx_time_axis[pos], rr[pos], 'r*', label=f"{num_s} detected peaks")
       ax.set_title(f"{cur_date.strftime('%Y-%m-%d %H:%M')} RR" + title_text)
       ax.set_xlabel('minutes')
       ax.set_ylabel('RR/ms')
