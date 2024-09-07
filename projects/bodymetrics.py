@@ -24,7 +24,6 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as dates
 
 def read_and_plot(path, do_pdf=False):
-  min_scale         = 72
   database_bands    = [path + "/Gadgetbridge"]
   database_scale    = path + "/openScale.db"
   database_pressure = path + "/pressure.txt"
@@ -38,7 +37,7 @@ def read_and_plot(path, do_pdf=False):
    rows = cursor.fetchall()
    for row in rows:
      rate = row[6]
-     if rate < 250 and rate > 0:
+     if rate < 250 and rate > 20:
        raw_intensity = row[3] / 255 * 40 # convert range to 0 to 40
        band_x.append(datetime.datetime.fromtimestamp(row[0]))
        band_r.append(rate)
@@ -52,7 +51,7 @@ def read_and_plot(path, do_pdf=False):
   rows = cursor.fetchall()
   for row in rows:
     weight = row[4]
-    if weight > min_scale:
+    if weight > 72: # min scale
       scale_x.append(datetime.datetime.fromtimestamp(row[3] / 1000))
       scale_y.append(weight)
 
