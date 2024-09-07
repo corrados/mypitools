@@ -130,6 +130,7 @@ def load_rr(path, last_num_plots=4, create_pdf=False, do_plot=True):
       plt.close()
   return special_val, zip(hr_all_time, hr_all_data)
 
+
 def analyze(file):
   (data, hr_time, hr_data) = (np.array([]), [], [])
   with open(file, 'r') as f:
@@ -146,7 +147,6 @@ def analyze(file):
 
   tot_time_minutes = (hr_time[-1] - hr_time[0]).total_seconds() / 60
   approx_time_axis = np.linspace(0, tot_time_minutes, len(data))
-
   return data, approx_time_axis, s, round(tot_time_minutes), hr_time[0], hr_time, hr_data
 
 
