@@ -96,11 +96,11 @@ def load_rr(path, last_num_plots=4, create_pdf=False, do_plot=True):
     hr_all_time.extend(hr_time)
     hr_all_data.extend(hr_data)
 
-    num_s      = len(pos)
-    title_text = ""
+    num_pos    = len(pos)
     ratio      = float('inf')
-    if num_s > 0:
-      ratio      = tot_min / num_s
+    title_text = ""
+    if num_pos > 0:
+      ratio      = tot_min / num_pos
       title_text = f", one peak per {round(ratio)} minutes"
     special_val.append([cur_date, ratio])
 
@@ -113,7 +113,7 @@ def load_rr(path, last_num_plots=4, create_pdf=False, do_plot=True):
       else:
         ax = axs # if only one plot, axs is not a list
       ax.plot(approx_time_axis, rr, linewidth=1)
-      ax.plot(approx_time_axis[pos], rr[pos], 'r*', label=f"{num_s} detected peaks")
+      ax.plot(approx_time_axis[pos], rr[pos], 'r*', label=f"{num_pos} detected peaks")
       ax.set_title(f"{cur_date.strftime('%Y-%m-%d %H:%M')} RR" + title_text)
       ax.set_xlabel('minutes')
       ax.set_ylabel('RR/ms')
@@ -131,15 +131,11 @@ def load_rr(path, last_num_plots=4, create_pdf=False, do_plot=True):
   return special_val, zip(hr_all_time, hr_all_data)
 
 def analyze(file):
-  data    = np.array([])
-  hr_time = []
-  hr_data = []
-
+  (data, hr_time, hr_data) = (np.array([]), [], [])
   with open(file, 'r') as f:
     for line in f:
       elements = line.strip().split(',')
-      cur_datetime = elements[0].split('.')[0]
-      hr_time.append(datetime.datetime.strptime(cur_datetime, '%Y-%m-%d %H:%M:%S'))
+      hr_time.append(datetime.datetime.strptime(elements[0].split('.')[0], '%Y-%m-%d %H:%M:%S'))
       hr_data.append(float(elements[1]))
       if len(elements[2].split()) > 0:
         data = np.append(data, list(map(float, elements[2].split())))
