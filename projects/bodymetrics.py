@@ -31,8 +31,7 @@ def read_and_plot(path, do_pdf=False):
   # Band Data ------------------------------------------------------------------
   (band_x, band_r, band_i) = ([], [], [])
   for database_band in database_bands:
-   con    = sqlite3.connect(database_band)
-   cursor = con.cursor()
+   cursor = sqlite3.connect(database_band).cursor()
    cursor.execute("SELECT * FROM MI_BAND_ACTIVITY_SAMPLE")
    rows = cursor.fetchall()
    for row in rows:
@@ -44,8 +43,7 @@ def read_and_plot(path, do_pdf=False):
 
   # Scale Measurements ---------------------------------------------------------
   (scale_x, scale_y) = ([], [])
-  con = sqlite3.connect(database_scale)
-  cursor = con.cursor()
+  cursor = sqlite3.connect(database_scale).cursor()
   cursor.execute("SELECT * FROM scaleMeasurements")
   rows = cursor.fetchall()
   for row in rows:
