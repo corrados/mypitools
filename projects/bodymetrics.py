@@ -65,7 +65,7 @@ def read_and_plot(path, do_pdf=False):
       comparison_y.append(int(cur_c[1]))
 
   # Plot
-  fig, (ax1, ax2) = plt.subplots(2, 1, gridspec_kw={'height_ratios': [4, 1]}, figsize=(10, 8))
+  fig, (ax1, ax2) = plt.subplots(1, 2, gridspec_kw={'width_ratios': [6, 1]}, figsize=(10, 8))
   ax1.plot(band_x,       band_i,       'k', linewidth=1)
   ax1.plot(band_x,       band_r,       'b', linewidth=1)
   ax1.plot(comparison_x, comparison_y, 'b.')
@@ -78,9 +78,9 @@ def read_and_plot(path, do_pdf=False):
   ax1.set_title('All Data')
   ax1.grid()
   ax1.xaxis.set_major_formatter(dates.DateFormatter('%Y-%m-%d,%H'))
-  fig.autofmt_xdate()
   ax2.hist(pressure_y, bins=30)
-  ax2.set_title('Pressure Histogram')
+  ax2.set_title('Pressure')
+  fig.autofmt_xdate()
   plt.tight_layout()
   plt.show(block=not do_pdf)
 
