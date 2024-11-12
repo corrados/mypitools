@@ -26,13 +26,20 @@ import matplotlib.dates as dates
 def read_and_plot(path, do_pdf=False):
   # Band Data
   (band_x, band_r, band_i) = ([], [], [])
-  cursor = sqlite3.connect(path + "/Gadgetbridge").cursor().execute("SELECT * FROM MI_BAND_ACTIVITY_SAMPLE")
-  for row in cursor.fetchall():
+  (scale2_x, scale2_y) = ([], [])
+  cursor1 = sqlite3.connect(path + "/Gadgetbridge").cursor().execute("SELECT * FROM MI_BAND_ACTIVITY_SAMPLE")
+  cursor2 = sqlite3.connect(path + "/Gadgetbridge").cursor().execute("SELECT * FROM MI_SCALE_WEIGHT_SAMPLE")
+  for row in cursor1.fetchall():
     rate = row[6]
     if rate < 250 and rate > 20:
       band_x.append(datetime.datetime.fromtimestamp(row[0]))
       band_r.append(rate)
       band_i.append(row[3] / 255 * 40) # convert range to 0 to 40
+  for row in cursor2.fetchall():
+    weight = row[3]
+    if weight > 72: # min scale
+      scale2_x.append(datetime.datetime.fromtimestamp(row[0] / 1000))
+      scale2_y.append(weight)
 
   # Scale Measurements
   (scale_x, scale_y) = ([], [])
@@ -70,6 +77,7 @@ def read_and_plot(path, do_pdf=False):
   ax1.plot(band_x,       band_r,       'b', linewidth=1)
   ax1.plot(comparison_x, comparison_y, 'b.')
   ax1.plot(scale_x,      scale_y,      'k.')
+  #ax1.plot(scale2_x,     scale2_y,     'k.') # TODO
   ax1.plot(pressure_x,   pressure_y,   'r.')
   ax1.plot(special_x,    special_y,    'yD')
   ax1.hlines(79,  min(scale_x),    max(scale_x),    colors='k', linestyles='dashed', linewidths=1)
