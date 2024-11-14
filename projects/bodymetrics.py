@@ -24,9 +24,9 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as dates
 
 def read_and_plot(path, do_pdf=False):
-  # Band Data
+  # Band Data/Scale Measurements
   (band_x, band_r, band_i) = ([], [], [])
-  (scale2_x, scale2_y) = ([], [])
+  (scale_x, scale_y) = ([], [])
   cursor1 = sqlite3.connect(path + "/Gadgetbridge").cursor().execute("SELECT * FROM MI_BAND_ACTIVITY_SAMPLE")
   cursor2 = sqlite3.connect(path + "/Gadgetbridge").cursor().execute("SELECT * FROM MI_SCALE_WEIGHT_SAMPLE")
   for row in cursor1.fetchall():
@@ -38,16 +38,7 @@ def read_and_plot(path, do_pdf=False):
   for row in cursor2.fetchall():
     weight = row[3]
     if weight > 72: # min scale
-      scale2_x.append(datetime.datetime.fromtimestamp(row[0] / 1000))
-      scale2_y.append(weight)
-
-  # Scale Measurements
-  (scale_x, scale_y) = ([], [])
-  cursor = sqlite3.connect(path + "/openScale.db").cursor().execute("SELECT * FROM scaleMeasurements")
-  for row in cursor.fetchall():
-    weight = row[4]
-    if weight > 72: # min scale
-      scale_x.append(datetime.datetime.fromtimestamp(row[3] / 1000))
+      scale_x.append(datetime.datetime.fromtimestamp(row[0] / 1000))
       scale_y.append(weight)
 
   # Pressure
@@ -77,7 +68,6 @@ def read_and_plot(path, do_pdf=False):
   ax1.plot(band_x,       band_r,       'b', linewidth=1)
   ax1.plot(comparison_x, comparison_y, 'b.')
   ax1.plot(scale_x,      scale_y,      'k.')
-  #ax1.plot(scale2_x,     scale2_y,     'k.') # TODO
   ax1.plot(pressure_x,   pressure_y,   'r.')
   ax1.plot(special_x,    special_y,    'yD')
   ax1.hlines(79,  min(scale_x),    max(scale_x),    colors='k', linestyles='dashed', linewidths=1)
