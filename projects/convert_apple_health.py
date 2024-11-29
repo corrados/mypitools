@@ -21,7 +21,7 @@
 
 import xml.etree.ElementTree as ET
 from datetime import datetime
-import matplotlib.pyplot as plt
+import sqlite3
 
 def extract_heart_rate(file_path):
     """
@@ -52,26 +52,60 @@ def extract_heart_rate(file_path):
     
     return heart_rate_data
 
-def plot_heart_rate(data):
+def create_database(db_name="heart_rate.db"):
     """
-    Plots heart rate data using UNIX timestamps.
+    Creates an SQLite database and heart_rate table if not exists.
     
     Args:
-    data (list of tuple): A list of (unix_timestamp, heart_rate) tuples.
+    db_name (str): Name of the SQLite database file.
+    
+    Returns:
+    sqlite3.Connection: Connection object to the database.
     """
-    timestamps, heart_rates = zip(*data)
+    conn = sqlite3.connect(db_name)
+    cursor = conn.cursor()
+    
+    # Create table if not exists
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS heart_rate (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            unix_timestamp REAL NOT NULL,
+            heart_rate REAL NOT NULL
+        )
+    ''')
+    conn.commit()
+    return conn
 
-    plt.figure(figsize=(10, 6))
-    plt.plot(timestamps, heart_rates, label='Heart Rate', color='red', alpha=0.7)
-    plt.xlabel("Time (UNIX Timestamp)")
-    plt.ylabel("Heart Rate (BPM)")
-    plt.title("Heart Rate Over Time")
-    plt.grid(True)
-    plt.legend()
-    plt.show()
+def store_heart_rate_data(conn, data):
+    """
+    Stores heart rate data into the SQLite database.
+    
+    Args:
+    conn (sqlite3.Connection): Connection object to the database.
+    data (list of tuple): List of (unix_timestamp, heart_rate) tuples.
+    """
+    cursor = conn.cursor()
+    
+    # Insert data into the heart_rate table
+    cursor.executemany('''
+        INSERT INTO heart_rate (unix_timestamp, heart_rate)
+        VALUES (?, ?)
+    ''', data)
+    conn.commit()
 
-# Example usage:
+# Example usage
 file_path = '/home/corrados/Schreibtisch/apple_health_export/Export.xml'
+db_name = 'heart_rate.db'
+
+# Extract heart rate data
 heart_rate_data = extract_heart_rate(file_path)
-plot_heart_rate(heart_rate_data)
+
+# Create database and store data
+conn = create_database(db_name)
+store_heart_rate_data(conn, heart_rate_data)
+
+# Close the database connection
+conn.close()
+
+print(f"Stored {len(heart_rate_data)} heart rate records in {db_name}.")
 
