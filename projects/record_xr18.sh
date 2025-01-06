@@ -49,6 +49,10 @@ do
     /home/corrados/jack_capture/jack_capture -f ogg --silent --disable-console --port system:capture* $FILENAME >/dev/null 2>&1
     #/home/corrados/jack_capture/jack_capture --verbose --disable-console --port system:capture* $FILENAME >log2.txt 2>log2.txt
 
+    # maybe try out: https://github.com/bfields/openwrt-recording/blob/main/recorder
+    #arecord --device=hw:0,0 --channels=18 --file-type=raw \
+    #        --format=S32_LE --rate=48000 --buffer-time=20000000 > "${MNT}/${name}.raw" 2> >(ts -s >&2) &
+
   fi
 
   sleep 10
