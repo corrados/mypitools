@@ -4,10 +4,6 @@
 read -e -p "Please set GPIO number for IR LED: " -i "22" SET_IRGPIO
 echo "GPIO number for IR LED is set to $SET_IRGPIO"
 
-read -e -p "Please set GPIO number for DHT22 temperature sensor: " -i "4" TEMPSENSORGPIO
-echo "GPIO number for IDHT22 temperature sensor is set to $TEMPSENSORGPIO"
-
-
 echo "TODO MANUALLY: Use raspi-config to enable VNC."
 
 
@@ -35,7 +31,6 @@ CRON_TABLE="1  17    * * *       sudo ledremote KEY_POWERON && sudo ledremote KE
 30 23    * * *       sudo ledremote KEY_POWEROFF
 1   0    * * *       sudo ledremote KEY_POWEROFF
 1   1    * * *       sudo ledremote KEY_POWEROFF
-0   *    * * *       sudo myrunscript.py
 0   3    1 * *       sudo reboot"
 
 read -p "Your current crontab will be overwritten. Are you sure? " -n 1 -r
@@ -148,13 +143,6 @@ gcc ledremote.c -lm -lpigpio -pthread -lrt -o ledremote -DIRGPIO=\"$SET_IRGPIO\"
 sudo mv ledremote /usr/local/bin
 
 
-# TEMPERATURE READ TOOL ########################################################
-# compile and install temperature read tool
-echo "compile readtempsensor"
-gcc -Wall -pthread -o readtempsensor readtempsensor.c -lpigpio -DIRGPIO=\"$TEMPSENSORGPIO\"
-sudo mv readtempsensor /usr/local/bin
-
-
 # AUDIO SETUP ##################################################################
 # add the audio overlay
 if grep -Fxq "dtoverlay=pwm-2chan,pin=18,func=2,pin2=13,func2=4" /boot/config.txt
@@ -168,14 +156,4 @@ fi
 
 # make sure the alsamixer level is correct for the audio output
 amixer set Master 95%
-
-
-# WEATHER DATA #################################################################
-echo "create script data file in /var/log and make it writable by the current user $USER"
-sudo touch /var/log/myrunscriptdata.csv
-sudo chmod 664 /var/log/myrunscriptdata.csv
-sudo chown pi:pi /var/log/myrunscriptdata.csv
-
-# install run script in user bin directory
-sudo cp myrunscript.py /usr/local/bin
 
