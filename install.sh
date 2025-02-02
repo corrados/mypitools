@@ -60,7 +60,11 @@ echo "first we update the system and install the required packages"
 sudo apt-get update
 sudo apt-get upgrade -y
 sudo apt-get dist-upgrade -y
-sudo apt-get install feh tvheadend gnuplot build-essential fail2ban git hdparm htop net-tools nethogs pigpio unattended-upgrades vim -y
+if [[ ! -v is_media ]]; then
+  sudo apt-get install feh tvheadend build-essential fail2ban git hdparm htop net-tools nethogs pigpio unattended-upgrades vim -y
+else
+  sudo apt-get install tvheadend fail2ban git hdparm htop net-tools nethogs unattended-upgrades vim -y
+fi
 sudo apt-get autoremove -y
 sudo apt-get autoclean -y
 
