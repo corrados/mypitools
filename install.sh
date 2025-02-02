@@ -1,17 +1,25 @@
 #!/bin/bash
 
-# settings
-read -e -p "Please set GPIO number for IR LED: " -i "22" SET_IRGPIO
-echo "GPIO number for IR LED is set to $SET_IRGPIO"
+# check if mode is given
+if [[ "$1" == media ]]; then
+  echo "-> Installation on a media Raspi"
+  is_media=true
+fi
 
-echo "TODO MANUALLY: Use raspi-config to enable VNC."
+# settings
+if [[ ! -v is_media ]]; then
+  read -e -p "Please set GPIO number for IR LED: " -i "22" SET_IRGPIO
+  echo "GPIO number for IR LED is set to $SET_IRGPIO"
+
+  echo "TODO MANUALLY: Use raspi-config to enable VNC."
+fi
 
 
 # CRON TAB #####################################################################
-# create cron tab entries for the LED stribe (note that the original file will be deleted!)
-# note that ledremote and myrunscript must not start at the same time
-# note that we start/stop multiple times to make sure these commands are received even if some fail
-CRON_TABLE="1  17    * * *       sudo ledremote KEY_POWERON && sudo ledremote KEY_GREEN
+if [[ ! -v is_media ]]; then
+  # create cron tab entries for the LED stribe (note that the original file will be deleted!)
+  # note that we start/stop multiple times to make sure these commands are received even if some fail
+  CRON_TABLE="1  17    * * *       sudo ledremote KEY_POWERON && sudo ledremote KEY_GREEN
 2  17    * * *       sudo ledremote KEY_POWERON && sudo ledremote KEY_GREEN
 3  17    * * *       sudo ledremote KEY_POWERON && sudo ledremote KEY_GREEN
 1  20    * * *       sudo ledremote KEY_ORANGE
@@ -33,15 +41,16 @@ CRON_TABLE="1  17    * * *       sudo ledremote KEY_POWERON && sudo ledremote KE
 1   1    * * *       sudo ledremote KEY_POWEROFF
 0   3    1 * *       sudo reboot"
 
-read -p "Your current crontab will be overwritten. Are you sure? " -n 1 -r
-echo
-if [[ $REPLY =~ ^[Yy]$ ]]
-then
-  echo "These cron tab entries are written:"
-  echo "$CRON_TABLE"
-  { echo "$CRON_TABLE"; } | crontab -u pi -
-else
-  echo "Cancelled."
+  read -p "Your current crontab will be overwritten. Are you sure? " -n 1 -r
+  echo
+  if [[ $REPLY =~ ^[Yy]$ ]]
+  then
+    echo "These cron tab entries are written:"
+    echo "$CRON_TABLE"
+    { echo "$CRON_TABLE"; } | crontab -u pi -
+  else
+    echo "Cancelled."
+  fi
 fi
 
 
@@ -90,7 +99,7 @@ else
 fi
 
 
-# USB TV CARD DRIVER ############################################################
+# USB TV CARD DRIVER ###########################################################
 if [ -f "/lib/firmware/dvb-usb-terratec-htc-stick-drxk.fw" ]
 then
   echo "USB TV card driver already installed"
@@ -100,7 +109,7 @@ else
 fi
 
 
-# DISABLE SCREEN SAVER ##########################################################
+# DISABLE SCREEN SAVER #########################################################
 if grep -Fxq "xserver-command=X -s 0 -p 0 -dpms" /etc/lightdm/lightdm.conf
 then
   echo "screen saver already disabled in /etc/lightdm/lightdm.conf"
@@ -123,37 +132,38 @@ if test -f "/etc/apt/apt.conf.d/50unattended-upgrades"; then
 fi
 
 
-# VNC ##########################################################################
-# NOTE: possible bug in RaspbianOS: https://github.com/raspberrypi/bookworm-feedback/issues/41
-if sudo grep -Fxq "Authentication=VncAuth" /root/.vnc/config.d/vncserver-x11
-then
-  echo "VNC authentication fix already set in /root/.vnc/config.d/vncserver-x11"
-else
-  echo "fix VNC authentication in /root/.vnc/config.d/vncserver-x11"
-  sudo vncpasswd -legacy -service
-  sudo echo "Authentication=VncAuth" | sudo tee -a /root/.vnc/config.d/vncserver-x11 >/dev/null
-  sudo echo "Encryption=PreferOn" | sudo tee -a /root/.vnc/config.d/vncserver-x11 >/dev/null
+if [[ ! -v is_media ]]; then
+  # VNC ########################################################################
+  # NOTE: possible bug in RaspbianOS: https://github.com/raspberrypi/bookworm-feedback/issues/41
+  if sudo grep -Fxq "Authentication=VncAuth" /root/.vnc/config.d/vncserver-x11
+  then
+    echo "VNC authentication fix already set in /root/.vnc/config.d/vncserver-x11"
+  else
+    echo "fix VNC authentication in /root/.vnc/config.d/vncserver-x11"
+    sudo vncpasswd -legacy -service
+    sudo echo "Authentication=VncAuth" | sudo tee -a /root/.vnc/config.d/vncserver-x11 >/dev/null
+    sudo echo "Encryption=PreferOn" | sudo tee -a /root/.vnc/config.d/vncserver-x11 >/dev/null
+  fi
+
+
+  # LED REMOTE #################################################################
+  # compile and install ledremote tool
+  echo "compile ledremote"
+  gcc ledremote.c -lm -lpigpio -pthread -lrt -o ledremote -DIRGPIO=\"$SET_IRGPIO\"
+  sudo mv ledremote /usr/local/bin
+
+
+  # AUDIO SETUP ################################################################
+  # add the audio overlay
+  if grep -Fxq "dtoverlay=pwm-2chan,pin=18,func=2,pin2=13,func2=4" /boot/config.txt
+  then
+    echo "audio overlay already set in /boot/config.txt"
+  else
+    echo "we append the audio overlay to /boot/config.txt"
+    sudo echo "# enable analog audio on pi zero" | sudo tee -a /boot/config.txt >/dev/null
+    sudo echo "dtoverlay=pwm-2chan,pin=18,func=2,pin2=13,func2=4" | sudo tee -a /boot/config.txt >/dev/null
+  fi
+
+  # make sure the alsamixer level is correct for the audio output
+  amixer set Master 95%
 fi
-
-
-# LED REMOTE ###################################################################
-# compile and install ledremote tool
-echo "compile ledremote"
-gcc ledremote.c -lm -lpigpio -pthread -lrt -o ledremote -DIRGPIO=\"$SET_IRGPIO\"
-sudo mv ledremote /usr/local/bin
-
-
-# AUDIO SETUP ##################################################################
-# add the audio overlay
-if grep -Fxq "dtoverlay=pwm-2chan,pin=18,func=2,pin2=13,func2=4" /boot/config.txt
-then
-  echo "audio overlay already set in /boot/config.txt"
-else
-  echo "we append the audio overlay to /boot/config.txt"
-  sudo echo "# enable analog audio on pi zero" | sudo tee -a /boot/config.txt >/dev/null
-  sudo echo "dtoverlay=pwm-2chan,pin=18,func=2,pin2=13,func2=4" | sudo tee -a /boot/config.txt >/dev/null
-fi
-
-# make sure the alsamixer level is correct for the audio output
-amixer set Master 95%
-
