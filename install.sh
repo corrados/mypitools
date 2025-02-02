@@ -37,11 +37,11 @@ read -p "Your current crontab will be overwritten. Are you sure? " -n 1 -r
 echo
 if [[ $REPLY =~ ^[Yy]$ ]]
 then
-	echo "These cron tab entries are written:"
-	echo "$CRON_TABLE"
-	{ echo "$CRON_TABLE"; } | crontab -u pi -
+  echo "These cron tab entries are written:"
+  echo "$CRON_TABLE"
+  { echo "$CRON_TABLE"; } | crontab -u pi -
 else
-	echo "Cancelled."
+  echo "Cancelled."
 fi
 
 
@@ -78,28 +78,15 @@ else
 fi
 
 
-# VNC ##########################################################################
-# NOTE: possible bug in RaspbianOS: https://github.com/raspberrypi/bookworm-feedback/issues/41
-if sudo grep -Fxq "Authentication=VncAuth" /root/.vnc/config.d/vncserver-x11
-then
-	echo "VNC authentication fix already set in /root/.vnc/config.d/vncserver-x11"
-else
-	echo "fix VNC authentication in /root/.vnc/config.d/vncserver-x11"
-	sudo vncpasswd -legacy -service
-	sudo echo "Authentication=VncAuth" | sudo tee -a /root/.vnc/config.d/vncserver-x11 >/dev/null
-	sudo echo "Encryption=PreferOn" | sudo tee -a /root/.vnc/config.d/vncserver-x11 >/dev/null
-fi
-
-
 # EXTERNAL USB HDD #############################################################
 if grep -Fxq "/dev/sda1 /media/pi/piarchiv ext4 defaults,nofail 0 0" /etc/fstab
 then
-	echo "SDA1 auto mount already set in /etc/fstab"
+  echo "SDA1 auto mount already set in /etc/fstab"
 else
-	echo "we append the SDA1 auto mount to /etc/fstab"
-	sudo echo "# auto mount external HDD on SDA1" | sudo tee -a /etc/fstab >/dev/null
-	sudo echo "/dev/sda1 /media/pi/piarchiv ext4 defaults,nofail 0 0" | sudo tee -a /etc/fstab >/dev/null
-	sudo systemctl daemon-reload
+  echo "we append the SDA1 auto mount to /etc/fstab"
+  sudo echo "# auto mount external HDD on SDA1" | sudo tee -a /etc/fstab >/dev/null
+  sudo echo "/dev/sda1 /media/pi/piarchiv ext4 defaults,nofail 0 0" | sudo tee -a /etc/fstab >/dev/null
+  sudo systemctl daemon-reload
 fi
 
 
@@ -116,7 +103,7 @@ fi
 # DISABLE SCREEN SAVER ##########################################################
 if grep -Fxq "xserver-command=X -s 0 -p 0 -dpms" /etc/lightdm/lightdm.conf
 then
-	echo "screen saver already disabled in /etc/lightdm/lightdm.conf"
+  echo "screen saver already disabled in /etc/lightdm/lightdm.conf"
 else
   echo "we change /etc/lightdm/lightdm.conf to disable the screen saver"
   sudo sed -i "s/#xserver-command=X.*/xserver-command=X -s 0 -p 0 -dpms/g" /etc/lightdm/lightdm.conf
@@ -125,14 +112,27 @@ fi
 
 # FIX UNATTENDED UPGRADES FOR RASPIAN ##########################################
 if test -f "/etc/apt/apt.conf.d/50unattended-upgrades"; then
-	if grep -Fq "Raspbian" /etc/apt/apt.conf.d/50unattended-upgrades
-	then
-		echo "unattended upgrades configuration already fixed for Raspian"
-	else
-		echo "we fix the unattended upgrades configuration file"
-		sudo sed -i '/Unattended-Upgrade::Origins-Pattern {/a "origin=Raspbian,codename=${distro_codename},label=Raspbian";' /etc/apt/apt.conf.d/50unattended-upgrades
-		sudo sed -i '/Unattended-Upgrade::Origins-Pattern {/a "origin=Raspberry Pi Foundation,codename=${distro_codename},label=Raspberry Pi Foundation";' /etc/apt/apt.conf.d/50unattended-upgrades
-	fi
+  if grep -Fq "Raspbian" /etc/apt/apt.conf.d/50unattended-upgrades
+  then
+    echo "unattended upgrades configuration already fixed for Raspian"
+  else
+    echo "we fix the unattended upgrades configuration file"
+    sudo sed -i '/Unattended-Upgrade::Origins-Pattern {/a "origin=Raspbian,codename=${distro_codename},label=Raspbian";' /etc/apt/apt.conf.d/50unattended-upgrades
+    sudo sed -i '/Unattended-Upgrade::Origins-Pattern {/a "origin=Raspberry Pi Foundation,codename=${distro_codename},label=Raspberry Pi Foundation";' /etc/apt/apt.conf.d/50unattended-upgrades
+  fi
+fi
+
+
+# VNC ##########################################################################
+# NOTE: possible bug in RaspbianOS: https://github.com/raspberrypi/bookworm-feedback/issues/41
+if sudo grep -Fxq "Authentication=VncAuth" /root/.vnc/config.d/vncserver-x11
+then
+  echo "VNC authentication fix already set in /root/.vnc/config.d/vncserver-x11"
+else
+  echo "fix VNC authentication in /root/.vnc/config.d/vncserver-x11"
+  sudo vncpasswd -legacy -service
+  sudo echo "Authentication=VncAuth" | sudo tee -a /root/.vnc/config.d/vncserver-x11 >/dev/null
+  sudo echo "Encryption=PreferOn" | sudo tee -a /root/.vnc/config.d/vncserver-x11 >/dev/null
 fi
 
 
@@ -147,11 +147,11 @@ sudo mv ledremote /usr/local/bin
 # add the audio overlay
 if grep -Fxq "dtoverlay=pwm-2chan,pin=18,func=2,pin2=13,func2=4" /boot/config.txt
 then
-	echo "audio overlay already set in /boot/config.txt"
+  echo "audio overlay already set in /boot/config.txt"
 else
-	echo "we append the audio overlay to /boot/config.txt"
-	sudo echo "# enable analog audio on pi zero" | sudo tee -a /boot/config.txt >/dev/null
-	sudo echo "dtoverlay=pwm-2chan,pin=18,func=2,pin2=13,func2=4" | sudo tee -a /boot/config.txt >/dev/null
+  echo "we append the audio overlay to /boot/config.txt"
+  sudo echo "# enable analog audio on pi zero" | sudo tee -a /boot/config.txt >/dev/null
+  sudo echo "dtoverlay=pwm-2chan,pin=18,func=2,pin2=13,func2=4" | sudo tee -a /boot/config.txt >/dev/null
 fi
 
 # make sure the alsamixer level is correct for the audio output
