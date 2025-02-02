@@ -72,7 +72,7 @@ sudo apt-get autoclean -y
 # SSH ##########################################################################
 if [ -d "/home/pi/.ssh" ]; then
   if [ -f "/home/pi/.ssh/authorized_keys" ]; then
-    if grep -Fxq "PasswordAuthentication yes" /etc/ssh/sshd_config
+    if grep -Fq "PasswordAuthentication yes" /etc/ssh/sshd_config
     then
       read -p "Do you want to disable SSH password login? " -n 1 -r
       echo
