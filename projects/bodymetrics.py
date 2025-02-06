@@ -89,6 +89,13 @@ def read_and_plot(path, do_pdf=False):
   zi              = [moving_min[int(window_size / 2):4 * window_size].mean() * (1 - alpha)]
   iir_filtered, _ = lfilter([alpha], [1, alpha - 1], moving_min.bfill(), zi=zi)
 
+  # only show data of last 1 1/2 year
+  one_year_ago = datetime.datetime.now() - datetime.timedelta(days=600)
+  pressure_y   = [y for x, y in zip(pressure_x, pressure_y) if x >= one_year_ago]
+  pressure_x   = [x for x in pressure_x if x >= one_year_ago]
+  scale_y      = [y for x, y in zip(scale_x, scale_y) if x >= one_year_ago]
+  scale_x      = [x for x in scale_x if x >= one_year_ago]
+
   # Plot
   fig, (ax1, ax2) = plt.subplots(1, 2, gridspec_kw={'width_ratios': [6, 1]}, figsize=(10, 8))
   #ax1.plot(band_x,       band_i,       'k', linewidth=1)
