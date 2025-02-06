@@ -77,7 +77,7 @@ def read_and_plot(path, do_pdf=False):
   scale_x_red  = scale_x[-600:]
   scale_y_red  = scale_y[-600:]
   numeric_x    = date2num(scale_x_red)
-  coefficients = np.polyfit(numeric_x, scale_y_red, 7)
+  coefficients = np.polyfit(numeric_x, scale_y_red, 10)
   polynomial   = np.poly1d(coefficients)
   scale_x_fit  = np.linspace(min(numeric_x), max(numeric_x), 500)
   scale_y_fit  = polynomial(scale_x_fit)
@@ -85,17 +85,16 @@ def read_and_plot(path, do_pdf=False):
   # moving window minimum with additional IIR low pass filtering
   window_size     = 60 * 12
   alpha           = 0.0001
-  cut_len         = 30000
   moving_min      = pd.Series(band_r).rolling(window_size, center=True).min()
-  iir_filtered    = lfilter([alpha], [1, alpha - 1], moving_min.bfill())
-  iir_filtered    = iir_filtered[cut_len:]
-  band_x_iir_filt = band_x[cut_len:]
+  zi              = [moving_min[int(window_size / 2):4 * window_size].mean() * (1 - alpha)]
+  iir_filtered, _ = lfilter([alpha], [1, alpha - 1], moving_min.bfill(), zi=zi)
 
   # Plot
   fig, (ax1, ax2) = plt.subplots(1, 2, gridspec_kw={'width_ratios': [6, 1]}, figsize=(10, 8))
   #ax1.plot(band_x,       band_i,       'k', linewidth=1)
   #ax1.plot(band_x,       band_r,       'b', linewidth=1)
-  ax1.plot(band_x_iir_filt, iir_filtered,   'b', linewidth=1)
+  #ax1.plot(band_x,          moving_min,     'b', linewidth=1)
+  ax1.plot(band_x, iir_filtered,   'b', linewidth=2)
   #ax1.plot(watch_x,      watch_r,      'g', linewidth=1)
   #ax1.plot(comparison_x, comparison_y, 'b.')
   ax1.plot(scale_x,      scale_y,      'k.')
@@ -105,6 +104,7 @@ def read_and_plot(path, do_pdf=False):
   ax1.hlines(79,  min(scale_x),    max(scale_x),    colors='k', linestyles='dashed', linewidths=1)
   ax1.hlines(120, min(pressure_x), max(pressure_x), colors='r', linestyles='dashed', linewidths=1)
   #ax1.hlines(40,  min(band_x),     max(band_x),     colors='k', linestyles='solid',  linewidths=1)
+  ax1.hlines(46,  min(band_x),     max(band_x),     colors='b', linestyles='dashed', linewidths=1)
   ax1.set_title('All Data')
   ax1.grid()
   ax1.xaxis.set_major_formatter(dates.DateFormatter('%Y-%m-%d,%H'))
