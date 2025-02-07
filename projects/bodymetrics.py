@@ -90,11 +90,13 @@ def read_and_plot(path, do_pdf=False):
   iir_filtered, _ = lfilter([alpha], [1, alpha - 1], moving_min.bfill(), zi=zi)
 
   # only show data of last 1 1/2 year
-  one_year_ago = datetime.datetime.now() - datetime.timedelta(days=600)
-  pressure_y   = [y for x, y in zip(pressure_x, pressure_y) if x >= one_year_ago]
-  pressure_x   = [x for x in pressure_x if x >= one_year_ago]
-  scale_y      = [y for x, y in zip(scale_x, scale_y) if x >= one_year_ago]
-  scale_x      = [x for x in scale_x if x >= one_year_ago]
+  time_limit_hist = datetime.datetime.now() - datetime.timedelta(days=200)
+  time_limit      = datetime.datetime.now() - datetime.timedelta(days=600)
+  pressure_y_hist = [y for x, y in zip(pressure_x, pressure_y) if x >= time_limit_hist]
+  pressure_y      = [y for x, y in zip(pressure_x, pressure_y) if x >= time_limit]
+  pressure_x      = [x for x in pressure_x if x >= time_limit]
+  scale_y         = [y for x, y in zip(scale_x, scale_y) if x >= time_limit]
+  scale_x         = [x for x in scale_x if x >= time_limit]
 
   # split before/after 10AM
   pressure_x1, pressure_y1 = zip(*[(x, y) for x, y in zip(pressure_x, pressure_y) if x.hour < 10])
@@ -121,8 +123,8 @@ def read_and_plot(path, do_pdf=False):
   ax1.set_title('All Data')
   ax1.grid()
   ax1.xaxis.set_major_formatter(dates.DateFormatter('%Y-%m-%d,%H'))
-  ax2.hist(pressure_y, bins=30)
-  ax2.set_title('Pressure')
+  ax2.hist(pressure_y_hist, bins=30)
+  ax2.set_title('Pressure,last 200 days')
   fig.autofmt_xdate()
   plt.tight_layout()
   plt.show(block=not do_pdf)
