@@ -96,6 +96,10 @@ def read_and_plot(path, do_pdf=False):
   scale_y      = [y for x, y in zip(scale_x, scale_y) if x >= one_year_ago]
   scale_x      = [x for x in scale_x if x >= one_year_ago]
 
+  # split before/after 10AM
+  pressure_x1, pressure_y1 = zip(*[(x, y) for x, y in zip(pressure_x, pressure_y) if x.hour < 10])
+  pressure_x2, pressure_y2 = zip(*[(x, y) for x, y in zip(pressure_x, pressure_y) if x.hour >= 10])
+
   # Plot
   fig, (ax1, ax2) = plt.subplots(1, 2, gridspec_kw={'width_ratios': [6, 1]}, figsize=(10, 8))
   #ax1.plot(band_x,       band_i,       'k', linewidth=1)
@@ -106,7 +110,9 @@ def read_and_plot(path, do_pdf=False):
   #ax1.plot(comparison_x, comparison_y, 'b.')
   ax1.plot(scale_x,      scale_y,      'k.')
   ax1.plot(scale_x_fit,  scale_y_fit,  'g.')
-  ax1.plot(pressure_x,   pressure_y,   'r.')
+  #ax1.plot(pressure_x,   pressure_y,   'r.')
+  ax1.plot(pressure_x1,   pressure_y1,   'g.')
+  ax1.plot(pressure_x2,   pressure_y2,   'r.')
   ax1.plot(special_x,    special_y,    'yD')
   ax1.hlines(79,  min(scale_x),    max(scale_x),    colors='k', linestyles='dashed', linewidths=1)
   ax1.hlines(120, min(pressure_x), max(pressure_x), colors='r', linestyles='dashed', linewidths=1)
