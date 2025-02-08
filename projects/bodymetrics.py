@@ -83,7 +83,7 @@ def read_and_plot(path, do_pdf=False):
   scale_y_fit  = polynomial(scale_x_fit)
 
   # moving window minimum with additional IIR low pass filtering
-  window_size     = 60 * 12
+  window_size     = 60 * 24
   alpha           = 0.0001
   moving_min      = pd.Series(band_r).rolling(window_size, center=True).min()
   zi              = [moving_min[int(window_size / 2):4 * window_size].mean() * (1 - alpha)]
@@ -119,7 +119,7 @@ def read_and_plot(path, do_pdf=False):
   ax1.hlines(79,  min(scale_x),    max(scale_x),    colors='k', linestyles='dashed', linewidths=1)
   ax1.hlines(120, min(pressure_x), max(pressure_x), colors='r', linestyles='dashed', linewidths=1)
   #ax1.hlines(40,  min(band_x),     max(band_x),     colors='k', linestyles='solid',  linewidths=1)
-  ax1.hlines(46,  min(band_x),     max(band_x),     colors='b', linestyles='dashed', linewidths=1)
+  ax1.hlines(44,  min(band_x),     max(band_x),     colors='b', linestyles='dashed', linewidths=1)
   ax1.set_title('All Data')
   ax1.grid()
   ax1.xaxis.set_major_formatter(dates.DateFormatter('%Y-%m-%d,%H'))
