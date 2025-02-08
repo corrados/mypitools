@@ -19,8 +19,7 @@
 
 import os, sys, glob, sqlite3, datetime, warnings
 import numpy as np
-from scipy.signal import medfilt
-from scipy.signal import lfilter
+from scipy.signal import medfilt, lfilter
 from matplotlib.dates import date2num
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -72,17 +71,15 @@ def read_and_plot(path, do_pdf=False):
       comparison_x.append(cur_c[0])
       comparison_y.append(int(cur_c[1]))
 
-  # polynomial fitting
+  # scale: polynomial fitting
   warnings.simplefilter("ignore", np.RankWarning)
-  scale_x_red  = scale_x[-600:]
-  scale_y_red  = scale_y[-600:]
-  numeric_x    = date2num(scale_x_red)
-  coefficients = np.polyfit(numeric_x, scale_y_red, 10)
-  polynomial   = np.poly1d(coefficients)
-  scale_x_fit  = np.linspace(min(numeric_x), max(numeric_x), 500)
-  scale_y_fit  = polynomial(scale_x_fit)
+  (scale_x_red, scale_y_red) = (scale_x[-600:], scale_y[-600:])
+  numeric_x   = date2num(scale_x_red)
+  polynomial  = np.poly1d(np.polyfit(numeric_x, scale_y_red, 10))
+  scale_x_fit = np.linspace(min(numeric_x), max(numeric_x), 500)
+  scale_y_fit = polynomial(scale_x_fit)
 
-  # moving window minimum with additional IIR low pass filtering
+  # band: moving window minimum with additional IIR low pass filtering
   window_size     = 60 * 24
   alpha           = 0.0001
   moving_min      = pd.Series(band_r).rolling(window_size, center=True).min()
@@ -90,15 +87,13 @@ def read_and_plot(path, do_pdf=False):
   iir_filtered, _ = lfilter([alpha], [1, alpha - 1], moving_min.bfill(), zi=zi)
 
   # only show data of last 1 1/2 year
-  time_limit_hist = datetime.datetime.now() - datetime.timedelta(days=200)
-  time_limit      = datetime.datetime.now() - datetime.timedelta(days=600)
-  pressure_y_hist = [y for x, y in zip(pressure_x, pressure_y) if x >= time_limit_hist]
-  pressure_y      = [y for x, y in zip(pressure_x, pressure_y) if x >= time_limit]
-  pressure_x      = [x for x in pressure_x if x >= time_limit]
-  scale_y         = [y for x, y in zip(scale_x, scale_y) if x >= time_limit]
-  scale_x         = [x for x in scale_x if x >= time_limit]
+  time_limit_hist        = datetime.datetime.now() - datetime.timedelta(days=200)
+  time_limit             = datetime.datetime.now() - datetime.timedelta(days=600)
+  pressure_y_hist        =      [y      for x, y in zip(pressure_x, pressure_y) if x >= time_limit_hist]
+  pressure_x, pressure_y = zip(*[(x, y) for x, y in zip(pressure_x, pressure_y) if x >= time_limit])
+  scale_x, scale_y       = zip(*[(x, y) for x, y in zip(scale_x,    scale_y)    if x >= time_limit])
 
-  # split before/after 10AM
+  # pressure: split before/after 10AM
   pressure_x1, pressure_y1 = zip(*[(x, y) for x, y in zip(pressure_x, pressure_y) if x.hour < 10])
   pressure_x2, pressure_y2 = zip(*[(x, y) for x, y in zip(pressure_x, pressure_y) if x.hour >= 10])
 
