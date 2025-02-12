@@ -82,7 +82,8 @@ def read_and_plot(path, do_pdf=False):
   # band: moving window minimum with additional IIR low pass filtering
   window_size     = 60 * 24
   alpha           = 0.0001
-  moving_min      = pd.Series(band_r).rolling(window_size, center=True).min()
+  band_r_median   = medfilt(band_r, kernel_size=3) # remove erroneous single spikes
+  moving_min      = pd.Series(band_r_median).rolling(window_size, center=True).min()
   zi              = [moving_min[int(window_size / 2):4 * window_size].mean() * (1 - alpha)]
   iir_filtered, _ = lfilter([alpha], [1, alpha - 1], moving_min.bfill(), zi=zi)
 
@@ -99,15 +100,16 @@ def read_and_plot(path, do_pdf=False):
 
   # Plot
   fig, (ax1, ax2) = plt.subplots(1, 2, gridspec_kw={'width_ratios': [6, 1]}, figsize=(10, 8))
-  #ax1.plot(band_x,       band_i,       'k', linewidth=1)
-  #ax1.plot(band_x,       band_r,       'b', linewidth=1)
-  #ax1.plot(band_x,          moving_min,     'b', linewidth=1)
+  #ax1.plot(band_x,       band_i,        'k', linewidth=1)
+  #ax1.plot(band_x,       band_r,        'b', linewidth=1)
+  #ax1.plot(band_x,       band_r_median, 'g', linewidth=1)
+  #ax1.plot(band_x,       moving_min,    'b', linewidth=1)
   ax1.plot(band_x, iir_filtered,   'b', linewidth=2)
-  #ax1.plot(watch_x,      watch_r,      'g', linewidth=1)
-  #ax1.plot(comparison_x, comparison_y, 'b.')
+  #ax1.plot(watch_x,      watch_r,       'g', linewidth=1)
+  #ax1.plot(comparison_x, comparison_y,  'b.')
   ax1.plot(scale_x,      scale_y,      'k.')
   ax1.plot(scale_x_fit,  scale_y_fit,  'g.')
-  #ax1.plot(pressure_x,   pressure_y,   'r.')
+  #ax1.plot(pressure_x,   pressure_y,    'r.')
   ax1.plot(pressure_x1,   pressure_y1,   'g.')
   ax1.plot(pressure_x2,   pressure_y2,   'r.')
   ax1.plot(special_x,    special_y,    'yD')
@@ -115,8 +117,8 @@ def read_and_plot(path, do_pdf=False):
   ax1.hlines(120, min(pressure_x), max(pressure_x), colors='g', linestyles='dashed', linewidths=1)
   ax1.hlines(136, min(pressure_x), max(pressure_x), colors='r', linestyles='dashed', linewidths=1)
   #ax1.hlines(40,  min(band_x),     max(band_x),     colors='k', linestyles='solid',  linewidths=1)
-  ax1.hlines(44,   min(band_x),    max(band_x),     colors='b', linestyles='dashed', linewidths=1)
-  ax1.hlines(48.5, min(band_x),    max(band_x),     colors='r', linestyles='dashed', linewidths=1)
+  ax1.hlines(46,   min(band_x),    max(band_x),     colors='b', linestyles='dashed', linewidths=1)
+  ax1.hlines(51.5, min(band_x),    max(band_x),     colors='r', linestyles='dashed', linewidths=1)
   ax1.set_title('All Data')
   ax1.grid()
   ax1.xaxis.set_major_formatter(dates.DateFormatter('%Y-%m-%d,%H'))
