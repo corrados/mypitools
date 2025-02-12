@@ -28,9 +28,10 @@ import matplotlib.dates as dates
 def read_and_plot(path, do_pdf=False):
   # Band Data/Scale Measurements
   (band_x, band_r, band_i) = ([], [], [])
-  (scale_x, scale_y) = ([], [])
+  (scale_x, scale_y, running_workouts) = ([], [], [])
   cursor1 = sqlite3.connect(path + "/Gadgetbridge").cursor().execute("SELECT * FROM MI_BAND_ACTIVITY_SAMPLE")
   cursor2 = sqlite3.connect(path + "/Gadgetbridge").cursor().execute("SELECT * FROM MI_SCALE_WEIGHT_SAMPLE")
+  cursor3 = sqlite3.connect(path + "/Gadgetbridge").cursor().execute("SELECT START_TIME FROM BASE_ACTIVITY_SUMMARY WHERE ACTIVITY_KIND = 16")
   for row in cursor1.fetchall():
     rate = row[6]
     if rate < 250 and rate > 20:
@@ -42,6 +43,8 @@ def read_and_plot(path, do_pdf=False):
     if weight > 72: # min scale
       scale_x.append(datetime.datetime.fromtimestamp(row[0] / 1000))
       scale_y.append(weight)
+  for row in cursor3.fetchall():
+    running_workouts.append(datetime.datetime.fromtimestamp(row[0] / 1000))
 
   # apple watch
   (watch_x, watch_r) = ([], [])
@@ -113,6 +116,7 @@ def read_and_plot(path, do_pdf=False):
   ax1.plot(pressure_x1,   pressure_y1,   'g.')
   ax1.plot(pressure_x2,   pressure_y2,   'r.')
   ax1.plot(special_x,    special_y,    'yD')
+  ax1.plot(running_workouts, [0] * len(running_workouts), 'r^')
   ax1.hlines(79,  min(scale_x),    max(scale_x),    colors='k', linestyles='dashed', linewidths=1)
   ax1.hlines(120, min(pressure_x), max(pressure_x), colors='g', linestyles='dashed', linewidths=1)
   ax1.hlines(136, min(pressure_x), max(pressure_x), colors='r', linestyles='dashed', linewidths=1)
