@@ -24,6 +24,7 @@ from matplotlib.dates import date2num
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.dates as dates
+from collections import defaultdict
 
 def read_and_plot(path, do_pdf=False):
   # Band Data/Scale Measurements
@@ -84,7 +85,7 @@ def read_and_plot(path, do_pdf=False):
 
   # band: moving window minimum with additional IIR low pass filtering
   window_size     = 60 * 24
-  alpha           = 0.0001
+  alpha           = 0.01
   band_r_median   = medfilt(band_r, kernel_size=3) # remove erroneous single spikes
   moving_min      = pd.Series(band_r_median).rolling(window_size, center=True).min()
   zi              = [moving_min[int(window_size / 2):4 * window_size].mean() * (1 - alpha)]
@@ -101,33 +102,72 @@ def read_and_plot(path, do_pdf=False):
   pressure_x1, pressure_y1 = zip(*[(x, y) for x, y in zip(pressure_x, pressure_y) if x.hour < 10])
   pressure_x2, pressure_y2 = zip(*[(x, y) for x, y in zip(pressure_x, pressure_y) if x.hour >= 10])
 
+
+
+  # TEST
+  #zi              = [band_i[int(window_size / 2):4 * window_size].mean() * (1 - alpha)]
+  band_i_filtered = lfilter([alpha], [1, alpha - 1], band_i)#, zi=zi)
+  below_threshold = band_i_filtered < 3
+
+
+  #counts_by_day = defaultdict(int)
+  #for dt, is_below in zip(band_x, below_threshold):
+  #  if dt.hour < 12:
+  #      day_start = (dt - datetime.timedelta(days=1)).date()  # Vortag
+  #  else:
+  #      day_start = dt.date()  # Aktueller Tag
+  #  if is_below:
+  #      counts_by_day[day_start] += 1
+  ##print(counts_by_day)
+  #days = list(counts_by_day.keys())          # X-axis (dates)
+  #counts = list(counts_by_day.values())      # Y-axis (counts)
+
+
+  counts_by_week = defaultdict(int)
+  for dt, is_below in zip(band_x, below_threshold):
+    if is_below:
+      previous_sunday = dt - datetime.timedelta(days=dt.weekday() + 1)  
+      sunday_noon = datetime.datetime(previous_sunday.year, previous_sunday.month, previous_sunday.day, 12, 0)
+      if dt < sunday_noon:
+        sunday_noon -= datetime.timedelta(days=7)
+      week_start = sunday_noon.date()
+      counts_by_week[week_start] += 1
+  weeks  = list(counts_by_week.keys())
+  counts = [count / 100 for count in counts_by_week.values()]
+
+
   # Plot
   fig, (ax1, ax2) = plt.subplots(1, 2, gridspec_kw={'width_ratios': [6, 1]}, figsize=(10, 8))
-  #ax1.plot(band_x,       band_i,        'k', linewidth=1)
-  #ax1.plot(band_x,       band_r,        'b', linewidth=1)
-  #ax1.plot(band_x,       band_r_median, 'g', linewidth=1)
-  #ax1.plot(band_x,       moving_min,    'b', linewidth=1)
-  ax1.plot(band_x, iir_filtered,   'b', linewidth=2)
-  #ax1.plot(watch_x,      watch_r,       'g', linewidth=1)
-  #ax1.plot(comparison_x, comparison_y,  'b.')
-  ax1.plot(scale_x,      scale_y,      'k.')
-  ax1.plot(scale_x_fit,  scale_y_fit,  'g.')
-  #ax1.plot(pressure_x,   pressure_y,    'r.')
-  ax1.plot(pressure_x1,   pressure_y1,   'g.')
-  ax1.plot(pressure_x2,   pressure_y2,   'r.')
-  ax1.plot(special_x,    special_y,    'yD')
-  ax1.plot(running_workouts, [0] * len(running_workouts), 'r^')
-  ax1.hlines(79,  min(scale_x),    max(scale_x),    colors='k', linestyles='dashed', linewidths=1)
-  ax1.hlines(120, min(pressure_x), max(pressure_x), colors='g', linestyles='dashed', linewidths=1)
-  ax1.hlines(136, min(pressure_x), max(pressure_x), colors='r', linestyles='dashed', linewidths=1)
-  #ax1.hlines(40,  min(band_x),     max(band_x),     colors='k', linestyles='solid',  linewidths=1)
-  ax1.hlines(46,   min(band_x),    max(band_x),     colors='b', linestyles='dashed', linewidths=1)
-  ax1.hlines(51.5, min(band_x),    max(band_x),     colors='r', linestyles='dashed', linewidths=1)
-  ax1.set_title('All Data')
-  ax1.grid()
-  ax1.xaxis.set_major_formatter(dates.DateFormatter('%Y-%m-%d,%H'))
-  ax2.hist(pressure_y_hist, bins=30)
-  ax2.set_title('Pressure,last 200 days')
+  ax1.plot(band_x,       band_i,        'k', linewidth=1)
+  ax1.plot(band_x,       below_threshold,        'g', linewidth=1)
+  ax1.hlines(3,  min(scale_x),    max(scale_x),    colors='r', linestyles='dashed', linewidths=1)
+  
+  ax1.plot(weeks, counts, 'b')
+  
+  ##ax1.plot(band_x,       band_r,        'b', linewidth=1)
+  ##ax1.plot(band_x,       band_r_median, 'g', linewidth=1)
+  ##ax1.plot(band_x,       moving_min,    'b', linewidth=1)
+  #ax1.plot(band_x, iir_filtered,   'b', linewidth=2)
+  ##ax1.plot(watch_x,      watch_r,       'g', linewidth=1)
+  ##ax1.plot(comparison_x, comparison_y,  'b.')
+  #ax1.plot(scale_x,      scale_y,      'k.')
+  #ax1.plot(scale_x_fit,  scale_y_fit,  'g.')
+  ##ax1.plot(pressure_x,   pressure_y,    'r.')
+  #ax1.plot(pressure_x1,   pressure_y1,   'g.')
+  #ax1.plot(pressure_x2,   pressure_y2,   'r.')
+  #ax1.plot(special_x,    special_y,    'yD')
+  #ax1.plot(running_workouts, [0] * len(running_workouts), 'r^')
+  #ax1.hlines(79,  min(scale_x),    max(scale_x),    colors='k', linestyles='dashed', linewidths=1)
+  #ax1.hlines(120, min(pressure_x), max(pressure_x), colors='g', linestyles='dashed', linewidths=1)
+  #ax1.hlines(136, min(pressure_x), max(pressure_x), colors='r', linestyles='dashed', linewidths=1)
+  ##ax1.hlines(40,  min(band_x),     max(band_x),     colors='k', linestyles='solid',  linewidths=1)
+  #ax1.hlines(46,   min(band_x),    max(band_x),     colors='b', linestyles='dashed', linewidths=1)
+  #ax1.hlines(51.5, min(band_x),    max(band_x),     colors='r', linestyles='dashed', linewidths=1)
+  #ax1.set_title('All Data')
+  #ax1.grid()
+  #ax1.xaxis.set_major_formatter(dates.DateFormatter('%Y-%m-%d,%H'))
+  #ax2.hist(pressure_y_hist, bins=30)
+  #ax2.set_title('Pressure,last 200 days')
   fig.autofmt_xdate()
   plt.tight_layout()
   plt.show(block=not do_pdf)
