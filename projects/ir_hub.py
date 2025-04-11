@@ -8,7 +8,7 @@ import threading
 
 DEVICE_PATH = "/dev/input/event2"
 
-# Scancode to readable button name
+# Scancode to readable button name for Elgato eyetv remote
 scancode_map = {
     4539667: "OK",
     4539668: "VOL+",
@@ -75,7 +75,7 @@ with open(DEVICE_PATH, "rb") as f:
 
         tv_sec, tv_usec, event_type, code, value = struct.unpack("llHHI", data)
 
-        if event_type == 4 and code == 4:  # MSC_SCAN
+        if event_type == 4 and code == 4: # MSC_SCAN
             scancode = value
             button_name = scancode_map.get(scancode, f"UNKNOWN ({scancode})")
 
@@ -98,7 +98,7 @@ with open(DEVICE_PATH, "rb") as f:
             # Update time
             last_time = time.time()
 
-        elif event_type == 0:  # EV_SYN
+        elif event_type == 0: # EV_SYN
             # Sync event — mark last_time for idle detection
             last_time = time.time()
 
