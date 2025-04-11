@@ -32,7 +32,18 @@ scancode_map = {
     4539659: "9",
     4539661: "0",
     4539662: "ENTER",
-    4539660: "LAST"
+    4539660: "LAST",
+    4539672: "BACK_LEFT",
+    4539674: "BACK_RIGHT",
+    4539673: "PLAY",
+    4539675: "REWIND",
+    4539677: "FORWARD",
+    4539676: "L",
+    4539678: "STOP",
+    4539679: "TEXT",
+    4539712: "REC",
+    4539713: "HOLD",
+    4539714: "SELECT"
 }
 
 # Keys that should repeat while held
