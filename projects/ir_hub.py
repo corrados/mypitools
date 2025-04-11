@@ -4,7 +4,6 @@
 
 import struct
 import time
-import threading
 
 DEVICE_PATH = "/dev/input/event16"
 
