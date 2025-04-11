@@ -6,14 +6,13 @@ import struct
 import time
 import threading
 
-DEVICE_PATH = "/dev/input/event2"
+DEVICE_PATH = "/dev/input/event16"
 
 # Scancode to readable button name for Elgato eyetv remote
-scancode_map = {4539667:"OK",4539668:"VOL+",4539666:"VOL-",4539664:"CH+",4539670:"CH-",4539649:"POWER",
-4539650:"MUTE",4539663:"RED",4539665:"GREEN",4539671:"BLUE",4539669:"YELLOW",4539651:"1",4539652:"2",
-4539653:"3",4539654:"4",4539655:"5",4539656:"6",4539657:"7",4539658:"8",4539659:"9",4539661:"0",
-4539662:"ENTER",4539660:"LAST",4539672:"BACK_LEFT",4539674:"BACK_RIGHT",4539673:"PLAY",4539675:"REWIND",
-4539677:"FORWARD",4539676:"L",4539678:"STOP",4539679:"TEXT",4539712:"REC",4539713:"HOLD",4539714:"SELECT"}
+scancode_map = {0:"POWER", 1:"MUTE", 2:"1", 3:"2", 4:"3", 5:"4", 6:"5", 7:"6", 8:"7", 9:"8",
+10:"9", 11:"LAST", 12:"0", 13:"ENTER", 14:"RED", 15:"CH+", 16:"GREEN", 17:"VOL-", 18:"OK",
+19:"VOL+", 20:"YELLOW", 21:"CH-", 22:"BLUE", 23:"BACK_LEFT", 24:"PLAY", 25:"BACK_RIGHT",
+26:"REWIND", 27:"L", 28:"FORWARD", 29:"STOP", 30:"TEXT", 63:"REC", 64:"HOLD", 65:"SELECT"}
 
 # Keys that should repeat while held
 repeatable_keys = {"VOL+", "VOL-", "CH+", "CH-"}
@@ -45,7 +44,7 @@ with open(DEVICE_PATH, "rb") as f:
         tv_sec, tv_usec, event_type, code, value = struct.unpack("llHHI", data)
 
         if event_type == 4 and code == 4: # MSC_SCAN
-            scancode = value
+            scancode = value - 4539649
             button_name = scancode_map.get(scancode, f"UNKNOWN ({scancode})")
 
             if scancode != last_scancode:
