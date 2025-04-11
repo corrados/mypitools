@@ -18,26 +18,26 @@ last_scancode = None
 last_time = 0
 
 with open(DEVICE_PATH, "rb") as f:
-    while True:
-        data = f.read(24)
-        if not data:
-            continue
+  while True:
+    data = f.read(24)
+    if not data:
+      continue
 
-        tv_sec, tv_usec, event_type, code, value = struct.unpack("llHHI", data)
+    tv_sec, tv_usec, event_type, code, value = struct.unpack("llHHI", data)
 
-        if event_type == 4 and code == 4: # MSC_SCAN
-            scancode = value - 4539649
-            button_name = scancode_map.get(scancode, f"UNKNOWN ({scancode})")
+    if event_type == 4 and code == 4: # MSC_SCAN
+      scancode = value - 4539649
+      button_name = scancode_map.get(scancode, f"UNKNOWN ({scancode})")
 
-            if scancode != last_scancode or time.time() - last_time > 0.2 or button_name in {"VOL+", "VOL-"}:
-                # New key pressed
-                last_scancode = scancode
-                print(f"Button pressed: {button_name}")
+      if scancode != last_scancode or time.time() - last_time > 0.2 or button_name in {"VOL+", "VOL-"}:
+        # New key pressed
+        last_scancode = scancode
+        print(f"Button pressed: {button_name}")
 
-            # Update time
-            last_time = time.time()
+      # Update time
+      last_time = time.time()
 
-        elif event_type == 0: # EV_SYN
-            # Sync event — mark last_time for idle detection
-            last_time = time.time()
+    elif event_type == 0: # EV_SYN
+      # Sync event — mark last_time for idle detection
+      last_time = time.time()
 
