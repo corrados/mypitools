@@ -164,6 +164,8 @@ int main(int argc, char *argv[])
     int      frequency = 38000;      // The frequency of the IR signal in Hz
     double   dutyCycle = 0.5;        // The duty cycle of the IR signal. 0.5 means for every cycle,
                                      // the LED will turn on for half the cycle time, and off the other half
+
+    // number are from LED stribe
     int leadingPulseDuration = 9000; // The duration of the beginning pulse in microseconds
     int leadingGapDuration   = 4500; // The duration of the gap in microseconds after the leading pulse
     int onePulse             = 641;  // The duration of a pulse in microseconds when sending a logical 1
@@ -179,9 +181,9 @@ int main(int argc, char *argv[])
 
     char* curkey = "00000000111101111100000000111111"; // default behavior
 
-    // parse single input parameter
     if ( argc == 2 )
     {
+        // parse single input parameter -> LED stribe
         if ( strcmp ( argv[1], "KEY_BRIGHTNESSUP" ) == 0 )   curkey = "00000000111101110000000011111111"; // 0x00FF
         if ( strcmp ( argv[1], "KEY_BRIGHTNESSDOWN" ) == 0 ) curkey = "00000000111101111000000001111111"; // 0x807F
         if ( strcmp ( argv[1], "KEY_POWEROFF" ) == 0 )       curkey = "00000000111101110100000010111111"; // 0x40BF
@@ -206,6 +208,36 @@ int main(int argc, char *argv[])
         if ( strcmp ( argv[1], "KEY_PROG2" ) == 0 )          curkey = "00000000111101111111000000001111"; // 0xF00F
         if ( strcmp ( argv[1], "KEY_PROG3" ) == 0 )          curkey = "00000000111101111100100000110111"; // 0xC837
         if ( strcmp ( argv[1], "KEY_PROG4" ) == 0 )          curkey = "00000000111101111110100000010111"; // 0xE817
+    }
+    else if ( argc = 3 )
+    {
+        // parse touple input parameter: [device] [command]
+        if ( strcmp ( argv[1], "BAR" ) == 0 ) // Philips soundbar HTL2163B
+        {
+// TODO
+        }
+        else if ( strcmp ( argv[1], "TV" ) == 0 ) // Toshiba TV 42XV635D
+        {
+// TODO
+        }
+        else if ( strcmp ( argv[1], "BEAM" ) == 0 ) // Ultimea projector Apollo P20
+        {
+// TODO
+        }
+        else if ( strcmp ( argv[1], "DVD" ) == 0 ) // Sony blue-ray player BDP-S185
+        {
+// TODO
+        }
+        else if ( strcmp ( argv[1], "AMP" ) == 0 ) // Onkyo amplifier TX SR 606
+        {
+// TODO
+        }
+        else if ( strcmp ( argv[1], "LED" ) == 0 ) // Osram LED stribe
+        {
+// TODO
+// define correct leadingPulseDuration, leadingGapDuration, etc.
+if ( strcmp ( argv[2], "KEY_POWERON" ) == 0 ) curkey = "00000000111101111100000000111111"; // 0xC03F
+        }
     }
 
     int result = irSling(outPin,
