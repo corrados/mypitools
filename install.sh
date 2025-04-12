@@ -60,11 +60,7 @@ echo "first we update the system and install the required packages"
 sudo apt-get update
 sudo apt-get upgrade -y
 sudo apt-get dist-upgrade -y
-if [[ ! -v is_media ]]; then
-  sudo apt-get install feh tvheadend build-essential fail2ban git hdparm htop net-tools nethogs pigpio unattended-upgrades vim -y
-else
-  sudo apt-get install tvheadend fail2ban git hdparm htop net-tools nethogs unattended-upgrades vim -y
-fi
+sudo apt-get install feh tvheadend build-essential fail2ban git hdparm htop net-tools nethogs pigpio unattended-upgrades vim -y
 sudo apt-get autoremove -y
 sudo apt-get autoclean -y
 
@@ -136,6 +132,13 @@ if test -f "/etc/apt/apt.conf.d/50unattended-upgrades"; then
 fi
 
 
+# LED REMOTE ###################################################################
+# compile and install ledremote tool
+echo "compile ledremote"
+gcc ledremote.c -lm -lpigpio -pthread -lrt -o ledremote -DIRGPIO=\"$SET_IRGPIO\"
+sudo mv ledremote /usr/local/bin
+
+
 if [[ ! -v is_media ]]; then
   # VNC ########################################################################
   # NOTE: possible bug in RaspbianOS: https://github.com/raspberrypi/bookworm-feedback/issues/41
@@ -148,13 +151,6 @@ if [[ ! -v is_media ]]; then
     sudo echo "Authentication=VncAuth" | sudo tee -a /root/.vnc/config.d/vncserver-x11 >/dev/null
     sudo echo "Encryption=PreferOn" | sudo tee -a /root/.vnc/config.d/vncserver-x11 >/dev/null
   fi
-
-
-  # LED REMOTE #################################################################
-  # compile and install ledremote tool
-  echo "compile ledremote"
-  gcc ledremote.c -lm -lpigpio -pthread -lrt -o ledremote -DIRGPIO=\"$SET_IRGPIO\"
-  sudo mv ledremote /usr/local/bin
 
 
   # AUDIO SETUP ################################################################
