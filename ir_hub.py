@@ -40,7 +40,7 @@ map_LIGHT = {"CH+":"LED BRIGHTER", "CH-":"LED DIMMER", "VOL-":"LED DIMMER", "VOL
 "BACK_LEFT":"LED NAVY", "OK":"LED WHITE"}
 
 def watch_input():
-  (last_scancode, last_time) = (None, 0) # state
+  (last_scancode, last_time, last_time_same_key) = (None, 0, 0) # state
   with open(device_path, "rb") as f:
     while True:
       data = f.read(24)
@@ -48,11 +48,13 @@ def watch_input():
         _, _, event_type, code, value = struct.unpack("llHHI", data)
         if event_type == 4 and code == 4: # MSC_SCAN
           scancode = value - scancode_offset
-          button_name = scancode_map.get(scancode, f"UNKNOWN ({scancode})")
-          if scancode != last_scancode or time.time() - last_time > 0.2 or button_name in {"VOL+", "VOL-"}:
-            last_scancode = scancode
+          if scancode != last_scancode or time.time() - last_time > 0.2 or time.time() - last_time_same_key > 1:
+            button_name = scancode_map.get(scancode, f"UNKNOWN ({scancode})")
             threading.Thread(target=on_button_press, args=(button_name,)).start()
-          last_time = time.time()
+          if scancode != last_scancode:
+            last_time_same_key = time.time()
+          last_scancode = scancode
+          last_time     = time.time()
         elif event_type == 0: # EV_SYN (sync event)
           last_time = time.time() # mark last_time for idle detection
 
