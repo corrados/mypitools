@@ -70,68 +70,71 @@ def on_button_press(button_name):
         case "POWER":
           mapping = None
           if state in ("TV", "LIGHT"):
-            threading.Thread(target=lambda: ir_send("LED POWER OFF")).start()
+            ir_send_in_thread("LED POWER OFF")
           if state in ("PROJECTOR", "DVD", "TV"):
-            threading.Thread(target=lambda: ir_send("BAR POWER OFF")).start()
+            ir_send_in_thread("BAR POWER OFF")
             if state in ("TV"):
-              threading.Thread(target=lambda: ir_send("TV POWER OFF")).start()
+              ir_send_in_thread("TV POWER OFF")
             if state in ("PROJECTOR", "DVD"):
-              threading.Thread(target=lambda: ir_send("BEAM POWER OFF")).start()
+              ir_send_in_thread("BEAM POWER OFF")
             if state in ("DVD"):
-              threading.Thread(target=lambda: ir_send("DVD POWER OFF")).start()
+              ir_send_in_thread("DVD POWER OFF")
         case "RED": # PROJECTOR -----
           mapping = map_PROJECTOR
           if state in ("TV", "LIGHT"):
-            threading.Thread(target=lambda: ir_send("LED POWER OFF")).start()
+            ir_send_in_thread("LED POWER OFF")
           if state in ("TV", "DVD"):
             if state in ("TV"):
-              threading.Thread(target=lambda: ir_send("TV POWER OFF")).start()
+              ir_send_in_thread("TV POWER OFF")
             if state in ("DVD"):
-              threading.Thread(target=lambda: ir_send("DVD POWER OFF")).start()
+              ir_send_in_thread("DVD POWER OFF")
           else:
-            threading.Thread(target=lambda: ir_send("BAR POWER ON")).start()
+            ir_send_in_thread("BAR POWER ON")
           if not state in ("DVD"):
-            threading.Thread(target=lambda: ir_send("BEAM POWER ON")).start()
+            ir_send_in_thread("BEAM POWER ON")
         case "GREEN": # TV -----
           mapping = map_TV
           if not state in ("LIGHT"):
-            threading.Thread(target=lambda: ir_send("LED POWER ON")).start()
+            ir_send_in_thread("LED POWER ON")
           if state in ("PROJECTOR", "DVD"):
-            threading.Thread(target=lambda: ir_send("BEAM POWER OFF")).start()
+            ir_send_in_thread("BEAM POWER OFF")
             if state in ("DVD"):
-              threading.Thread(target=lambda: ir_send("DVD POWER OFF")).start()
+              ir_send_in_thread("DVD POWER OFF")
           else:
-            threading.Thread(target=lambda: ir_send("BAR POWER ON")).start()
-          threading.Thread(target=lambda: ir_send("TV POWER ON")).start()
+            ir_send_in_thread("BAR POWER ON")
+          ir_send_in_thread("TV POWER ON")
         case "YELLOW": # LIGHT -----
           mapping = map_LIGHT
           if state in ("PROJECTOR", "DVD", "TV"):
-            threading.Thread(target=lambda: ir_send("BAR POWER OFF")).start()
+            ir_send_in_thread("BAR POWER OFF")
             if state in ("TV"):
-              threading.Thread(target=lambda: ir_send("TV POWER OFF")).start()
+              ir_send_in_thread("TV POWER OFF")
             if state in ("PROJECTOR", "DVD"):
-              threading.Thread(target=lambda: ir_send("BEAM POWER OFF")).start()
+              ir_send_in_thread("BEAM POWER OFF")
             if state in ("DVD"):
-              threading.Thread(target=lambda: ir_send("DVD POWER OFF")).start()
+              ir_send_in_thread("DVD POWER OFF")
           if not state in ("TV"):
-            threading.Thread(target=lambda: ir_send("LED POWER ON")).start()
+            ir_send_in_thread("LED POWER ON")
         case "BLUE": # DVD -----
           mapping = map_DVD
           if state in ("TV", "LIGHT"):
-            threading.Thread(target=lambda: ir_send("LED POWER OFF")).start()
+            ir_send_in_thread("LED POWER OFF")
             if state in ("TV"):
-              threading.Thread(target=lambda: ir_send("TV POWER OFF")).start()
+              ir_send_in_thread("TV POWER OFF")
           if not state in ("PROJECTOR", "TV"):
-            threading.Thread(target=lambda: ir_send("BAR POWER ON")).start()
+            ir_send_in_thread("BAR POWER ON")
             if not state in ("PROJECTOR"):
-              threading.Thread(target=lambda: ir_send("BEAM POWER ON")).start()
-          threading.Thread(target=lambda: ir_send("DVD POWER ON")).start()
+              ir_send_in_thread("BEAM POWER ON")
+          ir_send_in_thread("DVD POWER ON")
       prev_state = state
       state      = state_map[button_name]
     else:
       if mapping:
-        threading.Thread(target=lambda: ir_send(f"{mapping.get(button_name, 'UNKNOWN')}")).start()
+        ir_send_in_thread(f"{mapping.get(button_name, 'UNKNOWN')}")
     alt_func = False # reset alternate function flag at the end of the function
+
+def ir_send_in_thread(send_arg):
+  threading.Thread(target=ir_send, args=(send_arg,)).start()
 
 def ir_send(button_name):
   with ir_lock:
