@@ -256,7 +256,37 @@ int main(int argc, char *argv[])
         }
         else if ( strcmp ( argv[1], "DVD" ) == 0 ) // Sony blue-ray player BDP-S185
         {
-// TODO
+            leadingPulseDuration = 2426;
+            leadingGapDuration   = 565;
+            onePulse             = 1221;
+            zeroPulse            = 627;
+            oneGap               = 569;
+            zeroGap              = 569;
+            sendTrailingPulse    = 1;
+            if ( strcmp ( argv[2], "POWER" ) == 0 )     curkey = "00000000000000000000101010001011"; // 0xA8B
+            if ( strcmp ( argv[2], "OK" ) == 0 )        curkey = "00000000000000000000101111001011"; // 0xBCB
+            if ( strcmp ( argv[2], "UP" ) == 0 )        curkey = "00000000000000000000100111001011"; // 0x9CB
+            if ( strcmp ( argv[2], "DOWN" ) == 0 )      curkey = "00000000000000000000010111001011"; // 0x5CB
+            if ( strcmp ( argv[2], "AUDIO" ) == 0 )     curkey = "00000000000000000000001001101011"; // 0x26B
+            if ( strcmp ( argv[2], "SUBTITLE" ) == 0 )  curkey = "00000000000000000000110001101011"; // 0xC6B
+            if ( strcmp ( argv[2], "1" ) == 0 )         curkey = "00000000000000000000000000001011"; // 0x00B
+            if ( strcmp ( argv[2], "2" ) == 0 )         curkey = "00000000000000000000100000001011"; // 0x80B
+            if ( strcmp ( argv[2], "3" ) == 0 )         curkey = "00000000000000000000010000001011"; // 0x40B
+            if ( strcmp ( argv[2], "4" ) == 0 )         curkey = "00000000000000000000110000001011"; // 0xC0B
+            if ( strcmp ( argv[2], "5" ) == 0 )         curkey = "00000000000000000000001000001011"; // 0x20B
+            if ( strcmp ( argv[2], "6" ) == 0 )         curkey = "00000000000000000000101000001011"; // 0xA0B
+            if ( strcmp ( argv[2], "7" ) == 0 )         curkey = "00000000000000000000011000001011"; // 0x60B
+            if ( strcmp ( argv[2], "8" ) == 0 )         curkey = "00000000000000000000111000001011"; // 0xE0B
+            if ( strcmp ( argv[2], "9" ) == 0 )         curkey = "00000000000000000000000100001011"; // 0x10B
+            if ( strcmp ( argv[2], "0" ) == 0 )         curkey = "00000000000000000000100100001011"; // 0x90B
+            if ( strcmp ( argv[2], "MENU" ) == 0 )      curkey = "00000000000000000000001101001011"; // 0x34B
+            if ( strcmp ( argv[2], "RETURN" ) == 0 )    curkey = "00000000000000000000110000101011"; // 0xC2B
+            if ( strcmp ( argv[2], "PLAY" ) == 0 )      curkey = "00000000000000000000010110001011"; // 0x58B
+            if ( strcmp ( argv[2], "RIGHT" ) == 0 )     curkey = "00000000000000000000001111001011"; // 0x3CB
+            if ( strcmp ( argv[2], "LEFT" ) == 0 )      curkey = "00000000000000000000110111001011"; // 0xDCB
+            if ( strcmp ( argv[2], "STOP" ) == 0 )      curkey = "00000000000000000000000110001011"; // 0x18B
+            if ( strcmp ( argv[2], "HOME" ) == 0 )      curkey = "00000000000000000000010000101011"; // 0x42B
+            if ( strcmp ( argv[2], "POPUPMENU" ) == 0 ) curkey = "00000000000000000000100101001011"; // 0x94B
         }
         else if ( strcmp ( argv[1], "AMP" ) == 0 ) // Onkyo amplifier TX SR 606
         {
