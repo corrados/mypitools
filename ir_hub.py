@@ -9,6 +9,7 @@ import evdev
 
 device_path = None
 states      = {"IDLE", "TV", "PROJECTOR", "CONSOLE", "LIGHT"}
+lock        = threading.Lock()
 
 # scancode to readable button name for Elgato eyetv remote
 scancode_offset = 4539649
@@ -30,10 +31,14 @@ def watch_input():
           button_name = scancode_map.get(scancode, f"UNKNOWN ({scancode})")
           if scancode != last_scancode or time.time() - last_time > 0.2 or button_name in {"VOL+", "VOL-"}:
             last_scancode = scancode
-            print(f"Button pressed: {button_name}")
+            threading.Thread(target=on_button_press, args=(button_name,)).start()
           last_time = time.time()
         elif event_type == 0: # EV_SYN (sync event)
           last_time = time.time() # mark last_time for idle detection
+
+def on_button_press(button_name):
+  with lock:
+    print(f"Button pressed: {button_name}")
 
 if __name__ == '__main__':
   target_device = None
@@ -42,8 +47,7 @@ if __name__ == '__main__':
       target_device = device
   if target_device:
     device_path = target_device.path
-    watcher_thread = threading.Thread(target=watch_input)
-    watcher_thread.start()
+    threading.Thread(target=watch_input).start()
   else:
     raise RuntimeError(f"Input device EyeTV not found.")
 
