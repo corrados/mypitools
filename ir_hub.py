@@ -8,7 +8,7 @@ import time
 import evdev
 
 device_path = None
-states      = {"IDLE", "TV", "PROJECTOR", "CONSOLE", "LIGHT"}
+state       = "IDLE"
 lock        = threading.Lock()
 
 # scancode to readable button name for Elgato eyetv remote
@@ -39,6 +39,19 @@ def watch_input():
 def on_button_press(button_name):
   with lock:
     print(f"Button pressed: {button_name}")
+    match button_name:
+      case "RED":
+        state = "PROJECTOR"
+        print("PROJECTOR")
+      case "GREEN":
+        state = "TV"
+        print("TV")
+      case "YELLOW":
+        state = "LIGHT"
+        print("LIGHT")
+      case "BLUE":
+        state = "CONSOLE"
+        print("CONSOLE")
 
 if __name__ == '__main__':
   target_device = None
