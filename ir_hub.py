@@ -5,8 +5,9 @@
 import threading
 import struct
 import time
+import evdev
 
-DEVICE_PATH = "/dev/input/event10"
+DEVICE_PATH = None
 
 # Scancode to readable button name for Elgato eyetv remote
 scancode_map = {0:"POWER", 1:"MUTE", 2:"1", 3:"2", 4:"3", 5:"4", 6:"5", 7:"6", 8:"7", 9:"8",
@@ -45,6 +46,16 @@ def watch_input():
         last_time = time.time()
 
 if __name__ == '__main__':
-  watcher_thread = threading.Thread(target=watch_input)
-  watcher_thread.start()
+  target_device = None
+  for device in [evdev.InputDevice(path) for path in evdev.list_devices()]:
+    if "EyeTV" in device.name:
+      target_device = device
+      break
+
+  if target_device:
+    DEVICE_PATH = target_device.path
+    watcher_thread = threading.Thread(target=watch_input)
+    watcher_thread.start()
+  else:
+    raise RuntimeError(f"Input device EyeTV not found.")
 
