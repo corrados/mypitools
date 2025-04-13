@@ -28,18 +28,14 @@ def watch_input():
       if not data:
         continue
 
-      tv_sec, tv_usec, event_type, code, value = struct.unpack("llHHI", data)
+      _, _, event_type, code, value = struct.unpack("llHHI", data)
 
       if event_type == 4 and code == 4: # MSC_SCAN
         scancode = value - scancode_offset
         button_name = scancode_map.get(scancode, f"UNKNOWN ({scancode})")
-
         if scancode != last_scancode or time.time() - last_time > 0.2 or button_name in {"VOL+", "VOL-"}:
-          # New key pressed
           last_scancode = scancode
           print(f"Button pressed: {button_name}")
-
-        # Update time
         last_time = time.time()
 
       elif event_type == 0: # EV_SYN
