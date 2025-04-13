@@ -19,28 +19,21 @@ scancode_map = {0:"POWER", 1:"MUTE", 2:"1", 3:"2", 4:"3", 5:"4", 6:"5", 7:"6", 8
 
 def watch_input():
   # State
-  last_scancode = None
-  last_time = 0
-
+  (last_scancode, last_time) = (None, 0)
   with open(DEVICE_PATH, "rb") as f:
     while True:
       data = f.read(24)
-      if not data:
-        continue
-
-      _, _, event_type, code, value = struct.unpack("llHHI", data)
-
-      if event_type == 4 and code == 4: # MSC_SCAN
-        scancode = value - scancode_offset
-        button_name = scancode_map.get(scancode, f"UNKNOWN ({scancode})")
-        if scancode != last_scancode or time.time() - last_time > 0.2 or button_name in {"VOL+", "VOL-"}:
-          last_scancode = scancode
-          print(f"Button pressed: {button_name}")
-        last_time = time.time()
-
-      elif event_type == 0: # EV_SYN
-        # Sync event — mark last_time for idle detection
-        last_time = time.time()
+      if data:
+        _, _, event_type, code, value = struct.unpack("llHHI", data)
+        if event_type == 4 and code == 4: # MSC_SCAN
+          scancode = value - scancode_offset
+          button_name = scancode_map.get(scancode, f"UNKNOWN ({scancode})")
+          if scancode != last_scancode or time.time() - last_time > 0.2 or button_name in {"VOL+", "VOL-"}:
+            last_scancode = scancode
+            print(f"Button pressed: {button_name}")
+          last_time = time.time()
+        elif event_type == 0: # EV_SYN (sync event)
+          last_time = time.time() # mark last_time for idle detection
 
 if __name__ == '__main__':
   target_device = None
