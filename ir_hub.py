@@ -9,9 +9,12 @@ import evdev
 
 device_path = None
 state       = "IDLE"
+prev_state  = "IDLE"
 alt_func    = False
 press_lock  = threading.Lock()
 ir_lock     = threading.Lock()
+
+state_map = {"RED":"PROJECTOR", "GREEN":"TV", "YELLOW":"LIGHT", "BLUE":"CONSOLE", "POWER":"IDLE"}
 
 # scancode to readable button name for Elgato EyeTV remote
 scancode_offset = 4539649
@@ -44,44 +47,55 @@ def watch_input():
           last_time = time.time() # mark last_time for idle detection
 
 def on_button_press(button_name):
-  global state, alt_func
+  global state, prev_state, alt_func
   with press_lock:
     print(f"Button pressed: {button_name}")
     if button_name == "SELECT":
       alt_func = True
       return
-    match button_name:
-      case "RED": # PROJECTOR -----
-        if state in ("TV", "CONSOLE", "LIGHT"):
-          threading.Thread(target=lambda: ir_send("LED POWER OFF")).start()
-          if state in ("TV", "CONSOLE"):
-            threading.Thread(target=lambda: ir_send("TV POWER OFF")).start()
-        threading.Thread(target=lambda: ir_send("BEAM POWER ON")).start()
-        state = "PROJECTOR"
-      case "GREEN": # TV -----
-        if state in ("PROJECTOR"):
-          threading.Thread(target=lambda: ir_send("BEAM POWER OFF")).start()
-        if not state in ("CONSOLE"):
-          threading.Thread(target=lambda: ir_send("TV POWER ON")).start()
-          threading.Thread(target=lambda: ir_send("LED POWER ON")).start()
-        state = "TV"
-      case "YELLOW": # LIGHT -----
-        if state in ("TV", "CONSOLE"):
-          threading.Thread(target=lambda: ir_send("TV POWER OFF")).start()
-          # LIGHT is already on
-        else:
+
+    if button_name in state_map:
+      if state == state_map[button_name]:
+        print("Help action requested -> do transition again")
+        state = prev_state;
+      match button_name:
+        case "POWER":
+          if state in ("TV", "CONSOLE", "LIGHT"):
+            threading.Thread(target=lambda: ir_send("LED POWER OFF")).start()
           if state in ("PROJECTOR"):
             threading.Thread(target=lambda: ir_send("BEAM POWER OFF")).start()
-          threading.Thread(target=lambda: ir_send("LED POWER ON")).start()
-        state = "LIGHT"
-      case "BLUE": # CONSOLE -----
-        if state in ("PROJECTOR"):
-          threading.Thread(target=lambda: ir_send("BEAM POWER OFF")).start()
-        if not state in ("TV"):
-          threading.Thread(target=lambda: ir_send("TV POWER ON")).start()
-          threading.Thread(target=lambda: ir_send("LED POWER ON")).start()
-        state = "CONSOLE"
-    threading.Thread(target=lambda: ir_send(f"TV {map_tv.get(button_name, 'UNKNOWN')}")).start()
+          if state in ("TV", "CONSOLE"):
+            threading.Thread(target=lambda: ir_send("TV POWER OFF")).start()
+        case "RED": # PROJECTOR -----
+          if state in ("TV", "CONSOLE", "LIGHT"):
+            threading.Thread(target=lambda: ir_send("LED POWER OFF")).start()
+            if state in ("TV", "CONSOLE"):
+              threading.Thread(target=lambda: ir_send("TV POWER OFF")).start()
+          threading.Thread(target=lambda: ir_send("BEAM POWER ON")).start()
+        case "GREEN": # TV -----
+          if state in ("PROJECTOR"):
+            threading.Thread(target=lambda: ir_send("BEAM POWER OFF")).start()
+          if not state in ("CONSOLE"):
+            threading.Thread(target=lambda: ir_send("TV POWER ON")).start()
+            threading.Thread(target=lambda: ir_send("LED POWER ON")).start()
+        case "YELLOW": # LIGHT -----
+          if state in ("TV", "CONSOLE"):
+            threading.Thread(target=lambda: ir_send("TV POWER OFF")).start()
+            # LIGHT is already on
+          else:
+            if state in ("PROJECTOR"):
+              threading.Thread(target=lambda: ir_send("BEAM POWER OFF")).start()
+            threading.Thread(target=lambda: ir_send("LED POWER ON")).start()
+        case "BLUE": # CONSOLE -----
+          if state in ("PROJECTOR"):
+            threading.Thread(target=lambda: ir_send("BEAM POWER OFF")).start()
+          if not state in ("TV"):
+            threading.Thread(target=lambda: ir_send("TV POWER ON")).start()
+            threading.Thread(target=lambda: ir_send("LED POWER ON")).start()
+      prev_state = state
+      state      = state_map[button_name]
+    else:
+      threading.Thread(target=lambda: ir_send(f"TV {map_tv.get(button_name, 'UNKNOWN')}")).start()
     alt_func = False # reset alternate function flag at the end of the function
 
 def ir_send(button_name):
