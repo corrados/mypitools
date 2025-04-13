@@ -234,9 +234,37 @@ int main(int argc, char *argv[])
         }
         else if ( strcmp ( argv[1], "LED" ) == 0 ) // Osram LED stribe
         {
-// TODO
-// define correct leadingPulseDuration, leadingGapDuration, etc.
-if ( strcmp ( argv[2], "KEY_POWERON" ) == 0 ) curkey = "00000000111101111100000000111111"; // 0xC03F
+            leadingPulseDuration = 9000;
+            leadingGapDuration   = 4500;
+            onePulse             = 553;
+            zeroPulse            = 553;
+            oneGap               = 1689;
+            zeroGap              = 568;
+            sendTrailingPulse    = 1;
+            if ( strcmp ( argv[2], "ON" ) == 0 )             curkey = "00000000111111111110000000011111"; // 0xFFE01F
+            if ( strcmp ( argv[2], "OFF" ) == 0 )            curkey = "00000000111111110110000010011111"; // 0xFF609F
+            if ( strcmp ( argv[2], "BRIGHTER" ) == 0 )       curkey = "00000000111111110000000011111111"; // 0xFF00FF
+            if ( strcmp ( argv[2], "DIMMER" ) == 0 )         curkey = "00000000111111110100000010111111"; // 0xFF40BF
+            if ( strcmp ( argv[2], "WHITE" ) == 0 )          curkey = "00000000111111111100000000111111"; // 0xFFC03F
+            if ( strcmp ( argv[2], "BLUE" ) == 0 )           curkey = "00000000111111110101000010101111"; // 0xFF50AF
+            if ( strcmp ( argv[2], "GREEN" ) == 0 )          curkey = "00000000111111111001000001101111"; // 0xFF906F
+            if ( strcmp ( argv[2], "RED" ) == 0 )            curkey = "00000000111111110001000011101111"; // 0xFF10EF
+            if ( strcmp ( argv[2], "FLASH" ) == 0 )          curkey = "00000000111111111111000000001111"; // 0xFFF00F
+            if ( strcmp ( argv[2], "STROBE" ) == 0 )         curkey = "00000000111111111100100000110111"; // 0xFFC837
+            if ( strcmp ( argv[2], "SMOOTH" ) == 0 )         curkey = "00000000111111111110100000010111"; // 0xFFE817
+            if ( strcmp ( argv[2], "MODE" ) == 0 )           curkey = "00000000111111111101100000100111"; // 0xFFD827
+            if ( strcmp ( argv[2], "ORANGE" ) == 0 )         curkey = "00000000111111110011000011001111"; // 0xFF30CF
+            if ( strcmp ( argv[2], "LIGHTER_ORANGE" ) == 0 ) curkey = "00000000111111110000100011110111"; // 0xFF08F7
+            if ( strcmp ( argv[2], "CORAL" ) == 0 )          curkey = "00000000111111110010100011010111"; // 0xFF28D7
+            if ( strcmp ( argv[2], "YELLOW" ) == 0 )         curkey = "00000000111111110001100011100111"; // 0xFF18E7
+            if ( strcmp ( argv[2], "LIGHTER_GREEN" ) == 0 )  curkey = "00000000111111111011000001001111"; // 0xFFB04F
+            if ( strcmp ( argv[2], "TURQUOISE" ) == 0 )      curkey = "00000000111111111000100001110111"; // 0xFF8877
+            if ( strcmp ( argv[2], "AQUA" ) == 0 )           curkey = "00000000111111111010100001010111"; // 0xFFA857
+            if ( strcmp ( argv[2], "NAVY" ) == 0 )           curkey = "00000000111111111001100001100111"; // 0xFF9867
+            if ( strcmp ( argv[2], "BLUE_GRAY" ) == 0 )      curkey = "00000000111111110111000010001111"; // 0xFF708F
+            if ( strcmp ( argv[2], "PEACH" ) == 0 )          curkey = "00000000111111110100100010110111"; // 0xFF48B7
+            if ( strcmp ( argv[2], "LIGHTER_PINK" ) == 0 )   curkey = "00000000111111110110100010010111"; // 0xFF6897
+            if ( strcmp ( argv[2], "PINK" ) == 0 )           curkey = "00000000111111110101100010100111"; // 0xFF58A7
         }
     }
 
