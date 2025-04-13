@@ -7,9 +7,10 @@ import struct
 import time
 import evdev
 
-DEVICE_PATH = None
+device_path = None
+states      = {"IDLE", "TV", "PROJECTOR", "CONSOLE", "LIGHT"}
 
-# Scancode to readable button name for Elgato eyetv remote
+# scancode to readable button name for Elgato eyetv remote
 scancode_offset = 4539649
 scancode_map = {0:"POWER", 1:"MUTE", 2:"1", 3:"2", 4:"3", 5:"4", 6:"5", 7:"6", 8:"7", 9:"8",
 10:"9", 11:"LAST", 12:"0", 13:"ENTER", 14:"RED", 15:"CH+", 16:"GREEN", 17:"VOL-", 18:"OK",
@@ -18,9 +19,8 @@ scancode_map = {0:"POWER", 1:"MUTE", 2:"1", 3:"2", 4:"3", 5:"4", 6:"5", 7:"6", 8
 
 
 def watch_input():
-  # State
-  (last_scancode, last_time) = (None, 0)
-  with open(DEVICE_PATH, "rb") as f:
+  (last_scancode, last_time) = (None, 0) # state
+  with open(device_path, "rb") as f:
     while True:
       data = f.read(24)
       if data:
@@ -40,10 +40,8 @@ if __name__ == '__main__':
   for device in [evdev.InputDevice(path) for path in evdev.list_devices()]:
     if "EyeTV" in device.name:
       target_device = device
-      break
-
   if target_device:
-    DEVICE_PATH = target_device.path
+    device_path = target_device.path
     watcher_thread = threading.Thread(target=watch_input)
     watcher_thread.start()
   else:
