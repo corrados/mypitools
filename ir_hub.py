@@ -10,6 +10,7 @@ import evdev
 DEVICE_PATH = None
 
 # Scancode to readable button name for Elgato eyetv remote
+scancode_offset = 4539649
 scancode_map = {0:"POWER", 1:"MUTE", 2:"1", 3:"2", 4:"3", 5:"4", 6:"5", 7:"6", 8:"7", 9:"8",
 10:"9", 11:"LAST", 12:"0", 13:"ENTER", 14:"RED", 15:"CH+", 16:"GREEN", 17:"VOL-", 18:"OK",
 19:"VOL+", 20:"YELLOW", 21:"CH-", 22:"BLUE", 23:"BACK_LEFT", 24:"PLAY", 25:"BACK_RIGHT",
@@ -30,7 +31,7 @@ def watch_input():
       tv_sec, tv_usec, event_type, code, value = struct.unpack("llHHI", data)
 
       if event_type == 4 and code == 4: # MSC_SCAN
-        scancode = value - 4539649
+        scancode = value - scancode_offset
         button_name = scancode_map.get(scancode, f"UNKNOWN ({scancode})")
 
         if scancode != last_scancode or time.time() - last_time > 0.2 or button_name in {"VOL+", "VOL-"}:
