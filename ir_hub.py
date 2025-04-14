@@ -128,8 +128,8 @@ def on_button_press(button_name):
               ir_send_in_thread("TV POWER OFF")
           if not state in ("PROJECTOR", "TV"):
             ir_send_in_thread("BAR BLUETOOTH") # powers it on, too
-            if not state in ("PROJECTOR"):
-              threading.Thread(target=switch_projector_on_with_input_select, args=("HDMI1",)).start()
+          if not state in ("PROJECTOR"):
+            threading.Thread(target=switch_projector_on_with_input_select, args=("HDMI1",)).start()
           ir_send_in_thread("DVD POWER ON")
       prev_state = state
       state      = state_map[button_name]
