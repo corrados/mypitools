@@ -209,7 +209,7 @@ int main(int argc, char *argv[])
         if ( strcmp ( argv[1], "KEY_PROG3" ) == 0 )          curkey = "00000000111101111100100000110111"; // 0xC837
         if ( strcmp ( argv[1], "KEY_PROG4" ) == 0 )          curkey = "00000000111101111110100000010111"; // 0xE817
     }
-    else if ( argc = 3 )
+    else if ( argc == 3 )
     {
         // parse touple input parameter: [device] [command]
         if ( strcmp ( argv[1], "BAR" ) == 0 ) // Philips soundbar HTL2163B
