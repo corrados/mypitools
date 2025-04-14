@@ -137,16 +137,16 @@ def switch_tv_on():
   ir_send_in_thread("TV POWER ON") # immediate attempt
   ir_send_in_thread("TV TV")
   time.sleep(10) # after cold start, it takes long until it starts
-  if state == "TV":
+  if state == "TV": # only continue if still in TV state
     ir_send_in_thread("TV POWER ON") # try again after a while
     time.sleep(5)
-    if state == "TV":
+    if state == "TV": # only continue if still in TV state
       ir_send_in_thread("TV TV")
 
 def switch_projector_on_with_input_select(input):
   ir_send_in_thread("BEAM POWER ON")
   time.sleep(5)
-  if state == "PROJECTOR":
+  if state == "PROJECTOR": # only continue if still in PROJECTOR state
     ir_send_in_thread(f"BEAM {input}")
 
 def ir_send_in_thread(send_arg):
