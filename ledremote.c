@@ -288,10 +288,6 @@ int main(int argc, char *argv[])
             if ( strcmp ( argv[2], "HOME" ) == 0 )      curkey = "00000000000000000000010000101011"; // 0x42B
             if ( strcmp ( argv[2], "POPUPMENU" ) == 0 ) curkey = "00000000000000000000100101001011"; // 0x94B
         }
-        else if ( strcmp ( argv[1], "AMP" ) == 0 ) // Onkyo amplifier TX SR 606
-        {
-// TODO
-        }
         else if ( strcmp ( argv[1], "LED" ) == 0 ) // Osram LED stribe
         {
             leadingPulseDuration = 9000;
