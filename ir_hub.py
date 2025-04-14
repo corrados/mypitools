@@ -94,6 +94,8 @@ def on_button_press(button_name):
             ir_send_in_thread("BAR BLUETOOTH") # powers it on, too
           if not state in ("DVD"):
             threading.Thread(target=switch_projector_on_with_input_select, args=("HDMI2",)).start()
+          else:
+            ir_send_in_thread("BEAM HDMI2")
         case "2": # TV -----
           mapping  = map_TV
           alt_func = False
@@ -130,6 +132,8 @@ def on_button_press(button_name):
             ir_send_in_thread("BAR BLUETOOTH") # powers it on, too
           if not state in ("PROJECTOR"):
             threading.Thread(target=switch_projector_on_with_input_select, args=("HDMI1",)).start()
+          else:
+            ir_send_in_thread("BEAM HDMI1")
           ir_send_in_thread("DVD POWER ON")
       prev_state = state
       state      = state_map[button_name]
