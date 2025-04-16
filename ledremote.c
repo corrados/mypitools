@@ -214,7 +214,17 @@ int main(int argc, char *argv[])
         // parse touple input parameter: [device] [command]
         if ( strcmp ( argv[1], "BAR" ) == 0 ) // Philips soundbar HTL2163B
         {
-// TODO
+// TEST RM-D591 for testing lirc
+leadingPulseDuration = 2422;
+leadingGapDuration   = 571;
+onePulse             = 1224;
+zeroPulse            = 625;
+oneGap               = 570;
+zeroGap              = 570;
+sendTrailingPulse    = 1;
+if ( strcmp ( argv[2], "PLAY" ) == 0 ) curkey = "00000000000000000000010011010001"; // 0x4D1
+if ( strcmp ( argv[2], "STOP" ) == 0 ) curkey = "00000000000000000000000111010001"; // 0x1D1
+
         }
         else if ( strcmp ( argv[1], "TV" ) == 0 ) // Toshiba TV 42XV635D
         {
