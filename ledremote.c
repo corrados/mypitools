@@ -215,6 +215,16 @@ int main(int argc, char *argv[])
         if ( strcmp ( argv[1], "BAR" ) == 0 ) // Philips soundbar HTL2163B
         {
 // TEST RM-D591 for testing lirc
+// lirc_options.conf: --->
+// For transmit only:
+// driver          = default
+// device          = /dev/lirc0
+// For receive only:
+// driver          = default
+// device          = /dev/lirc1
+// /boot/firmware/config.txt: --->
+// dtoverlay=gpio-ir,gpio_pin=18
+// dtoverlay=gpio-ir-tx,gpio_pin=22
 leadingPulseDuration = 2422;
 leadingGapDuration   = 571;
 onePulse             = 1224;
@@ -222,8 +232,8 @@ zeroPulse            = 625;
 oneGap               = 570;
 zeroGap              = 570;
 sendTrailingPulse    = 1;
-if ( strcmp ( argv[2], "PLAY" ) == 0 ) curkey = "00000000000000000000010011010001"; // 0x4D1
-if ( strcmp ( argv[2], "STOP" ) == 0 ) curkey = "00000000000000000000000111010001"; // 0x1D1
+if ( strcmp ( argv[2], "PLAY" ) == 0 ) curkey = "010011010001"; // 0x4D1
+if ( strcmp ( argv[2], "STOP" ) == 0 ) curkey = "000111010001"; // 0x1D1
 
         }
         else if ( strcmp ( argv[1], "TV" ) == 0 ) // Toshiba TV 42XV635D
