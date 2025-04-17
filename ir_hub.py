@@ -26,10 +26,19 @@ scancode_map = {0:"POWER", 1:"MUTE", 2:"1", 3:"2", 4:"3", 5:"4", 6:"5", 7:"6", 8
 26:"REWIND", 27:"L", 28:"FORWARD", 29:"STOP", 30:"TEXT", 63:"REC", 64:"HOLD", 65:"SELECT"}
 
 # key mapping from EyeTV remote to other device remote
+#map_TV = {"CH+":"TV UP", "CH-":"TV DOWN", "VOL-":"TV LEFT", "VOL+":"TV RIGHT", "OK":"TV OK",
+#"1":"TV 1", "2":"TV 2", "3":"TV 3", "4":"TV 4", "5":"TV 5", "6":"TV 6", "7":"TV 7", "8":"TV 8",
+#"9":"TV 9", "0":"TV 0", "BACK_LEFT":"TV MENU", "RED":"BAR VOLUMEUP", "YELLOW":"BAR VOLUMEDOWN",
+#"GREEN":"TV CHANNELUP", "BLUE":"TV CHANNELDOWN"}
+
+# TEST
 map_TV = {"CH+":"TV UP", "CH-":"TV DOWN", "VOL-":"TV LEFT", "VOL+":"TV RIGHT", "OK":"TV OK",
 "1":"TV 1", "2":"TV 2", "3":"TV 3", "4":"TV 4", "5":"TV 5", "6":"TV 6", "7":"TV 7", "8":"TV 8",
-"9":"TV 9", "0":"TV 0", "BACK_LEFT":"TV MENU", "RED":"BAR VOLUMEUP", "YELLOW":"BAR VOLUMEDOWN",
-"GREEN":"TV CHANNELUP", "BLUE":"TV CHANNELDOWN"}
+"9":"TV 9", "0":"TV 0", "BACK_LEFT":"TV MENU", "RED":"BAR PLUS", "YELLOW":"BAR MINUS",
+"GREEN":"TV CHANNELUP", "BLUE":"TV CHANNELDOWN",
+"PLAY":"BAR PLAY", "STOP":"BAR:STOP"}
+
+
 map_DVD = {"CH+":"DVD UP", "CH-":"DVD DOWN", "VOL-":"DVD LEFT", "VOL+":"DVD RIGHT", "OK":"DVD OK",
 "1":"DVD 1", "2":"DVD 2", "3":"DVD 3", "4":"DVD 4", "5":"DVD 5", "6":"DVD 6", "7":"DVD 7", "8":"DVD 8",
 "9":"DVD 9", "0":"DVD 0", "BACK_LEFT":"DVD MENU", "RED":"BAR VOLUMEUP", "YELLOW":"BAR VOLUMEDOWN"}
@@ -172,7 +181,7 @@ def ir_send(button_name):
     if not "UNKNOWN" in button_name:
       print(f"IR send {button_name}")
       subprocess.run([f"./ledremote {button_name}"], shell=True)
-      #subprocess.run([f"./ledremote {button_name}"], shell=True)
+      subprocess.run([f"./ledremote {button_name}"], shell=True)
 
 if __name__ == '__main__':
   target_device = None
