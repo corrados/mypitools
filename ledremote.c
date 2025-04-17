@@ -134,7 +134,7 @@ static inline int irSling(uint32_t outPin,
     // Wait for the wave to finish transmitting
     while (gpioWaveTxBusy())
     {
-        time_sleep(0.1);
+        time_sleep(0.01);
     }
 
     // Delete the wave if it exists
