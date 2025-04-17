@@ -36,7 +36,7 @@ map_TV = {"CH+":"TV UP", "CH-":"TV DOWN", "VOL-":"TV LEFT", "VOL+":"TV RIGHT", "
 "1":"TV 1", "2":"TV 2", "3":"TV 3", "4":"TV 4", "5":"TV 5", "6":"TV 6", "7":"TV 7", "8":"TV 8",
 "9":"TV 9", "0":"TV 0", "BACK_LEFT":"TV MENU", "RED":"BAR PLUS", "YELLOW":"BAR MINUS",
 "GREEN":"TV CHANNELUP", "BLUE":"TV CHANNELDOWN",
-"PLAY":"BAR PLAY", "STOP":"BAR:STOP"}
+"PLAY":"BAR PLAY", "STOP":"BAR STOP"}
 
 
 map_DVD = {"CH+":"DVD UP", "CH-":"DVD DOWN", "VOL-":"DVD LEFT", "VOL+":"DVD RIGHT", "OK":"DVD OK",
