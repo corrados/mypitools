@@ -232,8 +232,10 @@ zeroPulse            = 625;
 oneGap               = 570;
 zeroGap              = 570;
 sendTrailingPulse    = 1;
-if ( strcmp ( argv[2], "PLAY" ) == 0 ) curkey = "010011010001"; // 0x4D1
-if ( strcmp ( argv[2], "STOP" ) == 0 ) curkey = "000111010001"; // 0x1D1
+if ( strcmp ( argv[2], "PLAY" ) == 0 )  curkey = "010011010001"; // 0x4D1
+if ( strcmp ( argv[2], "STOP" ) == 0 )  curkey = "000111010001"; // 0x1D1
+if ( strcmp ( argv[2], "MINUS" ) == 0 ) curkey = "110010010001"; // 0xC91
+if ( strcmp ( argv[2], "PLUS" ) == 0 )  curkey = "010010010001"; // 0x491
 
         }
         else if ( strcmp ( argv[1], "TV" ) == 0 ) // Toshiba TV 42XV635D
