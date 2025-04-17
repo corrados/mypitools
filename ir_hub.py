@@ -171,7 +171,9 @@ def ir_send(button_name):
   with ir_lock:
     if not "UNKNOWN" in button_name:
       print(f"IR send {button_name}")
-      subprocess.run(["./ledremote", "KEY_RED"])
+      subprocess.run([f"./ledremote {button_name}"], shell=True)
+      #subprocess.run([f"./ledremote {button_name}"], shell=True)
+
 
 if __name__ == '__main__':
   target_device = None
