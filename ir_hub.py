@@ -174,7 +174,6 @@ def ir_send(button_name):
       subprocess.run([f"./ledremote {button_name}"], shell=True)
       #subprocess.run([f"./ledremote {button_name}"], shell=True)
 
-
 if __name__ == '__main__':
   target_device = None
   for device in [evdev.InputDevice(path) for path in evdev.list_devices()]:
