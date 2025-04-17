@@ -236,6 +236,19 @@ if ( strcmp ( argv[2], "PLAY" ) == 0 )  curkey = "010011010001"; // 0x4D1
 if ( strcmp ( argv[2], "STOP" ) == 0 )  curkey = "000111010001"; // 0x1D1
 if ( strcmp ( argv[2], "MINUS" ) == 0 ) curkey = "110010010001"; // 0xC91
 if ( strcmp ( argv[2], "PLUS" ) == 0 )  curkey = "010010010001"; // 0x491
+if ( strcmp ( argv[2], "BACK" ) == 0 )  curkey = "000011010001"; // 0x0D1
+if ( strcmp ( argv[2], "NEXT" ) == 0 )  curkey = "100011010001"; // 0x8D1
+if ( strcmp ( argv[2], "1" ) == 0 )     curkey = "000000010001"; // 0x011
+if ( strcmp ( argv[2], "2" ) == 0 )     curkey = "100000010001"; // 0x811
+if ( strcmp ( argv[2], "3" ) == 0 )     curkey = "010000010001"; // 0x411
+if ( strcmp ( argv[2], "4" ) == 0 )     curkey = "110000010001"; // 0xC11
+if ( strcmp ( argv[2], "5" ) == 0 )     curkey = "001000010001"; // 0x211
+if ( strcmp ( argv[2], "6" ) == 0 )     curkey = "101000010001"; // 0xA11
+if ( strcmp ( argv[2], "7" ) == 0 )     curkey = "011000010001"; // 0x611
+if ( strcmp ( argv[2], "8" ) == 0 )     curkey = "111000010001"; // 0xE11
+if ( strcmp ( argv[2], "9" ) == 0 )     curkey = "000100010001"; // 0x111
+if ( strcmp ( argv[2], "10" ) == 0 )    curkey = "000001010001"; // 0x051
+
 
         }
         else if ( strcmp ( argv[1], "TV" ) == 0 ) // Toshiba TV 42XV635D

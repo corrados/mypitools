@@ -33,10 +33,10 @@ scancode_map = {0:"POWER", 1:"MUTE", 2:"1", 3:"2", 4:"3", 5:"4", 6:"5", 7:"6", 8
 
 # TEST
 map_TV = {"CH+":"TV UP", "CH-":"TV DOWN", "VOL-":"TV LEFT", "VOL+":"TV RIGHT", "OK":"TV OK",
-"1":"TV 1", "2":"TV 2", "3":"TV 3", "4":"TV 4", "5":"TV 5", "6":"TV 6", "7":"TV 7", "8":"TV 8",
-"9":"TV 9", "0":"TV 0", "BACK_LEFT":"TV MENU", "RED":"BAR PLUS", "YELLOW":"BAR MINUS",
+"1":"BAR 1", "2":"BAR 2", "3":"BAR 3", "4":"BAR 4", "5":"BAR 5", "6":"BAR 6", "7":"BAR 7", "8":"BAR 8",
+"9":"BAR 9", "0":"BAR 10", "BACK_LEFT":"TV MENU", "RED":"BAR PLUS", "YELLOW":"BAR MINUS",
 "GREEN":"TV CHANNELUP", "BLUE":"TV CHANNELDOWN",
-"PLAY":"BAR PLAY", "STOP":"BAR STOP"}
+"PLAY":"BAR PLAY", "STOP":"BAR STOP", "REWIND":"BAR BACK", "FORWARD":"BAR NEXT"}
 
 
 map_DVD = {"CH+":"DVD UP", "CH-":"DVD DOWN", "VOL-":"DVD LEFT", "VOL+":"DVD RIGHT", "OK":"DVD OK",
