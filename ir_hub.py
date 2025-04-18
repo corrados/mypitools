@@ -7,14 +7,18 @@ import struct
 import time
 import evdev
 import subprocess
+import pigpio
+import math
 
-device_path = None
-state       = "IDLE"
-prev_state  = "IDLE"
-mapping     = None
-alt_func    = True
-press_lock  = threading.Lock()
-ir_lock     = threading.Lock()
+MAX_COMMAND_SIZE = 512
+MAX_PULSES       = 12000
+device_path      = None
+state            = "IDLE"
+prev_state       = "IDLE"
+mapping          = None
+alt_func         = True
+press_lock       = threading.Lock()
+ir_lock          = threading.Lock()
 
 state_map = {"1":"PROJECTOR", "2":"TV", "3":"LIGHT", "4":"DVD", "5":"TVFIRE", "POWER":"IDLE"}
 
@@ -182,6 +186,87 @@ def ir_send(button_name):
       print(f"IR send {button_name}")
       subprocess.run([f"./ledremote {button_name}"], shell=True)
       subprocess.run([f"./ledremote {button_name}"], shell=True)
+
+
+
+def add_pulse(on_pins, off_pins, duration, ir_signal):
+    ir_signal.append(pigpio.pulse(on_pins, off_pins, duration))
+
+def carrier_frequency(out_pin, frequency, duty_cycle, duration, ir_signal):
+    one_cycle_time = 1_000_000.0 / frequency
+    on_duration = round(one_cycle_time * duty_cycle)
+    off_duration = round(one_cycle_time * (1.0 - duty_cycle))
+
+    total_cycles = round(duration / one_cycle_time)
+    for i in range(total_cycles):
+        add_pulse(1 << out_pin, 0, on_duration, ir_signal)
+        add_pulse(0, 1 << out_pin, off_duration, ir_signal)
+
+def gap(duration, ir_signal):
+    add_pulse(0, 0, int(duration), ir_signal)
+
+def ir_sling(out_pin,
+             frequency,
+             duty_cycle,
+             leading_pulse_duration,
+             leading_gap_duration,
+             one_pulse,
+             zero_pulse,
+             one_gap,
+             zero_gap,
+             send_trailing_pulse,
+             code):
+
+    if out_pin > 31:
+        return 1  # Invalid pin
+
+    if len(code) > MAX_COMMAND_SIZE:
+        return 1  # Command too long
+
+    ir_signal = []
+
+    # Generate waveform
+    carrier_frequency(out_pin, frequency, duty_cycle, leading_pulse_duration, ir_signal)
+    gap(leading_gap_duration, ir_signal)
+
+    for char in code:
+        if char == '0':
+            carrier_frequency(out_pin, frequency, duty_cycle, zero_pulse, ir_signal)
+            gap(zero_gap, ir_signal)
+        elif char == '1':
+            carrier_frequency(out_pin, frequency, duty_cycle, one_pulse, ir_signal)
+            gap(one_gap, ir_signal)
+        else:
+            print("Warning: Non-binary digit in command")
+
+    if send_trailing_pulse:
+        carrier_frequency(out_pin, frequency, duty_cycle, one_pulse, ir_signal)
+
+    pi = pigpio.pi()
+    if not pi.connected:
+        print("GPIO Initialization failed")
+        return 1
+
+    pi.set_mode(out_pin, pigpio.OUTPUT)
+
+    pi.wave_clear()
+    pi.wave_add_generic(ir_signal)
+    wave_id = pi.wave_create()
+
+    if wave_id >= 0:
+        pi.wave_send_once(wave_id)
+
+        while pi.wave_tx_busy():
+            time.sleep(0.01)
+
+        pi.wave_delete(wave_id)
+
+    pi.stop()
+    return 0
+
+
+
+
 
 if __name__ == '__main__':
   target_device = None
