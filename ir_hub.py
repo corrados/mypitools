@@ -190,6 +190,14 @@ def ir_send(button_name):
 
 
 
+def start_pigpiod():
+    try:
+        subprocess.run(["pidof", "pigpiod"], check=True, stdout=subprocess.DEVNULL)
+        print("pigpiod is already running.")
+    except subprocess.CalledProcessError:
+        print("Starting pigpiod...")
+        subprocess.Popen(["sudo", "pigpiod"])
+        time.sleep(1)
 
 def add_pulse(on_pins, off_pins, duration, ir_signal):
   ir_signal.append(pigpio.pulse(on_pins, off_pins, duration))
@@ -246,10 +254,8 @@ def ir_sling(out_pin,
 
   pi = pigpio.pi()
   if not pi.connected:
-    print("pigpio not running. Trying to start pigpiod...")
-    subprocess.Popen(["sudo", "pigpiod"])
-    time.sleep(1)
-    pi = pigpio.pi()
+    print("GPIO Initialization failed")
+    return 1
 
   pi.set_mode(out_pin, pigpio.OUTPUT)
 
@@ -385,6 +391,7 @@ def send_command(device, command):
 if __name__ == '__main__':
 
   # TEST
+  start_pigpiod()
   button_name = "BAR PLAY"
   print(f"IR send {button_name}")
   parts = button_name.strip().upper().split()
