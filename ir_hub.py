@@ -375,7 +375,7 @@ def send_command(device, command):
       }
       curkey = dvd_keys.get(command, [])
 
-    if device in ("BAR", "TV", "DVD") and curkey
+    if device in ("BAR", "TV", "DVD") and curkey:
       return ir_sling(out_pin, frequency, duty_cycle,
                       leading_pulse_duration, leading_gap_duration,
                       one_pulse, zero_pulse,
