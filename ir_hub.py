@@ -16,6 +16,7 @@ state       = "IDLE"
 prev_state  = "IDLE"
 mapping     = None
 pi          = None
+adb_shell   = None
 alt_func    = True
 press_lock  = threading.Lock()
 ir_lock     = threading.Lock()
@@ -187,6 +188,20 @@ def ir_send(button_name):
       device, command = button_name.strip().upper().split()
       send_command(device, command)
       send_command(device, command) # TEST send command twice
+      send_keyevent(20)
+
+def start_adbshell():
+  global adb_shell
+  adb_shell = subprocess.Popen(
+      ["adb", "shell"],
+      stdin=subprocess.PIPE,
+      stdout=subprocess.PIPE,
+      stderr=subprocess.PIPE,
+      text=True)
+
+def send_keyevent(keycode):
+    adb_shell.stdin.write(f"input keyevent {keycode}\n")
+    adb_shell.stdin.flush()
 
 def start_pigpiod():
   global pi
@@ -370,6 +385,7 @@ if __name__ == '__main__':
     if "EyeTV" in device.name:
       target_device = device
   if target_device:
+    start_adbshell()
     start_pigpiod()
     device_path = target_device.path
     threading.Thread(target=watch_input).start()
