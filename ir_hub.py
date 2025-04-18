@@ -227,35 +227,28 @@ def start_pigpiod():
     return 1
   pi.set_mode(out_pin, pigpio.OUTPUT)
 
-def add_pulse(on_pins, off_pins, duration, ir_signal):
-  ir_signal.append(pigpio.pulse(on_pins, off_pins, duration))
-
 def carrier_frequency(out_pin, frequency, duty_cycle, duration, ir_signal):
   one_cycle_time = 1_000_000.0 / frequency
-  on_duration = round(one_cycle_time * duty_cycle)
-  off_duration = round(one_cycle_time * (1.0 - duty_cycle))
-
-  total_cycles = round(duration / one_cycle_time)
+  on_duration    = round(one_cycle_time * duty_cycle)
+  off_duration   = round(one_cycle_time * (1.0 - duty_cycle))
+  total_cycles   = round(duration / one_cycle_time)
   for i in range(total_cycles):
-    add_pulse(1 << out_pin, 0, on_duration, ir_signal)
-    add_pulse(0, 1 << out_pin, off_duration, ir_signal)
-
-def gap(duration, ir_signal):
-  add_pulse(0, 0, int(duration), ir_signal)
+    ir_signal.append(pigpio.pulse(1 << out_pin, 0, on_duration))
+    ir_signal.append(pigpio.pulse(0, 1 << out_pin, off_duration))
 
 def ir_sling(out_pin, frequency, duty_cycle, leading_pulse_duration, leading_gap_duration,
              one_pulse, zero_pulse, one_gap, zero_gap, send_trailing_pulse, code):
   # generate waveform
   ir_signal = []
   carrier_frequency(out_pin, frequency, duty_cycle, leading_pulse_duration, ir_signal)
-  gap(leading_gap_duration, ir_signal)
+  ir_signal.append(pigpio.pulse(0, 0, int(leading_gap_duration)))
   for char in code:
     if char == '0':
       carrier_frequency(out_pin, frequency, duty_cycle, zero_pulse, ir_signal)
-      gap(zero_gap, ir_signal)
+      ir_signal.append(pigpio.pulse(0, 0, int(zero_gap)))
     elif char == '1':
       carrier_frequency(out_pin, frequency, duty_cycle, one_pulse, ir_signal)
-      gap(one_gap, ir_signal)
+      ir_signal.append(pigpio.pulse(0, 0, int(one_gap)))
   if send_trailing_pulse:
     carrier_frequency(out_pin, frequency, duty_cycle, one_pulse, ir_signal)
   # send waveform
