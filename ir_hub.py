@@ -10,17 +10,15 @@ import subprocess
 import pigpio
 import math
 
-out_pin          = 22
-MAX_COMMAND_SIZE = 512
-MAX_PULSES       = 12000
-device_path      = None
-state            = "IDLE"
-prev_state       = "IDLE"
-mapping          = None
-pi               = None
-alt_func         = True
-press_lock       = threading.Lock()
-ir_lock          = threading.Lock()
+out_pin     = 22
+device_path = None
+state       = "IDLE"
+prev_state  = "IDLE"
+mapping     = None
+pi          = None
+alt_func    = True
+press_lock  = threading.Lock()
+ir_lock     = threading.Lock()
 
 state_map = {"1":"PROJECTOR", "2":"TV", "3":"LIGHT", "4":"DVD", "5":"TVFIRE", "POWER":"IDLE"}
 
@@ -219,25 +217,10 @@ def carrier_frequency(out_pin, frequency, duty_cycle, duration, ir_signal):
 def gap(duration, ir_signal):
   add_pulse(0, 0, int(duration), ir_signal)
 
-def ir_sling(out_pin,
-             frequency,
-             duty_cycle,
-             leading_pulse_duration,
-             leading_gap_duration,
-             one_pulse,
-             zero_pulse,
-             one_gap,
-             zero_gap,
-             send_trailing_pulse,
-             code):
-
-  if out_pin > 31:
-    return 1  # Invalid pin
-  if len(code) > MAX_COMMAND_SIZE:
-    return 1  # Command too long
+def ir_sling(out_pin, frequency, duty_cycle, leading_pulse_duration, leading_gap_duration,
+             one_pulse, zero_pulse, one_gap, zero_gap, send_trailing_pulse, code):
+  # generate waveform
   ir_signal = []
-
-  # Generate waveform
   carrier_frequency(out_pin, frequency, duty_cycle, leading_pulse_duration, ir_signal)
   gap(leading_gap_duration, ir_signal)
   for char in code:
@@ -249,7 +232,7 @@ def ir_sling(out_pin,
       gap(one_gap, ir_signal)
   if send_trailing_pulse:
     carrier_frequency(out_pin, frequency, duty_cycle, one_pulse, ir_signal)
-
+  # send waveform
   pi.wave_clear()
   pi.wave_add_generic(ir_signal)
   wave_id = pi.wave_create()
@@ -378,8 +361,7 @@ def send_command(device, command):
     if device in ("BAR", "TV", "DVD") and curkey:
       return ir_sling(out_pin, frequency, duty_cycle,
                       leading_pulse_duration, leading_gap_duration,
-                      one_pulse, zero_pulse,
-                      one_gap, zero_gap,
+                      one_pulse, zero_pulse, one_gap, zero_gap,
                       send_trailing_pulse, curkey)
 
 if __name__ == '__main__':
