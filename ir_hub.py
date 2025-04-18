@@ -10,6 +10,7 @@ import subprocess
 import pigpio
 import math
 
+out_pin          = 22
 MAX_COMMAND_SIZE = 512
 MAX_PULSES       = 12000
 device_path      = None
@@ -268,7 +269,6 @@ def send_command(device, command):
     #  repeat       9070  2159
     #  gap          107799
     #  toggle_bit      0
-    out_pin    = 22
     frequency  = 38000
     duty_cycle = 0.5
 
