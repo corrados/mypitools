@@ -383,6 +383,16 @@ def send_command(device, command):
 
 
 if __name__ == '__main__':
+
+  # TEST
+  button_name = "BAR PLAY"
+  print(f"IR send {button_name}")
+  parts = button_name.strip().upper().split()
+  device, command = parts
+  send_command(device, command)
+  send_command(device, command)
+
+
   target_device = None
   for device in [evdev.InputDevice(path) for path in evdev.list_devices()]:
     if "EyeTV" in device.name:
