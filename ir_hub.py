@@ -37,7 +37,8 @@ scancode_map = {0:"POWER", 1:"MUTE", 2:"1", 3:"2", 4:"3", 5:"4", 6:"5", 7:"6", 8
 #"GREEN":"TV CHANNELUP", "BLUE":"TV CHANNELDOWN"}
 
 # TEST
-map_TV = {"CH+":"TV UP", "CH-":"TV DOWN", "VOL-":"TV LEFT", "VOL+":"TV RIGHT", "OK":"TV OK",
+map_TV = {"CH+":"TVFIRE KEYCODE_DPAD_UP", "CH-":"TVFIRE KEYCODE_DPAD_DOWN",
+"VOL-":"TVFIRE KEYCODE_DPAD_LEFT", "VOL+":"TVFIRE KEYCODE_DPAD_RIGHT", "OK":"TVFIRE KEYCODE_DPAD_CENTER",
 "1":"BAR 1", "2":"BAR 2", "3":"BAR 3", "4":"BAR 4", "5":"BAR 5", "6":"BAR 6", "7":"BAR 7", "8":"BAR 8",
 "9":"BAR 9", "0":"BAR 10", "BACK_LEFT":"TV MENU", "RED":"BAR PLUS", "YELLOW":"BAR MINUS",
 "GREEN":"TV CHANNELUP", "BLUE":"TV CHANNELDOWN",
@@ -186,20 +187,30 @@ def ir_send(button_name):
     if not "UNKNOWN" in button_name:
       print(f"IR send {button_name}")
       device, command = button_name.strip().upper().split()
-      send_command(device, command)
-      send_command(device, command) # TEST send command twice
-      #send_keyevent(20) # TEST ADB
+      if device == "TVFIRE":
+        send_keyevent(command)
+      else:
+        send_command(device, command)
+        send_command(device, command) # TEST send command twice
+
+def adb_connect(ip_address): # returns True on success
+  try:
+    r = subprocess.run(["adb", "connect", f"{ip_address}:5555"], capture_output=True, text=True)
+    if "connected" in r.stdout or "already connected" in r.stdout:
+      start_adbshell()
+      return True
+    else:
+      return False
+  except Exception as e:
+    return False
 
 def start_adbshell():
   global adb_shell
   adb_shell = subprocess.Popen(
-      ["adb", "shell"],
-      stdin=subprocess.PIPE,
-      stdout=subprocess.PIPE,
-      stderr=subprocess.PIPE,
-      text=True)
+    ["adb", "shell"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
 def send_keyevent(keycode):
+  if adb_shell:
     adb_shell.stdin.write(f"input keyevent {keycode}\n")
     adb_shell.stdin.flush()
 
@@ -385,7 +396,7 @@ if __name__ == '__main__':
     if "EyeTV" in device.name:
       target_device = device
   if target_device:
-    #start_adbshell() # TEST ADB
+    adb_connect('firetv')
     start_pigpiod()
     device_path = target_device.path
     threading.Thread(target=watch_input).start()
