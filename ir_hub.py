@@ -382,18 +382,6 @@ def send_command(device, command):
                       send_trailing_pulse, curkey)
 
 if __name__ == '__main__':
-
-  # TEST
-  start_pigpiod()
-  button_name = "BAR PLAY"
-  print(f"IR send {button_name}")
-  parts = button_name.strip().upper().split()
-  device, command = parts
-  send_command(device, command)
-  send_command(device, command)
-  pi.stop()
-
-
   target_device = None
   for device in [evdev.InputDevice(path) for path in evdev.list_devices()]:
     if "EyeTV" in device.name:
@@ -402,7 +390,6 @@ if __name__ == '__main__':
     start_pigpiod()
     device_path = target_device.path
     threading.Thread(target=watch_input).start()
-    pi.stop()
   else:
     raise RuntimeError(f"Input device EyeTV not found.")
 
