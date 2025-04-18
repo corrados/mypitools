@@ -188,6 +188,7 @@ def ir_send(button_name):
       print(f"IR send {button_name}")
       device, command = button_name.strip().upper().split()
       send_command(device, command)
+      send_command(device, command) # TEST send command twice
 
 def start_pigpiod():
   global pi
