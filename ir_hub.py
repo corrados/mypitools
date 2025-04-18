@@ -298,7 +298,7 @@ def send_command(device, command):
         "9": "000100010001",
         "10": "000001010001",
       }
-      curkey = bar_keys.get(command, curkey)
+      curkey = bar_keys[command]
 
     elif device == "TV":
       leading_pulse_duration = 9000
@@ -335,7 +335,7 @@ def send_command(device, command):
         "LIST": "00000000000000001110001000011101",
         "TV": "00000000000000000010001011011101",
       }
-      curkey = tv_keys.get(command, curkey)
+      curkey = tv_keys[command]
 
     elif device == "DVD":
       leading_pulse_duration = 2426
@@ -371,7 +371,7 @@ def send_command(device, command):
         "STOP": "00000000000000000000000110001011",
         "HOME": "00000000000000000000011101001011",
       }
-      curkey = dvd_keys.get(command, curkey)
+      curkey = dvd_keys[command]
 
     return irSling(out_pin, frequency, duty_cycle,
                    leading_pulse_duration, leading_gap_duration,
