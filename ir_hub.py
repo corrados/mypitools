@@ -16,6 +16,7 @@ device_path      = None
 state            = "IDLE"
 prev_state       = "IDLE"
 mapping          = None
+pi               = None
 alt_func         = True
 press_lock       = threading.Lock()
 ir_lock          = threading.Lock()
@@ -189,11 +190,17 @@ def ir_send(button_name):
       send_command(device, command)
 
 def start_pigpiod():
-    try:
-        subprocess.run(["pidof", "pigpiod"], check=True, stdout=subprocess.DEVNULL)
-    except subprocess.CalledProcessError:
-        subprocess.Popen(["sudo", "pigpiod"])
-        time.sleep(1)
+  global pi
+  try:
+    subprocess.run(["pidof", "pigpiod"], check=True, stdout=subprocess.DEVNULL)
+  except subprocess.CalledProcessError:
+    subprocess.Popen(["sudo", "pigpiod"])
+    time.sleep(1)
+  pi = pigpio.pi()
+  if not pi.connected:
+    print("GPIO Initialization failed")
+    return 1
+  pi.set_mode(out_pin, pigpio.OUTPUT)
 
 def add_pulse(on_pins, off_pins, duration, ir_signal):
   ir_signal.append(pigpio.pulse(on_pins, off_pins, duration))
@@ -225,16 +232,13 @@ def ir_sling(out_pin,
 
   if out_pin > 31:
     return 1  # Invalid pin
-
   if len(code) > MAX_COMMAND_SIZE:
     return 1  # Command too long
-
   ir_signal = []
 
   # Generate waveform
   carrier_frequency(out_pin, frequency, duty_cycle, leading_pulse_duration, ir_signal)
   gap(leading_gap_duration, ir_signal)
-
   for char in code:
     if char == '0':
       carrier_frequency(out_pin, frequency, duty_cycle, zero_pulse, ir_signal)
@@ -242,30 +246,17 @@ def ir_sling(out_pin,
     elif char == '1':
       carrier_frequency(out_pin, frequency, duty_cycle, one_pulse, ir_signal)
       gap(one_gap, ir_signal)
-    else:
-      print("Warning: Non-binary digit in command")
-
   if send_trailing_pulse:
     carrier_frequency(out_pin, frequency, duty_cycle, one_pulse, ir_signal)
-
-  pi = pigpio.pi()
-  if not pi.connected:
-    print("GPIO Initialization failed")
-    return 1
-
-  pi.set_mode(out_pin, pigpio.OUTPUT)
 
   pi.wave_clear()
   pi.wave_add_generic(ir_signal)
   wave_id = pi.wave_create()
-
   if wave_id >= 0:
     pi.wave_send_once(wave_id)
     while pi.wave_tx_busy():
       time.sleep(0.01)
     pi.wave_delete(wave_id)
-
-  pi.stop()
   return 0
 
 def send_command(device, command):
@@ -400,6 +391,7 @@ if __name__ == '__main__':
   device, command = parts
   send_command(device, command)
   send_command(device, command)
+  pi.stop()
 
 
   target_device = None
@@ -407,8 +399,10 @@ if __name__ == '__main__':
     if "EyeTV" in device.name:
       target_device = device
   if target_device:
+    start_pigpiod()
     device_path = target_device.path
     threading.Thread(target=watch_input).start()
+    pi.stop()
   else:
     raise RuntimeError(f"Input device EyeTV not found.")
 
