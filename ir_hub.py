@@ -373,11 +373,11 @@ def send_command(device, command):
       }
       curkey = dvd_keys[command]
 
-    return irSling(out_pin, frequency, duty_cycle,
-                   leading_pulse_duration, leading_gap_duration,
-                   one_pulse, zero_pulse,
-                   one_gap, zero_gap,
-                   send_trailing_pulse, curkey)
+    return ir_sling(out_pin, frequency, duty_cycle,
+                    leading_pulse_duration, leading_gap_duration,
+                    one_pulse, zero_pulse,
+                    one_gap, zero_gap,
+                    send_trailing_pulse, curkey)
 
 
 
