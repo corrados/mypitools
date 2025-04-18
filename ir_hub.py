@@ -188,7 +188,7 @@ def ir_send(button_name):
       device, command = button_name.strip().upper().split()
       send_command(device, command)
       send_command(device, command) # TEST send command twice
-      send_keyevent(20)
+      #send_keyevent(20) # TEST ADB
 
 def start_adbshell():
   global adb_shell
@@ -385,7 +385,7 @@ if __name__ == '__main__':
     if "EyeTV" in device.name:
       target_device = device
   if target_device:
-    start_adbshell()
+    #start_adbshell() # TEST ADB
     start_pigpiod()
     device_path = target_device.path
     threading.Thread(target=watch_input).start()
