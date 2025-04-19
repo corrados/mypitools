@@ -274,7 +274,7 @@ def send_command(device, command):
     #  toggle_bit      0
     frequency  = 38000
     duty_cycle = 0.5
-    repeat     = 1
+    repeat     = 1 # default: send command just once
 
     if device == "BAR":
       leading_pulse_duration = 2422
