@@ -281,7 +281,7 @@ def send_command(device, command):
       zero_pulse             = 625
       one_gap                = 570
       zero_gap               = 570
-      send_trailing_pulse = 1
+      send_trailing_pulse    = 1
 
       bar_keys = {
         "PLAY":  "010011010001", # 0x4D1
