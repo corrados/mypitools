@@ -190,8 +190,9 @@ def ir_send(button_name):
       if device == "TVFIRE":
         send_keyevent(command)
       else:
+        # TODO introduce repeating of commands to make sure not command will get lost if, e.g.,
+        # a person is in between IR transmitter and receiver
         send_command(device, command)
-        send_command(device, command) # TEST send command twice
 
 def adb_connect(ip_address): # returns True on success
   try:
@@ -273,6 +274,7 @@ def send_command(device, command):
     #  toggle_bit      0
     frequency  = 38000
     duty_cycle = 0.5
+    repeat     = 1
 
     if device == "BAR":
       leading_pulse_duration = 2422
@@ -282,6 +284,7 @@ def send_command(device, command):
       one_gap                = 570
       zero_gap               = 570
       send_trailing_pulse    = 1
+      repeat                 = 2 # somehow the command must be sent twice for this device
 
       bar_keys = {
         "PLAY":  "010011010001", # 0x4D1
@@ -378,10 +381,11 @@ def send_command(device, command):
       curkey = dvd_keys.get(command, [])
 
     if device in ("BAR", "TV", "DVD") and curkey:
-      return ir_sling(out_pin, frequency, duty_cycle,
-                      leading_pulse_duration, leading_gap_duration,
-                      one_pulse, zero_pulse, one_gap, zero_gap,
-                      send_trailing_pulse, curkey)
+      for i in range(repeat):
+        ir_sling(out_pin, frequency, duty_cycle,
+                 leading_pulse_duration, leading_gap_duration,
+                 one_pulse, zero_pulse, one_gap, zero_gap,
+                 send_trailing_pulse, curkey)
 
 if __name__ == '__main__':
   target_device = None
