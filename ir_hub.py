@@ -191,7 +191,7 @@ def ir_send(button_name):
         send_keyevent(command)
       else:
         send_command(device, command)
-        send_command(device, command) # TEST send command twice
+        #send_command(device, command) # TEST send command twice
 
 def adb_connect(ip_address): # returns True on success
   try:
@@ -284,8 +284,8 @@ def send_command(device, command):
       send_trailing_pulse = 1
 
       bar_keys = {
-        "PLAY":  "010011010001", # 0x4D1
-        "STOP":  "000111010001", # 0x1D1
+        "PLAY":  "010011010001010011010001", # 0x4D1
+        "STOP":  "000111010001000111010001", # 0x1D1
         "MINUS": "110010010001", # 0xC91
         "PLUS":  "010010010001", # 0x491
         "BACK":  "000011010001", # 0x0D1
