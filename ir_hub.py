@@ -276,7 +276,7 @@ def send_command(device, command):
     duty_cycle = 0.5
     repeat     = 1 # default: send command just once
 
-    if device == "BAR":
+    if device == "BAR": # Philips soundbar HTL2163B
       # bits           21
       # flags RC6|CONST_LENGTH
       # eps            30
@@ -324,6 +324,46 @@ def send_command(device, command):
         "NIGHT":        "000011101110111100100011", # 0x0EEF23
       }
       curkey = bar_keys.get(command, [])
+
+    elif device == "BEAM": # Ultimea P20 projector
+      # bits           32
+      # flags SPACE_ENC|CONST_LENGTH
+      # eps            30
+      # aeps          100
+      # header       9044  4428
+      # one           619  1629
+      # zero          619   507
+      # ptrail        621
+      # repeat       9017  2205
+      # gap          107794
+      # toggle_bit_mask 0x0
+      # frequency    38000
+      leading_pulse_duration = 9044
+      leading_gap_duration   = 4428
+      one_pulse              = 619
+      zero_pulse             = 619
+      one_gap                = 1629
+      zero_gap               = 507
+      send_trailing_pulse    = 1
+
+      tv_keys = {
+        "POWER":     "0001110111101010001100001100111111111111111111111111111111111111", # 0x1DEA30CF 0xFFFFFFFF
+        "MUTE":      "0001110111101010101100000100111111111111111111111111111111111111", # 0x1DEAB04F 0xFFFFFFFF
+        "REW":       "0001110111101010001110001100011111111111111111111111111111111111", # 0x1DEA38C7 0xFFFFFFFF
+        "PLAY":      "0001110111101010000110001110011111111111111111111111111111111111", # 0x1DEA18E7 0xFFFFFFFF
+        "FORW":      "0001110111101010101110000100011111111111111111111111111111111111", # 0x1DEAB847 0xFFFFFFFF
+        "UP":        "0001110111101010000010001111011111111111111111111111111111111111", # 0x1DEA08F7 0xFFFFFFFF
+        "LEFT":      "0001110111101010100010000111011111111111111111111111111111111111", # 0x1DEA8877 0xFFFFFFFF
+        "OK":        "0001110111101010010010001011011111111111111111111111111111111111", # 0x1DEA48B7 0xFFFFFFFF
+        "RIGHT":     "0001110111101010110010000011011111111111111111111111111111111111", # 0x1DEAC837 0xFFFFFFFF
+        "DOWN":      "0001110111101010001010001101011111111111111111111111111111111111", # 0x1DEA28D7 0xFFFFFFFF
+        "SOURCE":    "0001110111101010011100001000111111111111111111111111111111111111", # 0x1DEA708F 0xFFFFFFFF
+        "MENU":      "0001110111101010011010001001011111111111111111111111111111111111", # 0x1DEA6897 0xFFFFFFFF
+        "EXIT":      "0001110111101010111010000001011111111111111111111111111111111111", # 0x1DEAE817 0xFFFFFFFF
+        "VOL_MINUS": "0001110111101010011110001000011111111111111111111111111111111111", # 0x1DEA7887 0xFFFFFFFF
+        "VOL_PLUS":  "0001110111101010111110000000011111111111111111111111111111111111", # 0x1DEAF807 0xFFFFFFFF
+      }
+      curkey = tv_keys.get(command, [])
 
     elif device == "TV":
       leading_pulse_duration = 9000
