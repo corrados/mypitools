@@ -277,32 +277,51 @@ def send_command(device, command):
     repeat     = 1 # default: send command just once
 
     if device == "BAR":
-      leading_pulse_duration = 2422
-      leading_gap_duration   = 571
-      one_pulse              = 1224
-      zero_pulse             = 625
-      one_gap                = 570
-      zero_gap               = 570
+      # bits           21
+      # flags RC6|CONST_LENGTH
+      # eps            30
+      # aeps          100
+      # header       2683   880
+      # one           459   420
+      # zero          459   420
+      # gap          107636
+      # toggle_bit_mask 0x10000
+      # rc6_mask    0x10000
+      # frequency    38000
+      leading_pulse_duration = 2683
+      leading_gap_duration   = 880
+      one_pulse              = 459
+      zero_pulse             = 459
+      one_gap                = 420
+      zero_gap               = 420
       send_trailing_pulse    = 1
-      repeat                 = 2 # somehow the command must be sent twice for this device
 
       bar_keys = {
-        "PLAY":  "010011010001", # 0x4D1
-        "STOP":  "000111010001", # 0x1D1
-        "MINUS": "110010010001", # 0xC91
-        "PLUS":  "010010010001", # 0x491
-        "BACK":  "000011010001", # 0x0D1
-        "NEXT":  "100011010001", # 0x8D1
-        "1":     "000000010001", # 0x011
-        "2":     "100000010001", # 0x811
-        "3":     "010000010001", # 0x411
-        "4":     "110000010001", # 0xC11
-        "5":     "001000010001", # 0x211
-        "6":     "101000010001", # 0xA11
-        "7":     "011000010001", # 0x611
-        "8":     "111000010001", # 0xE11
-        "9":     "000100010001", # 0x111
-        "10":    "000001010001", # 0x051
+        "POWER":        "000011101110111111110011", # 0x0EEFF3
+        "COAX":         "000011101110111111000110", # 0x0EEFC6
+        "OPTICAL":      "000011101110111110010011", # 0x0EEF93
+        "AUX":          "000011101110111111000111", # 0x0EEFC7
+        "AUDIO_IN":     "000011101110111101111001", # 0x0EEF79
+        "USB":          "000011101110111110000001", # 0x0EEF81
+        "BLUETOOTH":    "000011101110111110010110", # 0x0EEF96
+        "HDMI_ARC":     "000011101110111101111000", # 0x0EEF78
+        "PREV":         "000011101110111110100101", # 0x0EEFA5
+        "PLAY":         "000011101110111111010011", # 0x0EEFD3
+        "NEXT":         "000011101110111110100100", # 0x0EEFA4
+        "BASS_PLUS":    "000011101110111111101001", # 0x0EEFE9
+        "VOL_PLUS":     "000011101110111111101111", # 0x0EEFEF
+        "TREB_PLUS":    "000011101110111111100111", # 0x0EEFE7
+        "MUTE":         "000011101110111111110010", # 0x0EEFF2
+        "BASS_MINUS":   "000011101110111111101000", # 0x0EEFE8
+        "VOL_MINUS":    "000011101110111111101110", # 0x0EEFEE
+        "TREB_MINUS":   "000011101110111111100110", # 0x0EEFE6
+        "SOUND":        "000011101110111110101110", # 0x0EEFAE
+        "SURROUND_OFF": "000011101110111110101111", # 0x0EEFAF
+        "SURROUND_ON":  "000011101110111110101101", # 0x0EEFAD
+        "SYNC_MINUS":   "000011101110111100000101", # 0x0EEF05
+        "SYNC_PLUS":    "000011101110111100000100", # 0x0EEF04
+        "DIM":          "000011101110111100010110", # 0x0EEF16
+        "NIGHT":        "000011101110111100100011", # 0x0EEF23
       }
       curkey = bar_keys.get(command, [])
 
