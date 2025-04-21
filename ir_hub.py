@@ -238,21 +238,43 @@ def carrier_frequency(out_pin, frequency, duty_cycle, duration, ir_signal):
     ir_signal.append(pigpio.pulse(0, 1 << out_pin, off_duration))
 
 def ir_sling(out_pin, frequency, duty_cycle, leading_pulse_duration, leading_gap_duration,
-             one_pulse, zero_pulse, one_gap, zero_gap, send_trailing_pulse, code):
+             one_pulse, zero_pulse, one_gap, zero_gap, send_trailing_pulse, code, rc6_mode):
   # generate waveform
   ir_signal = []
-  carrier_frequency(out_pin, frequency, duty_cycle, leading_pulse_duration, ir_signal)
-  ir_signal.append(pigpio.pulse(0, 0, int(leading_gap_duration)))
-  for char in code:
-    if char == '0':
-      carrier_frequency(out_pin, frequency, duty_cycle, zero_pulse, ir_signal)
-      ir_signal.append(pigpio.pulse(0, 0, int(zero_gap)))
-    elif char == '1':
+  if rc6_mode:
+    T = 444 # base unit
+    # RC6 header: 6T mark, 2T space
+    carrier_frequency(out_pin, frequency, duty_cycle, 6 * T, ir_signal)
+    ir_signal.append(pigpio.pulse(0, 0, 2 * T))
+    # start bit (1T mark, 1T space) — start bit always ‘1’ in RC6
+    carrier_frequency(out_pin, frequency, duty_cycle, T, ir_signal)
+    ir_signal.append(pigpio.pulse(0, 0, T))
+    # encode all bits using Manchester (each bit = 2*T)
+    for i, bit in enumerate(code):
+      # in RC6 Mode 0, the 4th bit (toggle) has to invert phase
+      if i == 3:
+        bit = '1' if bit == '0' else '0'
+      if bit == '1':
+        # high then low
+        carrier_frequency(out_pin, frequency, duty_cycle, T, ir_signal)
+        ir_signal.append(pigpio.pulse(0, 0, T))
+      else:
+        # low then high
+        ir_signal.append(pigpio.pulse(0, 0, T))
+        carrier_frequency(out_pin, frequency, duty_cycle, T, ir_signal)
+  else:
+    carrier_frequency(out_pin, frequency, duty_cycle, leading_pulse_duration, ir_signal)
+    ir_signal.append(pigpio.pulse(0, 0, int(leading_gap_duration)))
+    for char in code:
+      if char == '0':
+        carrier_frequency(out_pin, frequency, duty_cycle, zero_pulse, ir_signal)
+        ir_signal.append(pigpio.pulse(0, 0, int(zero_gap)))
+      elif char == '1':
+        carrier_frequency(out_pin, frequency, duty_cycle, one_pulse, ir_signal)
+        ir_signal.append(pigpio.pulse(0, 0, int(one_gap)))
+    if send_trailing_pulse:
       carrier_frequency(out_pin, frequency, duty_cycle, one_pulse, ir_signal)
-      ir_signal.append(pigpio.pulse(0, 0, int(one_gap)))
-  if send_trailing_pulse:
-    carrier_frequency(out_pin, frequency, duty_cycle, one_pulse, ir_signal)
-  # send waveform
+  # transmit waveform
   pi.wave_clear()
   pi.wave_add_generic(ir_signal)
   wave_id = pi.wave_create()
@@ -272,9 +294,17 @@ def send_command(device, command):
     #  repeat       9070  2159
     #  gap          107799
     #  toggle_bit      0
-    frequency  = 38000
-    duty_cycle = 0.5
-    repeat     = 1 # default: send command just once
+    leading_pulse_duration = 9079
+    leading_gap_duration   = 4405
+    one_pulse              = 638
+    zero_pulse             = 638
+    one_gap                = 1612
+    zero_gap               = 473
+    frequency              = 38000
+    duty_cycle             = 0.5
+    rc6_mode               = False # default: no RC6
+    repeat                 = 1     # default: send command just once
+    send_trailing_pulse    = 1     # default: send trailing pulse
 
     if device == "BAR": # Philips soundbar HTL2163B
       # bits           21
@@ -288,13 +318,7 @@ def send_command(device, command):
       # toggle_bit_mask 0x10000
       # rc6_mask    0x10000
       # frequency    38000
-      leading_pulse_duration = 2683
-      leading_gap_duration   = 880
-      one_pulse              = 459
-      zero_pulse             = 459
-      one_gap                = 420
-      zero_gap               = 420
-      send_trailing_pulse    = 1
+      rc6_mode = True
 
       bar_keys = {
         "POWER":        "000011101110111111110011", # 0x0EEFF3
@@ -344,7 +368,6 @@ def send_command(device, command):
       zero_pulse             = 619
       one_gap                = 1629
       zero_gap               = 507
-      send_trailing_pulse    = 1
 
       tv_keys = {
         "POWER":     "0001110111101010001100001100111111111111111111111111111111111111", # 0x1DEA30CF 0xFFFFFFFF
@@ -372,7 +395,6 @@ def send_command(device, command):
       zero_pulse             = 528
       one_gap                = 1699
       zero_gap               = 599
-      send_trailing_pulse    = 1
 
       tv_keys = {
         "POWER":      "0100100010110111",
@@ -409,7 +431,6 @@ def send_command(device, command):
       zero_pulse             = 627
       one_gap                = 569
       zero_gap               = 569
-      send_trailing_pulse    = 1
 
       dvd_keys = {
         "POWER":     "101010001011",
@@ -444,7 +465,7 @@ def send_command(device, command):
         ir_sling(out_pin, frequency, duty_cycle,
                  leading_pulse_duration, leading_gap_duration,
                  one_pulse, zero_pulse, one_gap, zero_gap,
-                 send_trailing_pulse, curkey)
+                 send_trailing_pulse, curkey, rc6_mode)
 
 if __name__ == '__main__':
   target_device = None
