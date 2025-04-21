@@ -247,21 +247,28 @@ def ir_sling(out_pin, frequency, duty_cycle, leading_pulse_duration, leading_gap
     carrier_frequency(out_pin, frequency, duty_cycle, 6 * T, ir_signal)
     ir_signal.append(pigpio.pulse(0, 0, 2 * T))
     # start bit (1T mark, 1T space) — start bit always ‘1’ in RC6
-    carrier_frequency(out_pin, frequency, duty_cycle, T, ir_signal)
+    carrier_frequency(out_pin, frequency, duty_cycle, T, ir_signal) # high then low
     ir_signal.append(pigpio.pulse(0, 0, T))
+    # the mode bits mb2 ... mb0 determine the mode, which is 0 in this case, thus all three bits will be "0"
+    ir_signal.append(pigpio.pulse(0, 0, T)) # low then high
+    carrier_frequency(out_pin, frequency, duty_cycle, T, ir_signal)
+    ir_signal.append(pigpio.pulse(0, 0, T)) # low then high
+    carrier_frequency(out_pin, frequency, duty_cycle, T, ir_signal)
+    ir_signal.append(pigpio.pulse(0, 0, T)) # low then high
+    carrier_frequency(out_pin, frequency, duty_cycle, T, ir_signal)
+    # the header is terminated by the trailer bit TR where the bit time of this symbol is twice as long as normal bits
+    carrier_frequency(out_pin, frequency, duty_cycle, 2 * T, ir_signal)
+    ir_signal.append(pigpio.pulse(0, 0, 2 * T))
     # encode all bits using Manchester (each bit = 2*T)
     for i, bit in enumerate(code):
-      # in RC6 Mode 0, the 4th bit (toggle) has to invert phase
-      if i == 3:
-        bit = '1' if bit == '0' else '0'
       if bit == '1':
-        # high then low
-        carrier_frequency(out_pin, frequency, duty_cycle, T, ir_signal)
+        carrier_frequency(out_pin, frequency, duty_cycle, T, ir_signal) # high then low
         ir_signal.append(pigpio.pulse(0, 0, T))
       else:
-        # low then high
-        ir_signal.append(pigpio.pulse(0, 0, T))
+        ir_signal.append(pigpio.pulse(0, 0, T)) # low then high
         carrier_frequency(out_pin, frequency, duty_cycle, T, ir_signal)
+    # the signal free time is set to 6T, which is 2.666ms
+    ir_signal.append(pigpio.pulse(0, 0, 6 * T))
   else:
     carrier_frequency(out_pin, frequency, duty_cycle, leading_pulse_duration, ir_signal)
     ir_signal.append(pigpio.pulse(0, 0, int(leading_gap_duration)))
@@ -318,34 +325,35 @@ def send_command(device, command):
       # toggle_bit_mask 0x10000
       # rc6_mask    0x10000
       # frequency    38000
-      rc6_mode = True
+      frequency = 36000
+      rc6_mode  = True
 
       bar_keys = {
-        "POWER":        "000011101110111111110011", # 0x0EEFF3
-        "COAX":         "000011101110111111000110", # 0x0EEFC6
-        "OPTICAL":      "000011101110111110010011", # 0x0EEF93
-        "AUX":          "000011101110111111000111", # 0x0EEFC7
-        "AUDIO_IN":     "000011101110111101111001", # 0x0EEF79
-        "USB":          "000011101110111110000001", # 0x0EEF81
-        "BLUETOOTH":    "000011101110111110010110", # 0x0EEF96
-        "HDMI_ARC":     "000011101110111101111000", # 0x0EEF78
-        "PREV":         "000011101110111110100101", # 0x0EEFA5
-        "PLAY":         "000011101110111111010011", # 0x0EEFD3
-        "NEXT":         "000011101110111110100100", # 0x0EEFA4
-        "BASS_PLUS":    "000011101110111111101001", # 0x0EEFE9
-        "VOL_PLUS":     "000011101110111111101111", # 0x0EEFEF
-        "TREB_PLUS":    "000011101110111111100111", # 0x0EEFE7
-        "MUTE":         "000011101110111111110010", # 0x0EEFF2
-        "BASS_MINUS":   "000011101110111111101000", # 0x0EEFE8
-        "VOL_MINUS":    "000011101110111111101110", # 0x0EEFEE
-        "TREB_MINUS":   "000011101110111111100110", # 0x0EEFE6
-        "SOUND":        "000011101110111110101110", # 0x0EEFAE
-        "SURROUND_OFF": "000011101110111110101111", # 0x0EEFAF
-        "SURROUND_ON":  "000011101110111110101101", # 0x0EEFAD
-        "SYNC_MINUS":   "000011101110111100000101", # 0x0EEF05
-        "SYNC_PLUS":    "000011101110111100000100", # 0x0EEF04
-        "DIM":          "000011101110111100010110", # 0x0EEF16
-        "NIGHT":        "000011101110111100100011", # 0x0EEF23
+        "POWER":        "1110111111110011", # 0x0EEFF3
+        "COAX":         "1110111111000110", # 0x0EEFC6
+        "OPTICAL":      "1110111110010011", # 0x0EEF93
+        "AUX":          "1110111111000111", # 0x0EEFC7
+        "AUDIO_IN":     "1110111101111001", # 0x0EEF79
+        "USB":          "1110111110000001", # 0x0EEF81
+        "BLUETOOTH":    "1110111110010110", # 0x0EEF96
+        "HDMI_ARC":     "1110111101111000", # 0x0EEF78
+        "PREV":         "1110111110100101", # 0x0EEFA5
+        "PLAY":         "1110111111010011", # 0x0EEFD3
+        "NEXT":         "1110111110100100", # 0x0EEFA4
+        "BASS_PLUS":    "1110111111101001", # 0x0EEFE9
+        "VOL_PLUS":     "1110111111101111", # 0x0EEFEF
+        "TREB_PLUS":    "1110111111100111", # 0x0EEFE7
+        "MUTE":         "1110111111110010", # 0x0EEFF2
+        "BASS_MINUS":   "1110111111101000", # 0x0EEFE8
+        "VOL_MINUS":    "1110111111101110", # 0x0EEFEE
+        "TREB_MINUS":   "1110111111100110", # 0x0EEFE6
+        "SOUND":        "1110111110101110", # 0x0EEFAE
+        "SURROUND_OFF": "1110111110101111", # 0x0EEFAF
+        "SURROUND_ON":  "1110111110101101", # 0x0EEFAD
+        "SYNC_MINUS":   "1110111100000101", # 0x0EEF05
+        "SYNC_PLUS":    "1110111100000100", # 0x0EEF04
+        "DIM":          "1110111100010110", # 0x0EEF16
+        "NIGHT":        "1110111100100011", # 0x0EEF23
       }
       curkey = bar_keys.get(command, [])
 
