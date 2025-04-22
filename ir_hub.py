@@ -238,13 +238,15 @@ def carrier_frequency(out_pin, frequency, duty_cycle, duration, ir_signal):
     ir_signal.append(pigpio.pulse(1 << out_pin, 0, on_duration))
     ir_signal.append(pigpio.pulse(0, 1 << out_pin, off_duration))
 
-def rc6_encode(hex_code, toggle):
+def rc6_encode(full_code, toggle):
     """
-    Encode RC6 payload: just the toggle bit + 16 data bits.
-    The first 4 bits (start + mode) are already transmitted manually.
+    Philips RC6: full_code includes toggle bit at bit 16 (0x10000).
+    We must extract 16 bits (address + command), insert toggle manually,
+    and skip start+mode bits (we already send them separately).
     """
-    code = (toggle << 16) | hex_code
-    return f"{code:017b}"  # 17 bits: toggle + 16-bit payload
+    payload_16bit = full_code & 0xFFFF  # strip off toggle and upper bits
+    result = (toggle << 16) | payload_16bit
+    return f"{result:017b}"
 
 def ir_sling(out_pin, frequency, duty_cycle, leading_pulse_duration, leading_gap_duration,
              one_pulse, zero_pulse, one_gap, zero_gap, send_trailing_pulse, code, rc6_mode):
@@ -395,8 +397,8 @@ def send_command(device, command):
       hex_val = bar_hex.get(command, None)
       if hex_val is not None:
         global toggle_bit
-        curkey = rc6_encode(hex_val, toggle_bit)
-        toggle_bit ^= 1  # flip toggle bit for next time
+        curkey = rc6_encode(code_hex, toggle_bit)
+        toggle_bit ^= 1
         print(curkey)
         #IR send BAR OPTICAL
         #111101110111110010011
@@ -420,6 +422,8 @@ def send_command(device, command):
         #111111110111110010011
         #IR send BAR BLUETOOTH
         #111101110111110010110
+      else:
+        curkey = []
 
     elif device == "BEAM": # Ultimea P20 projector
       # bits           32
