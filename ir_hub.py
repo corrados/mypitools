@@ -395,6 +395,28 @@ def send_command(device, command):
         curkey = rc6_encode(hex_val, toggle_bit)
         toggle_bit ^= 1  # flip toggle bit for next time
         print(curkey)
+        #IR send BAR OPTICAL
+        #111101110111110010011
+        #IR send BAR POWER
+        #111111110111111110011
+        #IR send BAR POWER
+        #111101110111111110011
+        #IR send BAR POWER
+        #111111110111111110011
+        #IR send BAR BLUETOOTH
+        #111101110111110010110
+        #IR send BAR BLUETOOTH
+        #111111110111110010110
+        #IR send BAR BLUETOOTH
+        #111101110111110010110
+        #IR send BAR OPTICAL
+        #111111110111110010011
+        #IR send BAR OPTICAL
+        #111101110111110010011
+        #IR send BAR OPTICAL
+        #111111110111110010011
+        #IR send BAR BLUETOOTH
+        #111101110111110010110
 
     elif device == "BEAM": # Ultimea P20 projector
       # bits           32
