@@ -394,8 +394,8 @@ def send_command(device, command):
         "DIM":          0x0EEF16,
         "NIGHT":        0x0EEF23,
       }
-      hex_val = bar_hex.get(command, None)
-      if hex_val is not None:
+      code_hex = bar_hex.get(command, None)
+      if code_hex is not None:
         global toggle_bit
         curkey = rc6_encode(code_hex, toggle_bit)
         toggle_bit ^= 1
