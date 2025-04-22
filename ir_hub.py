@@ -336,7 +336,7 @@ def send_command(device, command):
       # toggle_bit_mask 0x10000
       # rc6_mask    0x10000
       # frequency    38000
-      frequency = 38000
+      frequency = 36000
       rc6_mode  = True
 
       # mode2 POWER: 00010000 00001111
