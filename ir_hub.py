@@ -167,13 +167,13 @@ def on_button_press(button_name):
 
 def switch_tv_on(cur_state, input):
   ir_send_in_thread("TV POWERON") # immediate attempt
-  ir_send_in_thread(f"TV INPUT{input}")
+  ir_send_in_thread(f"TV {input}")
   time.sleep(10) # after cold start, it takes long until it starts
   if state in (cur_state): # only continue if still in TV state
     ir_send_in_thread("TV POWERON") # try again after a while
     time.sleep(5)
     if state in (cur_state): # only continue if still in TV state
-      ir_send_in_thread(f"TV INPUT{input}")
+      ir_send_in_thread(f"TV {input}")
 
 def switch_projector_on_with_input_select(cur_state, input):
   ir_send_in_thread("BEAM POWERON")
@@ -438,6 +438,13 @@ def send_command(device, command, repeat=1):
         "EXIT":        "00000010111111011100001000111101", # 0x02FDC23D 0x00000000
         "TEXT":        "00000010111111011110100000010111", # 0x02FDE817 0x00000000
         "SOURCE":      "00000010111111010010100011010111", # 0x02FD28D7 0x00000000
+        "EXT1":        "00000010111111011000110001110011",
+        "EXT2":        "00000010111111010100110010110011",
+        "EXT3":        "00000010111111011100110000110011",
+        "HDMI1":       "00000010111111010001110011100011",
+        "HDMI2":       "00000010111111011001110001100011",
+        "HDMI3":       "00000010111111010101110010100011",
+        "HDMI4":       "00000010111111011101110000100011",
         "QUICK":       "00000010111111011100011000111001", # 0x02FDC639 0x00000000
         "GUIDE":       "00000010111111011010001001011101", # 0x02FDA25D 0x00000000
         "INFO":        "00000010111111010110100010010111", # 0x02FD6897 0x00000000
