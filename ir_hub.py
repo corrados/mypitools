@@ -32,18 +32,18 @@ scancode_map = {0:"POWER", 1:"MUTE", 2:"1", 3:"2", 4:"3", 5:"4", 6:"5", 7:"6", 8
 26:"REWIND", 27:"L", 28:"FORWARD", 29:"STOP", 30:"TEXT", 63:"REC", 64:"HOLD", 65:"SELECT"}
 
 # key mapping from EyeTV remote to other device remote
-#map_TV = {"CH+":"TV UP", "CH-":"TV DOWN", "VOL-":"TV LEFT", "VOL+":"TV RIGHT", "OK":"TV OK",
-#"1":"TV 1", "2":"TV 2", "3":"TV 3", "4":"TV 4", "5":"TV 5", "6":"TV 6", "7":"TV 7", "8":"TV 8",
-#"9":"TV 9", "0":"TV 0", "BACK_LEFT":"TV MENU", "RED":"BAR VOLUMEUP", "YELLOW":"BAR VOLUMEDOWN",
-#"GREEN":"TV CHANNELUP", "BLUE":"TV CHANNELDOWN"}
+map_TV = {"CH+":"TV UP", "CH-":"TV DOWN", "VOL-":"TV LEFT", "VOL+":"TV RIGHT", "OK":"TV OK",
+"1":"TV 1", "2":"TV 2", "3":"TV 3", "4":"TV 4", "5":"TV 5", "6":"TV 6", "7":"TV 7", "8":"TV 8",
+"9":"TV 9", "0":"TV 0", "BACK_LEFT":"TV MENU", "RED":"BAR VOL_PLUS", "YELLOW":"BAR VOL_MINUS",
+"GREEN":"TV CHANNELUP", "BLUE":"TV CHANNELDOWN"}
 
-# TEST
-map_TV = {"CH+":"TVFIRE KEYCODE_DPAD_UP", "CH-":"TVFIRE KEYCODE_DPAD_DOWN",
-"VOL-":"TVFIRE KEYCODE_DPAD_LEFT", "VOL+":"TVFIRE KEYCODE_DPAD_RIGHT", "OK":"TVFIRE KEYCODE_DPAD_CENTER",
-"1":"BEAM POWER", "2":"BEAM SOURCE", "3":"BEAM MENU", "4":"BAR POWER", "5":"BAR BLUETOOTH", "6":"BAR OPTICAL", "7":"BAR 7", "8":"BAR 8",
-"9":"BAR 9", "0":"BAR 10", "BACK_LEFT":"TV MENU", "RED":"BAR PLUS", "YELLOW":"BAR MINUS",
-"GREEN":"TV CHANNELUP", "BLUE":"TV CHANNELDOWN",
-"PLAY":"BAR PLAY", "STOP":"BAR STOP", "REWIND":"BAR BACK", "FORWARD":"BAR NEXT"}
+## TEST
+#map_TV = {"CH+":"TVFIRE KEYCODE_DPAD_UP", "CH-":"TVFIRE KEYCODE_DPAD_DOWN",
+#"VOL-":"TVFIRE KEYCODE_DPAD_LEFT", "VOL+":"TVFIRE KEYCODE_DPAD_RIGHT", "OK":"TVFIRE KEYCODE_DPAD_CENTER",
+#"1":"BEAM POWER", "2":"BEAM SOURCE", "3":"BEAM MENU", "4":"BAR POWER", "5":"BAR BLUETOOTH", "6":"BAR OPTICAL", "7":"BAR 7", #"8":"BAR 8",
+#"9":"BAR 9", "0":"BAR 10", "BACK_LEFT":"TV MENU", "RED":"BAR PLUS", "YELLOW":"BAR MINUS",
+#"GREEN":"TV CHANNELUP", "BLUE":"TV CHANNELDOWN",
+#"PLAY":"BAR PLAY", "STOP":"BAR STOP", "REWIND":"BAR BACK", "FORWARD":"BAR NEXT"}
 
 
 map_DVD = {"CH+":"DVD UP", "CH-":"DVD DOWN", "VOL-":"DVD LEFT", "VOL+":"DVD RIGHT", "OK":"DVD OK",
@@ -90,7 +90,7 @@ def on_button_press(button_name):
           if state in ("TV", "TVFIRE", "LIGHT"):
             ir_send_in_thread("LED POWEROFF")
           if state in ("PROJECTOR", "DVD", "TV", "TVFIRE"):
-            ir_send_in_thread("BAR POWEROFF")
+            ir_send_in_thread("BAR POWER")
           if state in ("TV", "TVFIRE"):
             ir_send_in_thread("TV POWEROFF")
           if state in ("PROJECTOR", "DVD"):
