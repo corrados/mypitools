@@ -371,6 +371,9 @@ def send_command(device, command, repeat=1):
       one_gap                = 1629
       zero_gap               = 507
 
+      # TEST
+      repeat = 1
+
       beam_keys = {
         "POWER":  "00011101111010100011000011001111", # 0x1DEA30CF 0xFFFFFFFF
         "MUTE":   "00011101111010101011000001001111", # 0x1DEAB04F 0xFFFFFFFF
