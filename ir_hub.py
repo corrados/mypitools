@@ -193,7 +193,8 @@ def ir_send(button_name):
       else:
         # TODO introduce repeating of commands to make sure not command will get lost if, e.g.,
         # a person is in between IR transmitter and receiver
-        send_command(device, command)
+        repeat = 3
+        send_command(device, command, repeat)
 
 def adb_connect(ip_address): # returns True on success
   try:
@@ -249,7 +250,7 @@ def rc6_encode(full_code, toggle):
     return f"{result:017b}"
 
 def ir_sling(out_pin, frequency, duty_cycle, leading_pulse_duration, leading_gap_duration,
-             one_pulse, zero_pulse, one_gap, zero_gap, send_trailing_pulse, code, rc6_mode):
+             one_pulse, zero_pulse, one_gap, zero_gap, send_trailing_pulse, code, repeat, rc6_mode):
   # generate waveform
   ir_signal = []
   if rc6_mode:
@@ -268,8 +269,12 @@ def ir_sling(out_pin, frequency, duty_cycle, leading_pulse_duration, leading_gap
     ir_signal.append(pigpio.pulse(0, 0, T)) # low then high
     carrier_frequency(out_pin, frequency, duty_cycle, T, ir_signal)
     # the header is terminated by the trailer bit TR where the bit time of this symbol is twice as long as normal bits
-    carrier_frequency(out_pin, frequency, duty_cycle, 2 * T, ir_signal)
-    ir_signal.append(pigpio.pulse(0, 0, 2 * T))
+    if toggle_bit == 0:
+      ir_signal.append(pigpio.pulse(0, 0, 2 * T))
+      carrier_frequency(out_pin, frequency, duty_cycle, 2 * T, ir_signal)
+    else:
+      carrier_frequency(out_pin, frequency, duty_cycle, 2 * T, ir_signal)
+      ir_signal.append(pigpio.pulse(0, 0, 2 * T))
     # encode all bits using Manchester (each bit = 2*T)
     for i, bit in enumerate(code):
       if bit == '0':
@@ -297,13 +302,15 @@ def ir_sling(out_pin, frequency, duty_cycle, leading_pulse_duration, leading_gap
   pi.wave_add_generic(ir_signal)
   wave_id = pi.wave_create()
   if wave_id >= 0:
-    pi.wave_send_once(wave_id)
-    while pi.wave_tx_busy():
-      time.sleep(0.01)
+    for i in range(repeat):
+      pi.wave_send_once(wave_id)
+      while pi.wave_tx_busy():
+        time.sleep(0.01)
     pi.wave_delete(wave_id)
   return 0
 
-def send_command(device, command):
+def send_command(device, command, repeat=1):
+    global toggle_bit
     # Lirc .conf format:
     #  header       9079  4405    -> leadingPulseDuration, leadingGapDuration
     #  one           638  1612    -> onePulse,             oneGap
@@ -321,7 +328,6 @@ def send_command(device, command):
     frequency              = 38000
     duty_cycle             = 0.5
     rc6_mode               = False # default: no RC6
-    repeat                 = 1     # default: send command just once
     send_trailing_pulse    = 1     # default: send trailing pulse
 
     if device == "BAR": # Philips soundbar HTL2163B
@@ -329,17 +335,12 @@ def send_command(device, command):
       # flags RC6|CONST_LENGTH
       # eps            30
       # aeps          100
-      # header       2683   880
-      # one           459   420
-      # zero          459   420
       # gap          107636
       # toggle_bit_mask 0x10000
       # rc6_mask    0x10000
-      # frequency    38000
-      frequency = 36000
-      rc6_mode  = True
-
-      # mode2 POWER: 00010000 00001111
+      frequency   = 36000
+      rc6_mode    = True
+      toggle_bit ^= 1
 
       bar_keys = {
         "POWER":        "1110111111110011", # 0x0EEFF3
@@ -369,517 +370,6 @@ def send_command(device, command):
         "NIGHT":        "1110111100100011", # 0x0EEF23
       }
       curkey = bar_keys.get(command, [])
-
-      bar_hex = {
-        "POWER":        0x0EEFF3,
-        "COAX":         0x0EEFC6,
-        "OPTICAL":      0x0EEF93,
-        "AUX":          0x0EEFC7,
-        "AUDIO_IN":     0x0EEF79,
-        "USB":          0x0EEF81,
-        "BLUETOOTH":    0x0EEF96,
-        "HDMI_ARC":     0x0EEF78,
-        "PREV":         0x0EEFA5,
-        "PLAY":         0x0EEFD3,
-        "NEXT":         0x0EEFA4,
-        "BASS_PLUS":    0x0EEFE9,
-        "VOL_PLUS":     0x0EEFEF,
-        "TREB_PLUS":    0x0EEFE7,
-        "MUTE":         0x0EEFF2,
-        "BASS_MINUS":   0x0EEFE8,
-        "VOL_MINUS":    0x0EEFEE,
-        "TREB_MINUS":   0x0EEFE6,
-        "SOUND":        0x0EEFAE,
-        "SURROUND_OFF": 0x0EEFAF,
-        "SURROUND_ON":  0x0EEFAD,
-        "SYNC_MINUS":   0x0EEF05,
-        "SYNC_PLUS":    0x0EEF04,
-        "DIM":          0x0EEF16,
-        "NIGHT":        0x0EEF23,
-      }
-      #code_hex = bar_hex.get(command, None)
-      #if code_hex is not None:
-      #  global toggle_bit
-      #  curkey = rc6_encode(code_hex, toggle_bit)
-      #  toggle_bit ^= 1
-      #  print(curkey)
-        #IR send BAR OPTICAL
-        #111101110111110010011
-        #IR send BAR POWER
-        #111111110111111110011
-        #IR send BAR POWER
-        #111101110111111110011
-        #IR send BAR POWER
-        #111111110111111110011
-        #IR send BAR BLUETOOTH
-        #111101110111110010110
-        #IR send BAR BLUETOOTH
-        #111111110111110010110
-        #IR send BAR BLUETOOTH
-        #111101110111110010110
-        #IR send BAR OPTICAL
-        #111111110111110010011
-        #IR send BAR OPTICAL
-        #111101110111110010011
-        #IR send BAR OPTICAL
-        #111111110111110010011
-        #IR send BAR BLUETOOTH
-        #111101110111110010110
-
-
-        ## FIRST PRESS was Power
-        #pi@media:/dev $ mode2 -d /dev/lirc1
-        #Using driver default on device /dev/lirc1
-        #Trying device: /dev/lirc1
-        #Using device: /dev/lirc1
-        #pulse 2691
-        #space 850
-        #pulse 490
-        #space 820
-        #pulse 514
-        #space 364
-        #pulse 513
-        #space 366
-        #pulse 1345
-        #space 1282
-        #pulse 511
-        #space 366
-        #pulse 513
-        #space 365
-        #pulse 903
-        #space 858
-        #pulse 510
-        #space 366
-        #pulse 513
-        #space 366
-        #pulse 512
-        #space 366
-        #pulse 513
-        #space 366
-        #pulse 525
-        #space 356
-        #pulse 513
-        #space 364
-        #pulse 514
-        #space 365
-        #pulse 928
-        #space 397
-        #pulse 483
-        #space 830
-        #pulse 511
-        #space 366
-        #pulse 513
-        #
-        #
-        #space 84692
-        #pulse 2676
-        #space 872
-        #pulse 513
-        #space 797
-        #pulse 510
-        #space 367
-        #pulse 513
-        #space 367
-        #pulse 1347
-        #space 1276
-        #pulse 512
-        #space 369
-        #pulse 511
-        #space 367
-        #pulse 934
-        #space 824
-        #pulse 513
-        #space 365
-        #pulse 513
-        #space 366
-        #pulse 512
-        #space 366
-        #pulse 513
-        #space 367
-        #pulse 512
-        #space 367
-        #pulse 513
-        #space 365
-        #pulse 515
-        #space 362
-        #pulse 907
-        #space 421
-        #pulse 462
-        #space 848
-        #pulse 512
-        #space 365
-        #pulse 517
-        #space 84694
-        #pulse 2697
-        #space 845
-        #pulse 492
-        #space 820
-        #pulse 513
-        #space 366
-        #pulse 515
-        #space 363
-        #pulse 1377
-        #space 1248
-        #pulse 513
-        #space 366
-        #pulse 509
-        #space 370
-        #pulse 928
-        #space 830
-        #pulse 514
-        #space 365
-        #pulse 513
-        #space 366
-        #pulse 513
-        #space 366
-        #pulse 513
-        #space 366
-        #pulse 513
-        #space 367
-        #pulse 487
-        #space 391
-        #pulse 489
-        #space 390
-        #pulse 930
-        #space 396
-        #pulse 485
-        #space 827
-        #pulse 511
-        #space 366
-        #pulse 513
-        #space 84693
-        #pulse 2697
-        #space 850
-        #pulse 488
-        #space 821
-        #pulse 513
-        #space 366
-        #pulse 514
-        #space 366
-        #pulse 1371
-        #space 1255
-        #pulse 514
-        #space 362
-        #pulse 512
-        #space 366
-        #pulse 928
-        #space 830
-        #pulse 513
-        #space 365
-        #pulse 513
-        #space 366
-        #pulse 514
-        #space 365
-        #pulse 512
-        #space 366
-        #pulse 513
-        #space 366
-        #pulse 513
-        #space 368
-        #pulse 511
-        #space 366
-        #pulse 934
-        #space 391
-        #pulse 492
-        #space 832
-        #pulse 502
-        #space 366
-        #pulse 514
-        #timeout 130801
-        #pulse 2694
-        #space 841
-        #pulse 494
-        #space 819
-        #pulse 513
-        #space 366
-        #pulse 515
-        #space 364
-        #pulse 517
-        #space 808
-        #pulse 933
-        #space 379
-        #pulse 514
-        #space 366
-        #pulse 512
-        #space 366
-        #pulse 933
-        #space 826
-        #pulse 513
-        #space 366
-        #pulse 513
-        #space 366
-        #pulse 513
-        #space 367
-        #pulse 932
-        #space 828
-        #pulse 512
-        #space 366
-        #pulse 514
-        #space 364
-        #pulse 514
-        #space 365
-        #pulse 928
-        #space 397
-        #pulse 491
-        #space 390
-        #pulse 489
-        #space 85152
-        #pulse 2696
-        #space 844
-        #pulse 487
-        #space 821
-        #pulse 513
-        #space 365
-        #pulse 518
-        #space 360
-        #pulse 518
-        #space 808
-        #pulse 933
-        #space 378
-        #pulse 512
-        #space 366
-        #pulse 513
-        #space 366
-        #pulse 933
-        #space 826
-        #pulse 517
-        #space 362
-        #pulse 513
-        #space 366
-        #pulse 513
-        #space 365
-        #pulse 933
-        #space 826
-        #pulse 513
-        #space 368
-        #pulse 511
-        #space 366
-        #pulse 514
-        #space 365
-        #pulse 933
-        #space 393
-        #pulse 492
-        #space 388
-        #pulse 489
-        #space 85154
-        #pulse 2699
-        #space 841
-        #pulse 490
-        #space 827
-        #pulse 507
-        #space 366
-        #pulse 515
-        #space 364
-        #pulse 518
-        #space 809
-        #pulse 931
-        #space 381
-        #pulse 511
-        #space 366
-        #pulse 513
-        #space 366
-        #pulse 932
-        #space 826
-        #pulse 513
-        #space 366
-        #pulse 514
-        #space 365
-        #pulse 513
-        #space 366
-        #pulse 933
-        #space 826
-        #pulse 513
-        #space 367
-        #pulse 515
-        #space 364
-        #pulse 512
-        #space 365
-        #pulse 934
-        #space 392
-        #pulse 492
-        #space 391
-        #pulse 493
-        #space 85143
-        #pulse 2700
-        #space 840
-        #pulse 497
-        #space 816
-        #pulse 512
-        #space 366
-        #pulse 518
-        #space 361
-        #pulse 517
-        #space 808
-        #pulse 933
-        #space 379
-        #pulse 514
-        #space 365
-        #pulse 512
-        #space 368
-        #pulse 932
-        #space 826
-        #pulse 517
-        #space 363
-        #pulse 511
-        #space 367
-        #pulse 512
-        #space 367
-        #pulse 932
-        #space 826
-        #pulse 513
-        #space 365
-        #pulse 514
-        #space 365
-        #pulse 514
-        #space 364
-        #pulse 935
-        #space 390
-        #pulse 491
-        #space 388
-        #pulse 492
-        #timeout 131826
-        #pulse 2695
-        #space 842
-        #pulse 517
-        #space 798
-        #pulse 512
-        #space 365
-        #pulse 511
-        #space 366
-        #pulse 1376
-        #space 1250
-        #pulse 517
-        #space 362
-        #pulse 513
-        #space 365
-        #pulse 933
-        #space 825
-        #pulse 513
-        #space 365
-        #pulse 513
-        #space 366
-        #pulse 513
-        #space 366
-        #pulse 513
-        #space 365
-        #pulse 933
-        #space 393
-        #pulse 492
-        #space 820
-        #pulse 935
-        #space 826
-        #pulse 512
-        #space 364
-        #pulse 932
-        #space 85156
-        #pulse 2697
-        #space 844
-        #pulse 500
-        #space 811
-        #pulse 515
-        #space 365
-        #pulse 517
-        #space 360
-        #pulse 1377
-        #space 1258
-        #pulse 507
-        #space 362
-        #pulse 517
-        #space 362
-        #pulse 933
-        #space 826
-        #pulse 518
-        #space 361
-        #pulse 518
-        #space 362
-        #pulse 511
-        #space 366
-        #pulse 513
-        #space 366
-        #pulse 933
-        #space 397
-        #pulse 486
-        #space 821
-        #pulse 933
-        #space 828
-        #pulse 520
-        #space 359
-        #pulse 932
-        #space 85157
-        #pulse 2699
-        #space 841
-        #pulse 492
-        #space 820
-        #pulse 513
-        #space 366
-        #pulse 515
-        #space 364
-        #pulse 1376
-        #space 1249
-        #pulse 514
-        #space 365
-        #pulse 513
-        #space 366
-        #pulse 933
-        #space 826
-        #pulse 512
-        #space 366
-        #pulse 513
-        #space 366
-        #pulse 514
-        #space 365
-        #pulse 513
-        #space 366
-        #pulse 930
-        #space 395
-        #pulse 488
-        #space 824
-        #pulse 932
-        #space 828
-        #pulse 513
-        #space 365
-        #pulse 929
-        #space 85159
-        #pulse 2700
-        #space 841
-        #pulse 490
-        #space 822
-        #pulse 538
-        #space 340
-        #pulse 514
-        #space 365
-        #pulse 1375
-        #space 1251
-        #pulse 513
-        #space 366
-        #pulse 513
-        #space 366
-        #pulse 934
-        #space 826
-        #pulse 512
-        #space 367
-        #pulse 512
-        #space 366
-        #pulse 513
-        #space 366
-        #pulse 513
-        #space 366
-        #pulse 935
-        #space 393
-        #pulse 490
-        #space 821
-        #pulse 932
-        #space 827
-        #pulse 513
-        #space 364
-        #pulse 935
-        #timeout 130187
-
-
-
-
-      #else:
-      #  curkey = []
 
     elif device == "BEAM": # Ultimea P20 projector
       # bits           32
@@ -993,11 +483,10 @@ def send_command(device, command):
       curkey = dvd_keys.get(command, [])
 
     if device in ("BAR", "TV", "DVD") and curkey:
-      for i in range(repeat):
-        ir_sling(out_pin, frequency, duty_cycle,
-                 leading_pulse_duration, leading_gap_duration,
-                 one_pulse, zero_pulse, one_gap, zero_gap,
-                 send_trailing_pulse, curkey, rc6_mode)
+      ir_sling(out_pin, frequency, duty_cycle,
+                leading_pulse_duration, leading_gap_duration,
+                one_pulse, zero_pulse, one_gap, zero_gap,
+                send_trailing_pulse, curkey, repeat, rc6_mode)
 
 if __name__ == '__main__':
   target_device = None
