@@ -239,9 +239,9 @@ def carrier_frequency(out_pin, frequency, duty_cycle, duration, ir_signal):
     ir_signal.append(pigpio.pulse(0, 1 << out_pin, off_duration))
 
 def rc6_encode(hex_code, toggle):
-    """Returns a 21-bit RC6 binary string with toggle bit inserted."""
-    rc6_bits = (1 << 20) | (toggle << 16) | hex_code  # 1=start, 000=mode, toggle, rest=cmd
-    return f"{rc6_bits:021b}"
+    """Encodes 16-bit RC6 payload (address + command) with toggle bit."""
+    code = (toggle << 16) | hex_code  # toggle bit goes at bit 16
+    return f"{code:017b}"  # Only 17 bits: toggle (1) + 16-bit payload
 
 def ir_sling(out_pin, frequency, duty_cycle, leading_pulse_duration, leading_gap_duration,
              one_pulse, zero_pulse, one_gap, zero_gap, send_trailing_pulse, code, rc6_mode):
