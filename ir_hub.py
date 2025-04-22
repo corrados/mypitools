@@ -245,36 +245,28 @@ def ir_sling(out_pin, frequency, duty_cycle, leading_pulse_duration, leading_gap
   ir_signal = []
   if rc6_mode:
     T = 444 # base unit
-    # RC6 header: 6T mark, 2T space
-    carrier_frequency(out_pin, frequency, duty_cycle, 6 * T, ir_signal)
+    carrier_frequency(out_pin, frequency, duty_cycle, 6 * T, ir_signal) # RC6 header: 6T mark, 2T space
     ir_signal.append(pigpio.pulse(0, 0, 2 * T))
-    # start bit (1T mark, 1T space) — start bit always ‘1’ in RC6
-    carrier_frequency(out_pin, frequency, duty_cycle, T, ir_signal) # high then low
+    carrier_frequency(out_pin, frequency, duty_cycle, T, ir_signal) # start bit (1T mark, 1T space), high then low
     ir_signal.append(pigpio.pulse(0, 0, T))
-    # the mode bits mb2 ... mb0 determine the mode, which is 0 in this case, thus all three bits will be "0"
-    ir_signal.append(pigpio.pulse(0, 0, T)) # low then high
-    carrier_frequency(out_pin, frequency, duty_cycle, T, ir_signal)
-    ir_signal.append(pigpio.pulse(0, 0, T)) # low then high
-    carrier_frequency(out_pin, frequency, duty_cycle, T, ir_signal)
-    ir_signal.append(pigpio.pulse(0, 0, T)) # low then high
-    carrier_frequency(out_pin, frequency, duty_cycle, T, ir_signal)
-    # the header is terminated by the trailer bit TR where the bit time of this symbol is twice as long as normal bits
-    if toggle_bit == 0:
+    for i in range(3): # the mode bits mb2 ... mb0: low then high
+      ir_signal.append(pigpio.pulse(0, 0, T))
+      carrier_frequency(out_pin, frequency, duty_cycle, T, ir_signal)
+    if toggle_bit == 0: # header trailer bit is toggle bit (2T)
       ir_signal.append(pigpio.pulse(0, 0, 2 * T))
       carrier_frequency(out_pin, frequency, duty_cycle, 2 * T, ir_signal)
     else:
       carrier_frequency(out_pin, frequency, duty_cycle, 2 * T, ir_signal)
       ir_signal.append(pigpio.pulse(0, 0, 2 * T))
-    # encode all bits using Manchester (each bit = 2*T)
+    # encode all bits using Manchester, where each bit is 2T
     for i, bit in enumerate(code):
-      if bit == '0':
-        carrier_frequency(out_pin, frequency, duty_cycle, T, ir_signal) # high then low
-        ir_signal.append(pigpio.pulse(0, 0, T))
-      else:
-        ir_signal.append(pigpio.pulse(0, 0, T)) # low then high
+      if bit == '0': # high then low
         carrier_frequency(out_pin, frequency, duty_cycle, T, ir_signal)
-    # the signal free time is set to 6T, which is 2.666ms
-    ir_signal.append(pigpio.pulse(0, 0, 6 * T))
+        ir_signal.append(pigpio.pulse(0, 0, T))
+      else:          # low then high
+        ir_signal.append(pigpio.pulse(0, 0, T))
+        carrier_frequency(out_pin, frequency, duty_cycle, T, ir_signal)
+    ir_signal.append(pigpio.pulse(0, 0, 6 * T)) # signal free time is set to 6T, which is 2.666 ms
   else:
     carrier_frequency(out_pin, frequency, duty_cycle, leading_pulse_duration, ir_signal)
     ir_signal.append(pigpio.pulse(0, 0, int(leading_gap_duration)))
