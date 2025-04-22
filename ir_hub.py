@@ -389,7 +389,6 @@ def send_command(device, command, repeat=1):
         "VOL+":   "00011101111010101111100000000111", # 0x1DEAF807 0xFFFFFFFF
       }
       curkey = beam_keys.get(command, [])
-      print(curkey)
 
     elif device == "TV": # Toshiba 42XV635D
       # bits           32
