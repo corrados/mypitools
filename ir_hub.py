@@ -371,7 +371,7 @@ def send_command(device, command, repeat=1):
       one_gap                = 1629
       zero_gap               = 507
 
-      tv_keys = {
+      beam_keys = {
         "POWER":  "00011101111010100011000011001111", # 0x1DEA30CF 0xFFFFFFFF
         "MUTE":   "00011101111010101011000001001111", # 0x1DEAB04F 0xFFFFFFFF
         "REW":    "00011101111010100011100011000111", # 0x1DEA38C7 0xFFFFFFFF
@@ -388,7 +388,8 @@ def send_command(device, command, repeat=1):
         "VOL-":   "00011101111010100111100010000111", # 0x1DEA7887 0xFFFFFFFF
         "VOL+":   "00011101111010101111100000000111", # 0x1DEAF807 0xFFFFFFFF
       }
-      curkey = tv_keys.get(command, [])
+      curkey = beam_keys.get(command, [])
+      print(curkey)
 
     elif device == "TV": # Toshiba 42XV635D
       # bits           32
