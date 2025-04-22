@@ -394,6 +394,7 @@ def send_command(device, command):
         global toggle_bit
         curkey = rc6_encode(hex_val, toggle_bit)
         toggle_bit ^= 1  # flip toggle bit for next time
+        print(curkey)
 
     elif device == "BEAM": # Ultimea P20 projector
       # bits           32
