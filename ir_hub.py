@@ -368,6 +368,7 @@ def send_command(device, command):
         "DIM":          "1110111100010110", # 0x0EEF16
         "NIGHT":        "1110111100100011", # 0x0EEF23
       }
+      curkey = bar_keys.get(command, [])
 
       bar_hex = {
         "POWER":        0x0EEFF3,
@@ -396,12 +397,12 @@ def send_command(device, command):
         "DIM":          0x0EEF16,
         "NIGHT":        0x0EEF23,
       }
-      code_hex = bar_hex.get(command, None)
-      if code_hex is not None:
-        global toggle_bit
-        curkey = rc6_encode(code_hex, toggle_bit)
-        toggle_bit ^= 1
-        print(curkey)
+      #code_hex = bar_hex.get(command, None)
+      #if code_hex is not None:
+      #  global toggle_bit
+      #  curkey = rc6_encode(code_hex, toggle_bit)
+      #  toggle_bit ^= 1
+      #  print(curkey)
         #IR send BAR OPTICAL
         #111101110111110010011
         #IR send BAR POWER
@@ -877,8 +878,8 @@ def send_command(device, command):
 
 
 
-      else:
-        curkey = []
+      #else:
+      #  curkey = []
 
     elif device == "BEAM": # Ultimea P20 projector
       # bits           32
