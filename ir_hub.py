@@ -18,6 +18,7 @@ mapping     = None
 pi          = None
 adb_shell   = None
 alt_func    = True
+toggle_bit  = 0
 press_lock  = threading.Lock()
 ir_lock     = threading.Lock()
 
@@ -237,6 +238,11 @@ def carrier_frequency(out_pin, frequency, duty_cycle, duration, ir_signal):
     ir_signal.append(pigpio.pulse(1 << out_pin, 0, on_duration))
     ir_signal.append(pigpio.pulse(0, 1 << out_pin, off_duration))
 
+def rc6_encode(hex_code, toggle):
+    """Returns a 21-bit RC6 binary string with toggle bit inserted."""
+    rc6_bits = (1 << 20) | (toggle << 16) | hex_code  # 1=start, 000=mode, toggle, rest=cmd
+    return f"{rc6_bits:021b}"
+
 def ir_sling(out_pin, frequency, duty_cycle, leading_pulse_duration, leading_gap_duration,
              one_pulse, zero_pulse, one_gap, zero_gap, send_trailing_pulse, code, rc6_mode):
   # generate waveform
@@ -355,7 +361,39 @@ def send_command(device, command):
         "DIM":          "1110111100010110", # 0x0EEF16
         "NIGHT":        "1110111100100011", # 0x0EEF23
       }
-      curkey = bar_keys.get(command, [])
+
+      bar_hex = {
+        "POWER":        0x0EEFF3,
+        "COAX":         0x0EEFC6,
+        "OPTICAL":      0x0EEF93,
+        "AUX":          0x0EEFC7,
+        "AUDIO_IN":     0x0EEF79,
+        "USB":          0x0EEF81,
+        "BLUETOOTH":    0x0EEF96,
+        "HDMI_ARC":     0x0EEF78,
+        "PREV":         0x0EEFA5,
+        "PLAY":         0x0EEFD3,
+        "NEXT":         0x0EEFA4,
+        "BASS_PLUS":    0x0EEFE9,
+        "VOL_PLUS":     0x0EEFEF,
+        "TREB_PLUS":    0x0EEFE7,
+        "MUTE":         0x0EEFF2,
+        "BASS_MINUS":   0x0EEFE8,
+        "VOL_MINUS":    0x0EEFEE,
+        "TREB_MINUS":   0x0EEFE6,
+        "SOUND":        0x0EEFAE,
+        "SURROUND_OFF": 0x0EEFAF,
+        "SURROUND_ON":  0x0EEFAD,
+        "SYNC_MINUS":   0x0EEF05,
+        "SYNC_PLUS":    0x0EEF04,
+        "DIM":          0x0EEF16,
+        "NIGHT":        0x0EEF23,
+      }
+      hex_val = bar_hex.get(command, None)
+      if hex_val is not None:
+        global toggle_bit
+        curkey = rc6_encode(hex_val, toggle_bit)
+        toggle_bit ^= 1  # flip toggle bit for next time
 
     elif device == "BEAM": # Ultimea P20 projector
       # bits           32
