@@ -272,7 +272,7 @@ def ir_sling(out_pin, frequency, duty_cycle, leading_pulse_duration, leading_gap
     ir_signal.append(pigpio.pulse(0, 0, 2 * T))
     # encode all bits using Manchester (each bit = 2*T)
     for i, bit in enumerate(code):
-      if bit == '1':
+      if bit == '0':
         carrier_frequency(out_pin, frequency, duty_cycle, T, ir_signal) # high then low
         ir_signal.append(pigpio.pulse(0, 0, T))
       else:
@@ -342,7 +342,7 @@ def send_command(device, command):
       # mode2 POWER: 00010000 00001111
 
       bar_keys = {
-        "POWER":        "0001000000001100",#11101111 11110011", # 0x0EEFF3
+        "POWER":        "1110111111110011", # 0x0EEFF3
         "COAX":         "1110111111000110", # 0x0EEFC6
         "OPTICAL":      "1110111110010011", # 0x0EEF93
         "AUX":          "1110111111000111", # 0x0EEFC7
