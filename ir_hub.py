@@ -9,6 +9,7 @@ import evdev
 import subprocess
 import pigpio
 import math
+import spidev
 
 out_pin     = 22
 device_path = None
@@ -591,6 +592,14 @@ def send_command(device, command, repeat=1):
                send_trailing_pulse, trailing_gap, curkey, repeat, rc6_mode)
 
 if __name__ == '__main__':
+  spi = spidev.SpiDev()
+  spi.open(bus=0, device=0)
+  spi.mode = 0b00
+  spi.max_speed_hz = 1000000
+  rgb_leds = [50, 50, 50]
+  spi.writebytes(rgb_leds)
+  spi.close()
+
   target_device = None
   for device in [evdev.InputDevice(path) for path in evdev.list_devices()]:
     if "EyeTV" in device.name:
