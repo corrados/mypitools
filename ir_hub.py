@@ -239,16 +239,6 @@ def carrier_frequency(out_pin, frequency, duty_cycle, duration, ir_signal):
     ir_signal.append(pigpio.pulse(1 << out_pin, 0, on_duration))
     ir_signal.append(pigpio.pulse(0, 1 << out_pin, off_duration))
 
-def rc6_encode(full_code, toggle):
-    """
-    Philips RC6: full_code includes toggle bit at bit 16 (0x10000).
-    We must extract 16 bits (address + command), insert toggle manually,
-    and skip start+mode bits (we already send them separately).
-    """
-    payload_16bit = full_code & 0xFFFF  # strip off toggle and upper bits
-    result = (toggle << 16) | payload_16bit
-    return f"{result:017b}"
-
 def ir_sling(out_pin, frequency, duty_cycle, leading_pulse_duration, leading_gap_duration,
              one_pulse, zero_pulse, one_gap, zero_gap, send_trailing_pulse, code, repeat, rc6_mode):
   # generate waveform
