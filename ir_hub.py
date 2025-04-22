@@ -365,11 +365,11 @@ def send_command(device, command, repeat=1):
       # toggle_bit_mask 0x0
       # frequency    38000
       leading_pulse_duration = 9044
-      leading_gap_duration   = 4428
-      one_pulse              = 619
-      zero_pulse             = 619
-      one_gap                = 1629
-      zero_gap               = 507
+      leading_gap_duration   = 4400#4428
+      one_pulse              = 650#619
+      zero_pulse             = 650#619
+      one_gap                = 1600#1629
+      zero_gap               = 475#507
 
       beam_keys = {
         "POWER":  "00011101111010100011000011001111", # 0x1DEA30CF 0xFFFFFFFF
