@@ -191,7 +191,7 @@ def ir_send(button_name):
       if device == "TVFIRE":
         send_keyevent(command)
       else:
-        # TODO introduce repeating of commands to make sure not command will get lost if, e.g.,
+        # introduce repeating of commands to make sure not command will get lost if, e.g.,
         # a person is in between IR transmitter and receiver
         repeat = 3
         send_command(device, command, repeat)
@@ -301,16 +301,13 @@ def send_command(device, command, repeat=1):
     #  repeat       9070  2159
     #  gap          107799
     #  toggle_bit      0
-    leading_pulse_duration = 9079
-    leading_gap_duration   = 4405
-    one_pulse              = 638
-    zero_pulse             = 638
-    one_gap                = 1612
-    zero_gap               = 473
-    frequency              = 38000
-    duty_cycle             = 0.5
-    rc6_mode               = False # default: no RC6
-    send_trailing_pulse    = 1     # default: send trailing pulse
+    (leading_pulse_duration, leading_gap_duration) = (0, 0)
+    (one_pulse,              zero_pulse)           = (0, 0)
+    (one_gap,                zero_gap)             = (0, 0)
+    frequency           = 38000
+    duty_cycle          = 0.5
+    rc6_mode            = False # default: no RC6
+    send_trailing_pulse = 1     # default: send trailing pulse
 
     if device == "BAR": # Philips soundbar HTL2163B
       # bits           21
@@ -466,9 +463,9 @@ def send_command(device, command, repeat=1):
 
     if device in ("BAR", "TV", "DVD") and curkey:
       ir_sling(out_pin, frequency, duty_cycle,
-                leading_pulse_duration, leading_gap_duration,
-                one_pulse, zero_pulse, one_gap, zero_gap,
-                send_trailing_pulse, curkey, repeat, rc6_mode)
+               leading_pulse_duration, leading_gap_duration,
+               one_pulse, zero_pulse, one_gap, zero_gap,
+               send_trailing_pulse, curkey, repeat, rc6_mode)
 
 if __name__ == '__main__':
   target_device = None
