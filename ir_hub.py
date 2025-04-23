@@ -25,7 +25,7 @@ press_lock  = threading.Lock()
 ir_lock     = threading.Lock()
 
 state_map = {"1":"PROJECTOR", "2":"TV", "3":"LIGHT", "4":"DVD", "5":"TVFIRE", "POWER":"IDLE"}
-state_rgb = {"PROJECTOR":[rgb_val, 0, rgb_val], "TV":[0, rgb_val, 0], "LIGHT":[0, 0, rgb_val],
+state_rgb = {"PROJECTOR":[rgb_val, 0, rgb_val], "TV":[0, rgb_val, 0], "LIGHT":[rgb_val, rgb_val, rgb_val],
              "DVD":[rgb_val, rgb_val, 0], "TVFIRE":[0, rgb_val, rgb_val], "IDLE":[0, 0, 0]}
 
 # scancode to readable button name for Elgato EyeTV remote
