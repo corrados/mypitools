@@ -540,6 +540,7 @@ def send_command(device, command, repeat=1):
       one_gap                = 557
       zero_gap               = 557
       send_trailing_pulse    = 0
+      trailing_gap           = 14400
 
       dvd_keys = {
         "POWER":     "10101000101101000111", # 0xA8B 0x47
