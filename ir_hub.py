@@ -235,12 +235,6 @@ def start_pigpiod():
     subprocess.run(["pidof", "pigpiod"], check=True, stdout=subprocess.DEVNULL)
   except subprocess.CalledProcessError:
     subprocess.Popen(["sudo", "pigpiod"])
-    time.sleep(1)
-  pi = pigpio.pi()
-  if not pi.connected:
-    print("GPIO Initialization failed")
-    return 1
-  pi.set_mode(out_pin, pigpio.OUTPUT)
 
 def carrier_frequency(out_pin, frequency, duty_cycle, duration, ir_signal):
   one_cycle_time = 1_000_000.0 / frequency
@@ -294,6 +288,11 @@ def ir_sling(out_pin, frequency, duty_cycle, leading_pulse_duration, leading_gap
     if trailing_gap:
       ir_signal.append(pigpio.pulse(0, 0, trailing_gap))
   # transmit waveform
+  pi = pigpio.pi()
+  if not pi.connected:
+    print("GPIO Initialization failed")
+    return
+  pi.set_mode(out_pin, pigpio.OUTPUT)
   pi.wave_clear()
   pi.wave_add_generic(ir_signal)
   wave_id = pi.wave_create()
@@ -303,7 +302,7 @@ def ir_sling(out_pin, frequency, duty_cycle, leading_pulse_duration, leading_gap
       while pi.wave_tx_busy():
         time.sleep(0.01)
     pi.wave_delete(wave_id)
-  return 0
+  pi.stop()
 
 def send_command(device, command, repeat=1):
     global toggle_bit
