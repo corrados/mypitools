@@ -272,16 +272,17 @@ def ir_sling(out_pin, frequency, duty_cycle, leading_pulse_duration, leading_gap
     ir_signal.append(pigpio.pulse(0, 0, 6 * T)) # signal free time is set to 6T, which is 2.666 ms
   else:
     carrier_frequency(out_pin, frequency, duty_cycle, leading_pulse_duration, ir_signal)
-    ir_signal.append(pigpio.pulse(0, 0, int(leading_gap_duration)))
+    ir_signal.append(pigpio.pulse(0, 0, leading_gap_duration))
     for char in code:
       if char == '0':
         carrier_frequency(out_pin, frequency, duty_cycle, zero_pulse, ir_signal)
-        ir_signal.append(pigpio.pulse(0, 0, int(zero_gap)))
+        ir_signal.append(pigpio.pulse(0, 0, zero_gap))
       elif char == '1':
         carrier_frequency(out_pin, frequency, duty_cycle, one_pulse, ir_signal)
-        ir_signal.append(pigpio.pulse(0, 0, int(one_gap)))
+        ir_signal.append(pigpio.pulse(0, 0, one_gap))
     if send_trailing_pulse:
       carrier_frequency(out_pin, frequency, duty_cycle, one_pulse, ir_signal)
+    ir_signal.append(pigpio.pulse(0, 0, trailing_gap))
   # transmit waveform
   pi.wave_clear()
   pi.wave_add_generic(ir_signal)
@@ -537,9 +538,8 @@ def send_command(device, command, repeat=1):
       zero_pulse             = 640
       one_gap                = 557
       zero_gap               = 557
+      send_trailing_pulse    = 0
       trailing_gap           = 14400
-      if repeat < 2:
-        repeat = 2
 
       dvd_keys = {
         "POWER":     "10101000101101000111", # 0xA8B 0x47
