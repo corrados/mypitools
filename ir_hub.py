@@ -230,7 +230,6 @@ def set_rgb(rgb_leds):
   spi.close()
 
 def start_pigpiod():
-  global pi
   try:
     subprocess.run(["pidof", "pigpiod"], check=True, stdout=subprocess.DEVNULL)
   except subprocess.CalledProcessError:
