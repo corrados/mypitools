@@ -222,6 +222,14 @@ def send_keyevent(keycode):
     adb_shell.stdin.write(f"input keyevent {keycode}\n")
     adb_shell.stdin.flush()
 
+def set_rgb(rgb_leds):
+  spi = spidev.SpiDev()
+  spi.open(bus=0, device=0)
+  spi.mode         = 0b00
+  spi.max_speed_hz = 1000000
+  spi.writebytes(rgb_leds)
+  spi.close()
+
 def start_pigpiod():
   global pi
   try:
@@ -593,13 +601,7 @@ def send_command(device, command, repeat=1):
                send_trailing_pulse, trailing_gap, curkey, repeat, rc6_mode)
 
 if __name__ == '__main__':
-  spi = spidev.SpiDev()
-  spi.open(bus=0, device=0)
-  spi.mode = 0b00
-  spi.max_speed_hz = 1000000
-  rgb_leds = [50, 50, 50]
-  spi.writebytes(rgb_leds)
-  spi.close()
+  set_rgb(state_rgb[PROJECTOR])
 
   target_device = None
   for device in [evdev.InputDevice(path) for path in evdev.list_devices()]:
