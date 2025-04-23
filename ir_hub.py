@@ -24,8 +24,8 @@ press_lock  = threading.Lock()
 ir_lock     = threading.Lock()
 
 state_map = {"1":"PROJECTOR", "2":"TV", "3":"LIGHT", "4":"DVD", "5":"TVFIRE", "POWER":"IDLE"}
-state_rgb = {"PROJECTOR":[255, 0, 0], "TV":[0, 255, 0], "LIGHT":[0, 0, 255],
-             "DVD":[255, 255, 0], "TVFIRE":[0, 255, 255], "IDLE":[0, 0, 0]}
+state_rgb = {"PROJECTOR":[100, 0, 100], "TV":[0, 100, 0], "LIGHT":[0, 0, 100],
+             "DVD":[100, 100, 0], "TVFIRE":[0, 100, 100], "IDLE":[0, 0, 0]}
 
 # scancode to readable button name for Elgato EyeTV remote
 scancode_offset = 4539649
@@ -83,6 +83,7 @@ def on_button_press(button_name):
   global state, prev_state, alt_func, mapping
   with press_lock:
     if button_name == "SELECT":
+      set_rgb([255, 0, 0]) # RED
       alt_func = True
       return
     if (alt_func or button_name == "POWER") and button_name in state_map:
@@ -165,11 +166,11 @@ def on_button_press(button_name):
           ir_send_in_thread("DVD POWERON")
       prev_state = state
       state      = state_map[button_name]
-      set_rgb(state_rgb[state])
     else:
       if mapping:
         ir_send_in_thread(f"{mapping.get(button_name, 'UNKNOWN')}")
         alt_func = False # reset alternate function flag at the end of the function after successful command send
+    set_rgb(state_rgb[state]) # always update RGB LED
 
 def switch_tv_on(cur_state, input):
   ir_send_in_thread("TV POWERON") # immediate attempt
