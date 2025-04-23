@@ -20,7 +20,7 @@ pi          = None
 adb_shell   = None
 alt_func    = True
 toggle_bit  = 0
-rgb_val     = 30 # 0..255
+rgb_val     = 10 # 0..255
 press_lock  = threading.Lock()
 ir_lock     = threading.Lock()
 
