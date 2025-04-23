@@ -371,9 +371,6 @@ def send_command(device, command, repeat=1):
       one_gap                = 1629
       zero_gap               = 507
 
-      # TEST
-      repeat = 1
-
       beam_keys = {
         "POWER":  "00011101111010100011000011001111", # 0x1DEA30CF 0xFFFFFFFF
         "MUTE":   "00011101111010101011000001001111", # 0x1DEAB04F 0xFFFFFFFF
@@ -518,38 +515,64 @@ def send_command(device, command, repeat=1):
       curkey = tv_keys.get(command, [])
 
     elif device == "DVD":
-      leading_pulse_duration = 2426
-      leading_gap_duration   = 565
-      one_pulse              = 1221
-      zero_pulse             = 627
-      one_gap                = 569
-      zero_gap               = 569
+      # bits           12
+      # flags SPACE_ENC|CONST_LENGTH
+      # eps            30
+      # aeps          100
+      # header       2448   552
+      # one          1240   557
+      # zero          640   557
+      # post_data_bits  8
+      # post_data      0x47
+      # gap          45087
+      # toggle_bit_mask 0x0
+      # frequency    38000
+      leading_pulse_duration = 2448
+      leading_gap_duration   = 552
+      one_pulse              = 1240
+      zero_pulse             = 640
+      one_gap                = 557
+      zero_gap               = 557
 
       dvd_keys = {
-        "POWER":     "101010001011",
-        "OK":        "101111001011",
-        "UP":        "100111001011",
-        "DOWN":      "010111001011",
-        "AUDIO":     "001001101011",
-        "SUBTITLE":  "110001101011",
-        "1":         "000000001011",
-        "2":         "100000001011",
-        "3":         "010000001011",
-        "4":         "110000001011",
-        "5":         "001000001011",
-        "6":         "101000001011",
-        "7":         "011000001011",
-        "8":         "111000001011",
-        "9":         "000100001011",
-        "0":         "100100001011",
-        "MENU":      "001101001011",
-        "RETURN":    "110000101011",
-        "PLAY":      "010110001011",
-        "RIGHT":     "001111001011",
-        "LEFT":      "110111001011",
-        "STOP":      "000110001011",
-        "HOME":      "010000101011",
-        "POPUPMENU": "100101001011",
+        "POWER":     "101010001011", # 0xA8B
+        "OK":        "101111001011", # 0xBCB
+        "UP":        "100111001011", # 0x9CB
+        "DOWN":      "010111001011", # 0x5CB
+        "RIGHT":     "001111001011", # 0x3CB
+        "LEFT":      "110111001011", # 0xDCB
+        "AUDIO":     "001001101011", # 0x26B
+        "SUBTITLE":  "110001101011", # 0xC6B
+        "1":         "000000001011", # 0x00B
+        "2":         "100000001011", # 0x80B
+        "3":         "010000001011", # 0x40B
+        "4":         "110000001011", # 0xC0B
+        "5":         "001000001011", # 0x20B
+        "6":         "101000001011", # 0xA0B
+        "7":         "011000001011", # 0x60B
+        "8":         "111000001011", # 0xE0B
+        "9":         "000100001011", # 0x10B
+        "0":         "100100001011", # 0x90B
+        "RETURN":    "110000101011", # 0xC2B
+        "PLAY":      "010110001011", # 0x58B
+        "PAUSE":     "100110001011", # 0x98B
+        "STOP":      "000110001011", # 0x18B
+        "HOME":      "010000101011", # 0x42B
+        "POPUPMENU": "100101001011", # 0x94B
+        "EJECT":     "011010001011", # 0x68B
+        "RED":       "111001101011", # 0xE6B
+        "GREEN":     "000101101011", # 0x16B
+        "YELLOW":    "100101101011", # 0x96B
+        "BLUE":      "011001101011", # 0x66B
+        "TOPMENU":   "001101001011", # 0x34B
+        "OPTIONS":   "111111001011", # 0xFCB
+        "PREVIOUS":  "111010101011", # 0xEAB
+        "NEXT":      "011010101011", # 0x6AB
+        "REWIND":    "110110001011", # 0xD8B
+        "FORWARD":   "001110001011", # 0x38B
+        "DISPLAY":   "100000101011", # 0x82B
+        "SEN":       "001100101011", # 0x32B
+        "HEART":     "011110101011", # 0x7AB
       }
       curkey = dvd_keys.get(command, [])
 
