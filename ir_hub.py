@@ -20,12 +20,13 @@ pi          = None
 adb_shell   = None
 alt_func    = True
 toggle_bit  = 0
+rgb_val     = 30 # 0..255
 press_lock  = threading.Lock()
 ir_lock     = threading.Lock()
 
 state_map = {"1":"PROJECTOR", "2":"TV", "3":"LIGHT", "4":"DVD", "5":"TVFIRE", "POWER":"IDLE"}
-state_rgb = {"PROJECTOR":[100, 0, 100], "TV":[0, 100, 0], "LIGHT":[0, 0, 100],
-             "DVD":[100, 100, 0], "TVFIRE":[0, 100, 100], "IDLE":[0, 0, 0]}
+state_rgb = {"PROJECTOR":[rgb_val, 0, rgb_val], "TV":[0, rgb_val, 0], "LIGHT":[0, 0, rgb_val],
+             "DVD":[rgb_val, rgb_val, 0], "TVFIRE":[0, rgb_val, rgb_val], "IDLE":[0, 0, 0]}
 
 # scancode to readable button name for Elgato EyeTV remote
 scancode_offset = 4539649
@@ -83,7 +84,7 @@ def on_button_press(button_name):
   global state, prev_state, alt_func, mapping
   with press_lock:
     if button_name == "SELECT":
-      set_rgb([255, 0, 0]) # RED
+      set_rgb([255, 0, 0]) # RED at highest power
       alt_func = True
       return
     if (alt_func or button_name == "POWER") and button_name in state_map:
