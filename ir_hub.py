@@ -243,7 +243,7 @@ def carrier_frequency(out_pin, frequency, duty_cycle, duration, ir_signal):
     ir_signal.append(pigpio.pulse(0, 1 << out_pin, off_duration))
 
 def ir_sling(out_pin, frequency, duty_cycle, leading_pulse_duration, leading_gap_duration,
-             one_pulse, zero_pulse, one_gap, zero_gap, send_trailing_pulse, code, repeat, rc6_mode):
+             one_pulse, zero_pulse, one_gap, zero_gap, send_trailing_pulse, trailing_gap, code, repeat, rc6_mode):
   # generate waveform
   ir_signal = []
   if rc6_mode:
@@ -311,6 +311,7 @@ def send_command(device, command, repeat=1):
     duty_cycle          = 0.5
     rc6_mode            = False # default: no RC6
     send_trailing_pulse = 1     # default: send trailing pulse
+    trailing_gap        = 110000
     curkey              = []
 
     if device == "BAR": # Philips soundbar HTL2163B
@@ -536,6 +537,9 @@ def send_command(device, command, repeat=1):
       zero_pulse             = 640
       one_gap                = 557
       zero_gap               = 557
+      trailing_gap           = 14400
+      if repeat < 2:
+        repeat = 2
 
       dvd_keys = {
         "POWER":     "10101000101101000111", # 0xA8B 0x47
@@ -583,7 +587,7 @@ def send_command(device, command, repeat=1):
       ir_sling(out_pin, frequency, duty_cycle,
                leading_pulse_duration, leading_gap_duration,
                one_pulse, zero_pulse, one_gap, zero_gap,
-               send_trailing_pulse, curkey, repeat, rc6_mode)
+               send_trailing_pulse, trailing_gap, curkey, repeat, rc6_mode)
 
 if __name__ == '__main__':
   target_device = None
