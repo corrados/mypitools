@@ -304,6 +304,9 @@ def send_command(device, command, repeat=1):
     #  repeat       9070  2159
     #  gap          107799
     #  toggle_bit      0
+    (leading_pulse_duration, leading_gap_duration) = (0, 0)
+    (one_pulse,              zero_pulse)           = (0, 0)
+    (one_gap,                zero_gap)             = (0, 0)
     frequency           = 38000
     duty_cycle          = 0.5
     rc6_mode            = False # default: no RC6
