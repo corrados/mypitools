@@ -24,7 +24,8 @@ press_lock  = threading.Lock()
 ir_lock     = threading.Lock()
 
 state_map = {"1":"PROJECTOR", "2":"TV", "3":"LIGHT", "4":"DVD", "5":"TVFIRE", "POWER":"IDLE"}
-state_rgb = {"PROJECTOR":[255, 0, 0], "TV":[0, 255, 0], "LIGHT":[0, 0, 255], "DVD":[255, 255, 0], "TVFIRE":[0, 255, 255]}
+state_rgb = {"PROJECTOR":[255, 0, 0], "TV":[0, 255, 0], "LIGHT":[0, 0, 255],
+             "DVD":[255, 255, 0], "TVFIRE":[0, 255, 255], "IDLE":[0, 0, 0]}
 
 # scancode to readable button name for Elgato EyeTV remote
 scancode_offset = 4539649
@@ -164,6 +165,7 @@ def on_button_press(button_name):
           ir_send_in_thread("DVD POWERON")
       prev_state = state
       state      = state_map[button_name]
+      set_rgb(state_rgb[state])
     else:
       if mapping:
         ir_send_in_thread(f"{mapping.get(button_name, 'UNKNOWN')}")
@@ -601,8 +603,6 @@ def send_command(device, command, repeat=1):
                send_trailing_pulse, trailing_gap, curkey, repeat, rc6_mode)
 
 if __name__ == '__main__':
-  set_rgb(state_rgb["PROJECTOR"])
-
   target_device = None
   for device in [evdev.InputDevice(path) for path in evdev.list_devices()]:
     if "EyeTV" in device.name:
