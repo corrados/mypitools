@@ -601,7 +601,7 @@ def send_command(device, command, repeat=1):
                send_trailing_pulse, trailing_gap, curkey, repeat, rc6_mode)
 
 if __name__ == '__main__':
-  set_rgb(state_rgb[PROJECTOR])
+  set_rgb(state_rgb["PROJECTOR"])
 
   target_device = None
   for device in [evdev.InputDevice(path) for path in evdev.list_devices()]:
