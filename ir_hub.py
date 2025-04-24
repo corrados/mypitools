@@ -552,5 +552,5 @@ if __name__ == '__main__':
     device_path = target_device.path
     threading.Thread(target=watch_input).start()
   else:
-    raise RuntimeError(f"Input device EyeTV not found.")
+    raise RuntimeError("Input device EyeTV not found.")
 
