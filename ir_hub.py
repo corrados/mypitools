@@ -229,12 +229,6 @@ def set_rgb(rgb_leds):
   spi.writebytes(rgb_leds)
   spi.close()
 
-def start_pigpiod():
-  try:
-    subprocess.run(["pidof", "pigpiod"], check=True, stdout=subprocess.DEVNULL)
-  except subprocess.CalledProcessError:
-    subprocess.Popen(["sudo", "pigpiod"])
-
 def carrier_frequency(out_pin, frequency, duty_cycle, duration, ir_signal):
   one_cycle_time = 1_000_000.0 / frequency
   on_duration    = round(one_cycle_time * duty_cycle)
@@ -604,7 +598,7 @@ if __name__ == '__main__':
       target_device = device
   if target_device:
     adb_connect('firetv')
-    start_pigpiod()
+    subprocess.Popen(["sudo", "pigpiod -m"]) # start pigpiod using "Disable alerts (sampling)" for lower CPU usage
     device_path = target_device.path
     threading.Thread(target=watch_input).start()
   else:
