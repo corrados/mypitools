@@ -38,14 +38,18 @@ scancode_map = {0:"POWER", 1:"MUTE", 2:"1", 3:"2", 4:"3", 5:"4", 6:"5", 7:"6", 8
 # key mapping from EyeTV remote to other device remote
 map_TV = {"CH+":"TV UP", "CH-":"TV DOWN", "VOL-":"TV LEFT", "VOL+":"TV RIGHT", "OK":"TV OK",
 "1":"TV 1", "2":"TV 2", "3":"TV 3", "4":"TV 4", "5":"TV 5", "6":"TV 6", "7":"TV 7", "8":"TV 8",
-"9":"TV 9", "0":"TV 0", "BACK_LEFT":"TV MENU", "MUTE":"BAR MUTE", "RED":"BAR VOL+", "YELLOW":"BAR VOL-",
-"GREEN":"TV CH+", "BLUE":"TV CH-", "TEXT":"TV TEXT", "BACK_RIGHT":"TV LIST"}
+"9":"TV 9", "0":"TV 0", "BACK_LEFT":"TV RETURN", "LAST":"TV MENU", "MUTE":"BAR MUTE",
+"RED":"BAR VOL+", "YELLOW":"BAR VOL-", "GREEN":"TV CH+", "BLUE":"TV CH-",
+"TEXT":"TV TEXT", "BACK_RIGHT":"TV LIST", "ENTER":"TV EXIT", "HOLD":"TV SOURCE"}
 
 map_DVD = {"CH+":"DVD UP", "CH-":"DVD DOWN", "VOL-":"DVD LEFT", "VOL+":"DVD RIGHT", "OK":"DVD OK",
 "1":"DVD 1", "2":"DVD 2", "3":"DVD 3", "4":"DVD 4", "5":"DVD 5", "6":"DVD 6", "7":"DVD 7", "8":"DVD 8",
-"9":"DVD 9", "0":"DVD 0", "BACK_LEFT":"DVD MENU", "RED":"BAR VOL+", "YELLOW":"BAR VOL-"}
+"9":"DVD 9", "0":"DVD 0", "LAST":"DVD MENU", "RED":"BAR VOL+", "YELLOW":"BAR VOL-", "MUTE":"BAR MUTE",
+"BACK_LEFT":"DVD RETURN", "ENTER":"DVD HOME", "TEXT":"DVD POPUPMENU", "BACK_RIGHT":"DVD OPTIONS",
+"PLAY":"DVD PLAY", "FORWARD":"DVD FORWARD", "REWIND":"DVD REWIND", "STOP":"DVD STOP",
+"REC":"DVD EJECT"}
 
-map_PROJECTOR = {"RED":"BAR VOL+", "YELLOW":"BAR VOL-", "MUTE":"BAR MUTE"}
+map_PROJECTOR = {"RED":"BAR VOL+", "YELLOW":"BAR VOL-", "MUTE":"BAR MUTE", "HOLD":"BEAM SOURCE"}
 
 map_LIGHT = {"CH+":"LED BRIGHTER", "CH-":"LED DIMMER", "VOL-":"LED DIMMER", "VOL+":"LED BRIGHTER",
 "RED":"LED BRIGHTER", "YELLOW":"LED DIMMER", "GREEN":"LED BRIGHTER", "BLUE":"LED DIMMER",
