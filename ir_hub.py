@@ -73,7 +73,7 @@ def watch_input():
 def on_button_press(button_name):
   global state, prev_state, alt_func, mapping
   with press_lock:
-    if button_name == "SELECT":
+    if button_name == "SELECT" and state != "IDLE":
       alt_func = not alt_func
     if (alt_func or button_name == "POWER") and button_name in state_map:
       alt_func = False # clear SELECT state
