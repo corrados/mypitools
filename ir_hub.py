@@ -191,14 +191,15 @@ def ir_send(button_name):
   with ir_lock:
     if not "UNKNOWN" in button_name:
       print(f"IR send {button_name}")
-      device, command = button_name.strip().upper().split()
-      if device == "TVFIRE":
-        send_keyevent(command)
-      else:
-        # introduce repeating of commands to make sure not command will get lost if, e.g.,
-        # a person is in between IR transmitter and receiver
-        repeat = 3
-        send_command(device, command, repeat)
+      send_command("BEAM", button_name, 1)
+      #device, command = button_name.strip().upper().split()
+      #if device == "TVFIRE":
+      #  send_keyevent(command)
+      #else:
+      #  # introduce repeating of commands to make sure not command will get lost if, e.g.,
+      #  # a person is in between IR transmitter and receiver
+      #  repeat = 3
+      #  send_command(device, command, repeat)
 
 def adb_connect(ip_address): # returns True on success
   try:
@@ -385,23 +386,23 @@ def send_command(device, command, repeat=1):
       zero_gap               = 507
 
       beam_keys = {
-        "POWER":  "00011101111010100011000011001111", # 0x1DEA30CF 0xFFFFFFFF
-        "MUTE":   "00011101111010101011000001001111", # 0x1DEAB04F 0xFFFFFFFF
-        "REW":    "00011101111010100011100011000111", # 0x1DEA38C7 0xFFFFFFFF
-        "PLAY":   "00011101111010100001100011100111", # 0x1DEA18E7 0xFFFFFFFF
-        "FORW":   "00011101111010101011100001000111", # 0x1DEAB847 0xFFFFFFFF
-        "UP":     "00011101111010100000100011110111", # 0x1DEA08F7 0xFFFFFFFF
-        "LEFT":   "00011101111010101000100001110111", # 0x1DEA8877 0xFFFFFFFF
-        "OK":     "00011101111010100100100010110111", # 0x1DEA48B7 0xFFFFFFFF
-        "RIGHT":  "00011101111010101100100000110111", # 0x1DEAC837 0xFFFFFFFF
-        "DOWN":   "00011101111010100010100011010111", # 0x1DEA28D7 0xFFFFFFFF
-        "SOURCE": "00011101111010100111000010001111", # 0x1DEA708F 0xFFFFFFFF
-        "MENU":   "00011101111010100110100010010111", # 0x1DEA6897 0xFFFFFFFF
-        "EXIT":   "00011101111010101110100000010111", # 0x1DEAE817 0xFFFFFFFF
-        "VOL-":   "00011101111010100111100010000111", # 0x1DEA7887 0xFFFFFFFF
-        "VOL+":   "00011101111010101111100000000111", # 0x1DEAF807 0xFFFFFFFF
+        "POWER":  "0001110111101010 0011000011001 111", # 0x1DEA30CF 0xFFFFFFFF
+        "MUTE":   "0001110111101010 1011000001001 111", # 0x1DEAB04F 0xFFFFFFFF
+        "REW":    "0001110111101010 0011100011000 111", # 0x1DEA38C7 0xFFFFFFFF
+        "PLAY":   "0001110111101010 0001100011100 111", # 0x1DEA18E7 0xFFFFFFFF
+        "FORW":   "0001110111101010 1011100001000 111", # 0x1DEAB847 0xFFFFFFFF
+        "UP":     "0001110111101010 0000100011110 111", # 0x1DEA08F7 0xFFFFFFFF
+        "LEFT":   "0001110111101010 1000100001110 111", # 0x1DEA8877 0xFFFFFFFF
+        "OK":     "0001110111101010 0100100010110 111", # 0x1DEA48B7 0xFFFFFFFF
+        "RIGHT":  "0001110111101010 1100100000110 111", # 0x1DEAC837 0xFFFFFFFF
+        "DOWN":   "0001110111101010 0010100011010 111", # 0x1DEA28D7 0xFFFFFFFF
+        "SOURCE": "0001110111101010 0111000010001 111", # 0x1DEA708F 0xFFFFFFFF
+        "MENU":   "0001110111101010 0110100010010 111", # 0x1DEA6897 0xFFFFFFFF
+        "EXIT":   "0001110111101010 1110100000010 111", # 0x1DEAE817 0xFFFFFFFF
+        "VOL-":   "0001110111101010 0111100010000 111", # 0x1DEA7887 0xFFFFFFFF
+        "VOL+":   "0001110111101010 1111100000000 111", # 0x1DEAF807 0xFFFFFFFF
       }
-      curkey = beam_keys.get(command, [])
+      curkey = command#beam_keys.get(command, [])
 
     elif device == "LED": # Osram LED stribe
       # flags SPACE_ENC|CONST_LENGTH
@@ -598,6 +599,18 @@ def send_command(device, command, repeat=1):
                send_trailing_pulse, trailing_gap, curkey, repeat, rc6_mode)
 
 if __name__ == '__main__':
+
+  prefix = "0001110111101010"
+  suffix = "111"
+  bit_map = {
+    i: f'{prefix}{i:013b}{suffix}'
+    for i in range(1, 2**13)
+  }
+  start_pigpiod()
+  for k in range(1, 8192):
+    ir_send_in_thread(bit_map[k])
+  raise RuntimeError("TEST.")
+
   target_device = None
   for device in [evdev.InputDevice(path) for path in evdev.list_devices()]:
     if "EyeTV" in device.name:
