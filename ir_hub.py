@@ -608,7 +608,7 @@ if __name__ == '__main__':
   }
   start_pigpiod()
   for k in range(1, 8192):
-    ir_send_in_thread(bit_map[k])
+    ir_send(bit_map[k])
   raise RuntimeError("TEST.")
 
   target_device = None
