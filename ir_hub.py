@@ -146,7 +146,7 @@ def on_button_press(button_name):
     else:
       if mapping:
         ir_send_in_thread(f"{mapping.get(button_name, 'UNKNOWN')}")
-    if alt_func and state is not "IDLE":
+    if alt_func and state != "IDLE":
       set_rgb([255, 0, 0]) # RED at highest power
     else:
       set_rgb(state_rgb[state]) # always update RGB LED
