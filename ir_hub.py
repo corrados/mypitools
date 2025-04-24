@@ -74,12 +74,7 @@ def on_button_press(button_name):
   global state, prev_state, alt_func, mapping
   with press_lock:
     if button_name == "SELECT":
-      if alt_func:
-        alt_func = False # second press on SELECT clears it
-      else:
-        set_rgb([255, 0, 0]) # RED at highest power
-        alt_func = True
-        return # return function to avoid RGB LED reset to other color
+      alt_func = not alt_funct
     if (alt_func or button_name == "POWER") and button_name in state_map:
       alt_func = False # clear SELECT state
       if state == state_map[button_name]:
@@ -151,7 +146,10 @@ def on_button_press(button_name):
     else:
       if mapping:
         ir_send_in_thread(f"{mapping.get(button_name, 'UNKNOWN')}")
-    set_rgb(state_rgb[state]) # always update RGB LED
+    if alt_func:
+      set_rgb([255, 0, 0]) # RED at highest power
+    else:
+      set_rgb(state_rgb[state]) # always update RGB LED
 
 def switch_tv_on(cur_state, input):
   ir_send_in_thread("TV POWERON") # immediate attempt
