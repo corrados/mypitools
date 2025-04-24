@@ -530,7 +530,7 @@ if __name__ == '__main__':
     if "EyeTV" in device.name:
       target_device = device
   if target_device:
-    adb_connect('firetv')
+    adb_connect('192-168-178-136')
     subprocess.Popen(["sudo", "pigpiod", "-m"]) # start pigpiod using "Disable alerts (sampling)" for lower CPU usage
     device_path = target_device.path
     threading.Thread(target=watch_input).start()
