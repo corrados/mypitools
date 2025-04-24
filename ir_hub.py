@@ -282,19 +282,17 @@ def ir_sling(out_pin, frequency, duty_cycle, leading_pulse_duration, leading_gap
       ir_signal.append(pigpio.pulse(0, 0, trailing_gap))
   # transmit waveform
   pi = pigpio.pi()
-  if not pi.connected:
-    print("GPIO Initialization failed")
-    return
-  pi.set_mode(out_pin, pigpio.OUTPUT)
-  pi.wave_clear()
-  pi.wave_add_generic(ir_signal)
-  wave_id = pi.wave_create()
-  if wave_id >= 0:
-    for i in range(repeat):
-      pi.wave_send_once(wave_id)
-      while pi.wave_tx_busy():
-        time.sleep(0.01)
-    pi.wave_delete(wave_id)
+  if pi.connected:
+    pi.set_mode(out_pin, pigpio.OUTPUT)
+    pi.wave_clear()
+    pi.wave_add_generic(ir_signal)
+    wave_id = pi.wave_create()
+    if wave_id >= 0:
+      for i in range(repeat):
+        pi.wave_send_once(wave_id)
+        while pi.wave_tx_busy():
+          time.sleep(0.01)
+      pi.wave_delete(wave_id)
   pi.stop()
 
 def send_command(device, command, repeat=1):
