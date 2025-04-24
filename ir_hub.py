@@ -108,7 +108,7 @@ def on_button_press(button_name):
           if not state in ("DVD"):
             threading.Thread(target=switch_projector_on_with_input_select, args=("PROJECTOR", "HDMI1",)).start()
           else:
-            ir_send_in_thread("BEAM HDMI1")
+            pass #ir_send_in_thread("BEAM HDMI1")
         case "2" | "5": # TV/TVFIRE -----
           mapping  = map_TV
           alt_func = False
@@ -153,7 +153,7 @@ def on_button_press(button_name):
           if not state in ("PROJECTOR"):
             threading.Thread(target=switch_projector_on_with_input_select, args=("DVD", "HDMI2",)).start()
           else:
-            ir_send_in_thread("BEAM HDMI2")
+            pass #ir_send_in_thread("BEAM HDMI2")
           ir_send_in_thread("DVD POWER")
       prev_state = state
       state      = state_map[button_name]
@@ -167,27 +167,27 @@ def switch_tv_on(cur_state, input):
   ir_send_in_thread("TV POWERON") # immediate attempt
   ir_send_in_thread(f"TV {input}")
   time.sleep(10) # after cold start, it takes long until it starts
-  if state in (cur_state): # only continue if still in TV state
+  if state in ("TV", "TVFIRE"): # only continue if still in TV state
     ir_send_in_thread("TV POWERON") # try again after a while
     time.sleep(5)
-    if state in (cur_state): # only continue if still in TV state
+    if state in (cur_state): # only switch input if exactly the same state
       ir_send_in_thread(f"TV {input}")
 
 def switch_projector_on_with_input_select(cur_state, input):
-  ir_send_in_thread("BEAM POWER")
-  time.sleep(5)
-  if state in (cur_state): # only continue if still in PROJECTOR state
-    ir_send_in_thread(f"BEAM {input}")
+  ir_send_in_thread("BEAM POWER", 10)
+  #time.sleep(5)
+  #if state in (cur_state): # only continue if still in PROJECTOR state
+  #  ir_send_in_thread(f"BEAM {input}")
 
 def switch_projector_off():
-  ir_send_in_thread("BEAM POWER")
-  time.sleep(1)
-  ir_send_in_thread("BEAM POWER")
+  for i in range(10):
+    ir_send_in_thread("BEAM POWER", 1)
+    time.sleep(0.1)
 
-def ir_send_in_thread(send_arg):
-  threading.Thread(target=ir_send, args=(send_arg,)).start()
+def ir_send_in_thread(button_name, repeat = 3):
+  threading.Thread(target=ir_send, args=(button_name, repeat,)).start()
 
-def ir_send(button_name):
+def ir_send(button_name, repeat):
   with ir_lock:
     if not "UNKNOWN" in button_name:
       print(f"IR send {button_name}")
@@ -195,9 +195,6 @@ def ir_send(button_name):
       if device == "TVFIRE":
         send_keyevent(command)
       else:
-        # introduce repeating of commands to make sure not command will get lost if, e.g.,
-        # a person is in between IR transmitter and receiver
-        repeat = 3
         send_command(device, command, repeat)
 
 def adb_connect(ip_address): # returns True on success
