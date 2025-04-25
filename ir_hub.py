@@ -107,6 +107,7 @@ def on_button_press(button_name):
             threading.Thread(target=switch_projector_on_with_input_select, args=("PROJECTOR", "HDMI1",)).start()
           else:
             pass #ir_send_in_thread("BEAM HDMI1")
+          ir_send_in_thread("LED POWEROFF", 7) # sometimes, LED did not turn off -> do power off again
         case "2" | "5": # TV/TVFIRE -----
           mapping = map_TV
           ir_send_in_thread("LED POWERON")
@@ -119,7 +120,7 @@ def on_button_press(button_name):
             if state in ("TVFIRE"):
               ir_send_in_thread("TV TV")
             else:
-              threading.Thread(target=switch_tv_on, args=("TV", "TV",)).start()
+              threading.Thread(target=switch_tv_on, args=("TV", "CH+",)).start() # "TV TV" does not work correctly
           if button_name == "5":
             if state in ("TV"):
               ir_send_in_thread("TV HDMI1")
@@ -145,6 +146,7 @@ def on_button_press(button_name):
           else:
             pass #ir_send_in_thread("BEAM HDMI2")
           ir_send_in_thread("DVD POWER")
+          ir_send_in_thread("LED POWEROFF", 7) # sometimes, LED did not turn off -> do power off again
       prev_state = state
       state      = state_map[button_name]
     else:
