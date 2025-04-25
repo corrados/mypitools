@@ -88,7 +88,7 @@ def on_button_press(button_name):
         case "POWER":
           mapping  = None
           alt_func = True # special case: per definition True, to be able to select mode right away
-          ir_send_in_thread("LED POWEROFF")
+          ir_send_in_thread("LED POWEROFF", 7)
           ir_send_in_thread("TV POWEROFF")
           if state in ("PROJECTOR", "DVD", "TV", "TVFIRE"):
             ir_send_in_thread("BAR POWER")
@@ -98,7 +98,7 @@ def on_button_press(button_name):
             threading.Thread(target=switch_projector_off).start()
         case "1": # PROJECTOR -----
           mapping = map_PROJECTOR
-          ir_send_in_thread("LED POWEROFF")
+          ir_send_in_thread("LED POWEROFF", 7)
           ir_send_in_thread("TV POWEROFF")
           if state in ("DVD"):
             ir_send_in_thread("DVD POWER")
@@ -137,7 +137,7 @@ def on_button_press(button_name):
           ir_send_in_thread("LED POWERON")
         case "4": # DVD -----
           mapping = map_DVD
-          ir_send_in_thread("LED POWEROFF")
+          ir_send_in_thread("LED POWEROFF", 7)
           ir_send_in_thread("TV POWEROFF")
           ir_send_in_thread("BAR BLUETOOTH") # powers it on, too
           if not state in ("PROJECTOR"):
@@ -166,7 +166,7 @@ def switch_tv_on(cur_state, input):
       ir_send_in_thread(f"TV {input}")
 
 def switch_projector_on_with_input_select(cur_state, input):
-  ir_send_in_thread("BEAM POWER", 10)
+  ir_send_in_thread("BEAM POWER", 7)
   #time.sleep(5)
   #if state in (cur_state): # only continue if still in PROJECTOR state
   #  ir_send_in_thread(f"BEAM {input}")
@@ -297,7 +297,7 @@ def send_command(device, command, repeat=1):
     duty_cycle          = 0.5
     rc6_mode            = False # default: no RC6
     send_trailing_pulse = 1     # default: send trailing pulse
-    trailing_gap        = 0
+    trailing_gap        = 11000
     curkey              = []
 
     if device == "BAR": # Philips soundbar HTL2163B
