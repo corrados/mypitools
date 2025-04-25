@@ -172,7 +172,7 @@ def switch_projector_on_with_input_select(cur_state, input):
   #  ir_send_in_thread(f"BEAM {input}")
 
 def switch_projector_off():
-  for i in range(10):
+  for i in range(7):
     ir_send_in_thread("BEAM POWER", 1)
     time.sleep(0.1)
 
