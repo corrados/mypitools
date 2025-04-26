@@ -499,6 +499,8 @@ def send_command(device, command, repeat=1):
       trailing_gap           = 14400
       dvd_keys = {
         "POWER":     "10101000101101000111", # 0xA8B 0x47
+        "POWEROFF":  "11110100101101000111",
+        "POWERON":   "01110100101101000111",
         "OK":        "10111100101101000111", # 0xBCB 0x47
         "UP":        "10011100101101000111", # 0x9CB 0x47
         "DOWN":      "01011100101101000111", # 0x5CB 0x47
