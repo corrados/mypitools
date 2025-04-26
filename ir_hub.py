@@ -51,7 +51,10 @@ map_DVD = {"CH+":"DVD UP", "CH-":"DVD DOWN", "VOL-":"DVD LEFT", "VOL+":"DVD RIGH
 "PLAY":"DVD PLAY", "FORWARD":"DVD FORWARD", "REWIND":"DVD REWIND", "STOP":"DVD STOP",
 "REC":"DVD EJECT"}
 
-map_PROJECTOR = {"RED":"BAR VOL+", "YELLOW":"BAR VOL-", "MUTE":"BAR MUTE", "HOLD":"BEAM SOURCE"}
+map_PROJECTOR = {"RED":"BAR VOL+", "YELLOW":"BAR VOL-", "MUTE":"BAR MUTE", "HOLD":"BEAM SOURCE",
+"CH+":"FIRETVBEAM KEYCODE_DPAD_UP", "CH-":"FIRETVBEAM KEYCODE_DPAD_DOWN",
+"VOL-":"FIRETVBEAM KEYCODE_DPAD_LEFT", "VOL+":"FIRETVBEAM KEYCODE_DPAD_RIGHT",
+"OK":"FIRETVBEAM KEYCODE_DPAD_CENTER"}
 
 map_LIGHT = {"CH+":"LED BRIGHTER", "CH-":"LED DIMMER", "VOL-":"LED DIMMER", "VOL+":"LED BRIGHTER",
 "RED":"LED BRIGHTER", "YELLOW":"LED DIMMER", "GREEN":"LED BRIGHTER", "BLUE":"LED DIMMER",
@@ -197,26 +200,25 @@ def ir_send(button_name, repeat):
     if not "UNKNOWN" in button_name:
       print(f"IR send {button_name}")
       device, command = button_name.strip().upper().split()
-      if device == "TVFIRE":
+      if device == "FIRETVBEAM"
         send_keyevent(command)
       else:
         send_command(device, command, repeat)
 
 def adb_connect(ip_address): # returns True on success
-  try:
-    r = subprocess.run(["adb", "connect", f"{ip_address}"], capture_output=True, text=True)
-    if "connected" in r.stdout or "already connected" in r.stdout:
-      start_adbshell()
-      return True
-    else:
-      return False
-  except Exception as e:
-    return False
-
-def start_adbshell():
   global adb_shell
-  adb_shell = subprocess.Popen(
-    ["adb", "shell"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+  while True:
+    try:
+      r = subprocess.run(["adb", "connect", f"{ip_address}"], capture_output=True, text=True)
+      if "connected" in r.stdout or "already connected" in r.stdout:
+        if not adb_shell: # only on first connection start adb shell
+          adb_shell = subprocess.Popen(["adb", "shell"],
+                                       stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+      else:
+        adb_shell = None
+    except Exception as e:
+      adb_shell = None
+    time.sleep(1) # check adb status every second
 
 def send_keyevent(keycode):
   if adb_shell:
@@ -549,10 +551,10 @@ if __name__ == '__main__':
     if "EyeTV" in device.name:
       target_device = device
   if target_device:
-    adb_connect('firetv1')
     subprocess.Popen(["sudo", "pigpiod", "-m"]) # start pigpiod using "Disable alerts (sampling)" for lower CPU usage
     set_rgb(state_rgb[state]) # initial update of RGB LED (should be "IDLE" state)
     device_path = target_device.path
-    threading.Thread(target=watch_input).start()
+    threading.Thread(target=adb_connect, args=("firetv1",)).start()
+    watch_input() # blocking forever
   else:
     raise RuntimeError("Input device EyeTV not found.")
