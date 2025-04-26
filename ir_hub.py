@@ -211,17 +211,24 @@ def adb_connect(ip_address): # returns True on success
     try:
       r = subprocess.run(["adb", "connect", f"{ip_address}"], capture_output=True, text=True)
       if "connected" in r.stdout or "already connected" in r.stdout:
-        if not adb_shell: # only on first connection start adb shell
+        if not adb_shell or adb_shell.poll() is not None:
+          if adb_shell:
+            adb_shell.terminate()
+            adb_shell = None
           adb_shell = subprocess.Popen(["adb", "shell"],
                                        stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
       else:
+        if adb_shell:
+          adb_shell.terminate()
         adb_shell = None
     except Exception as e:
+      if adb_shell:
+        adb_shell.terminate()
       adb_shell = None
     time.sleep(1) # check adb status every second
 
 def send_keyevent(keycode):
-  if adb_shell:
+  if adb_shell and adb_shell.poll() is None:
     adb_shell.stdin.write(f"input keyevent {keycode}\n")
     adb_shell.stdin.flush()
 
