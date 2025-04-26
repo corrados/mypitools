@@ -539,8 +539,8 @@ if __name__ == '__main__':
   if target_device:
     adb_connect('192-168-178-136')
     subprocess.Popen(["sudo", "pigpiod", "-m"]) # start pigpiod using "Disable alerts (sampling)" for lower CPU usage
+    set_rgb(state_rgb[state]) # initial update of RGB LED (should be "IDLE" state)
     device_path = target_device.path
     threading.Thread(target=watch_input).start()
   else:
     raise RuntimeError("Input device EyeTV not found.")
-
