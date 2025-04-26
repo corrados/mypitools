@@ -77,7 +77,7 @@ def watch_input():
           last_time = time.time() # mark last_time for idle detection
 
 def on_button_press(button_name):
-  global state, prev_state, alt_func, mapping
+  global state, prev_state, alt_func, mapping, led_is_on
   with press_lock:
     # special key: SELECT
     if button_name == "SELECT" and state != "IDLE":
