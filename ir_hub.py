@@ -555,6 +555,6 @@ if __name__ == '__main__':
     set_rgb(state_rgb[state]) # initial update of RGB LED (should be "IDLE" state)
     device_path = target_device.path
     threading.Thread(target=adb_connect, args=("firetv1",)).start()
-    watch_input() # blocking forever
+    threading.Thread(target=watch_input).start()
   else:
     raise RuntimeError("Input device EyeTV not found.")
