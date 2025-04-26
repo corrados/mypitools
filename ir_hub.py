@@ -85,7 +85,7 @@ def on_button_press(button_name):
     # special key: L
     if button_name == "L": # toggles LED state
       ir_send_in_thread("LED POWEROFF", 7) if led_is_on else ir_send_in_thread("LED POWERON", 7)
-      led_is_on = not led_is_on;
+      led_is_on = not led_is_on
     # special key: POWER
     if (alt_func or button_name == "POWER") and button_name in state_map:
       alt_func = False # clear SELECT state
