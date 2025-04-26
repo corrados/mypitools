@@ -10,6 +10,7 @@ import subprocess
 import pigpio
 import math
 import spidev
+import random
 
 out_pin     = 22
 device_path = None
@@ -159,13 +160,13 @@ def on_button_press(button_name):
 
 def switch_tv_on(cur_state, input):
   ir_send_in_thread("TV POWERON") # immediate attempt
-  ir_send_in_thread(f"TV {input}")
+  time.sleep(5)
+  if state in (cur_state): # only switch input if exactly the same state
+    ir_send_in_thread(f"TV {input}")
   time.sleep(10) # after cold start, it takes long until it starts
   if state in ("TV", "TVFIRE"): # only continue if still in TV state
     ir_send_in_thread("TV POWERON") # try again after a while
-    time.sleep(5)
-    if state in (cur_state): # only switch input if exactly the same state
-      ir_send_in_thread(f"TV {input}")
+    # after cold start, do not switch input since it may be anoying after warm start
 
 def switch_projector_on_with_input_select(cur_state, input):
   ir_send_in_thread("BEAM POWER", 7)
@@ -299,7 +300,7 @@ def send_command(device, command, repeat=1):
     duty_cycle          = 0.5
     rc6_mode            = False # default: no RC6
     send_trailing_pulse = 1     # default: send trailing pulse
-    trailing_gap        = 11000
+    trailing_gap        = random.randint(0, 110000) # avoid collision with EyeTV remote
     curkey              = []
 
     if device == "BAR": # Philips soundbar HTL2163B
