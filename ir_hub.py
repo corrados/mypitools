@@ -200,7 +200,7 @@ def ir_send(button_name, repeat):
     if not "UNKNOWN" in button_name:
       print(f"IR send {button_name}")
       device, command = button_name.strip().upper().split()
-      if device == "FIRETVBEAM"
+      if device == "FIRETVBEAM":
         send_keyevent(command)
       else:
         send_command(device, command, repeat)
