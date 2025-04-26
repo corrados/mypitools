@@ -204,7 +204,7 @@ def ir_send(button_name, repeat):
 
 def adb_connect(ip_address): # returns True on success
   try:
-    r = subprocess.run(["adb", "connect", f"{ip_address}:5555"], capture_output=True, text=True)
+    r = subprocess.run(["adb", "connect", f"{ip_address}"], capture_output=True, text=True)
     if "connected" in r.stdout or "already connected" in r.stdout:
       start_adbshell()
       return True
@@ -549,7 +549,7 @@ if __name__ == '__main__':
     if "EyeTV" in device.name:
       target_device = device
   if target_device:
-    adb_connect('192-168-178-136')
+    adb_connect('firetv1')
     subprocess.Popen(["sudo", "pigpiod", "-m"]) # start pigpiod using "Disable alerts (sampling)" for lower CPU usage
     set_rgb(state_rgb[state]) # initial update of RGB LED (should be "IDLE" state)
     device_path = target_device.path
