@@ -138,6 +138,7 @@ def on_button_press(button_name):
             threading.Thread(target=switch_projector_off).start()
           ir_send_in_thread("DVD POWEROFF")
           ir_send_in_thread("LED WHITE") # initial state of LED
+          threading.Thread(target=led_max_brightness).start()
         case "3": # LIGHT -----
           mapping   = map_LIGHT
           led_is_on = True
@@ -149,6 +150,7 @@ def on_button_press(button_name):
           ir_send_in_thread("TV POWEROFF")
           ir_send_in_thread("DVD POWEROFF")
           ir_send_in_thread("LED WHITE") # initial state of LED
+          threading.Thread(target=led_max_brightness).start()
         case "4": # DVD -----
           mapping   = map_DVD
           led_is_on = False
@@ -196,6 +198,14 @@ def switch_bar_on(input):
   ir_send_in_thread(f"BAR {input}") # powers it on, too
   time.sleep(7)
   ir_send_in_thread("BEAM SURROUNDON") # we always want surround sound activated
+
+def led_max_brightness():
+  for i in range(10):
+    ir_send_in_thread("LED BRIGHTER", 1)
+    time.sleep(0.1)
+  for i in range(3): # make it a bit dimmer since max brightness is too intense
+    ir_send_in_thread("LED DIMMER", 1)
+    time.sleep(0.1)
 
 def ir_send_in_thread(button_name, repeat = 3):
   threading.Thread(target=ir_send, args=(button_name, repeat,)).start()
