@@ -381,6 +381,7 @@ def send_command(device, command, repeat=1):
       zero_pulse             = 619
       one_gap                = 1629
       zero_gap               = 507
+      trailing_gap           = 10000
       beam_keys = {
         "POWER":  "00011101111010100011000011001111", # 0x1DEA30CF
         "MUTE":   "00011101111010101011000001001111", # 0x1DEAB04F
@@ -410,6 +411,7 @@ def send_command(device, command, repeat=1):
       zero_pulse             = 604
       one_gap                = 1645
       zero_gap               = 519
+      trailing_gap           = 110000
       led_keys = {
         "POWEROFF": "10000000011111110110000110011110", # 0x807F619E
         "POWERON":  "10000000011111111110000100011110", # 0x807FE11E
