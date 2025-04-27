@@ -334,7 +334,7 @@ def send_command(device, command, repeat=1):
     duty_cycle          = 0.5
     rc6_mode            = False # default: no RC6
     send_trailing_pulse = 1     # default: send trailing pulse
-    trailing_gap        = random.randint(0, 110000) # avoid collision with EyeTV remote
+    trailing_gap        = 0
     curkey              = []
 
     if device == "BAR": # Philips soundbar HTL2163B
