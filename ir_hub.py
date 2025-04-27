@@ -101,7 +101,7 @@ def on_button_press(button_name):
           alt_func  = True # special case: per definition True, to be able to select mode right away
           led_is_on = False
           if state in ("PROJECTOR", "DVD", "TV", "TVFIRE"):
-            ir_send_in_thread("BAR POWER")
+            ir_send_in_thread("BAR POWER") # doesn't matter if incorrect, switches off after 15 minutes idle anyway
           if state in ("PROJECTOR", "DVD"):
             threading.Thread(target=switch_projector_off).start()
           ir_send_in_thread("TV POWEROFF")
@@ -114,7 +114,7 @@ def on_button_press(button_name):
             threading.Thread(target=switch_projector_on_with_input_select, args=("PROJECTOR", "HDMI1",)).start()
           else:
             pass #ir_send_in_thread("BEAM HDMI1")
-          ir_send_in_thread("BAR BLUETOOTH") # powers it on, too
+          threading.Thread(target=switch_bar_on, args=("BLUETOOTH",)).start()
           ir_send_in_thread("LED POWEROFF", 7)
           ir_send_in_thread("TV POWEROFF")
           ir_send_in_thread("DVD POWEROFF")
@@ -133,7 +133,7 @@ def on_button_press(button_name):
               ir_send_in_thread("TV HDMI1")
             else:
               threading.Thread(target=switch_tv_on, args=("TVFIRE", "HDMI1",)).start()
-          ir_send_in_thread("BAR OPTICAL") # powers it on, too
+          threading.Thread(target=switch_bar_on, args=("OPTICAL",)).start()
           if state in ("PROJECTOR", "DVD"):
             threading.Thread(target=switch_projector_off).start()
           ir_send_in_thread("DVD POWEROFF")
@@ -143,7 +143,7 @@ def on_button_press(button_name):
           led_is_on = True
           ir_send_in_thread("LED POWERON")
           if state in ("PROJECTOR", "DVD", "TV", "TVFIRE"):
-            ir_send_in_thread("BAR POWER")
+            ir_send_in_thread("BAR POWER") # doesn't matter if incorrect, switches off after 15 minutes idle anyway
           if state in ("PROJECTOR", "DVD"):
             threading.Thread(target=switch_projector_off).start()
           ir_send_in_thread("TV POWEROFF")
@@ -153,7 +153,7 @@ def on_button_press(button_name):
           mapping   = map_DVD
           led_is_on = False
           ir_send_in_thread("DVD POWERON")
-          ir_send_in_thread("BAR BLUETOOTH") # powers it on, too
+          threading.Thread(target=switch_bar_on, args=("BLUETOOTH",)).start()
           if not state in ("PROJECTOR"):
             threading.Thread(target=switch_projector_on_with_input_select, args=("DVD", "HDMI2",)).start()
           else:
@@ -191,6 +191,11 @@ def switch_projector_off():
   for i in range(7):
     ir_send_in_thread("BEAM POWER", 1)
     time.sleep(0.1)
+
+def switch_bar_on(input):
+  ir_send_in_thread(f"BAR {input}") # powers it on, too
+  time.sleep(7)
+  ir_send_in_thread("BEAM SURROUNDON") # we always want surround sound activated
 
 def ir_send_in_thread(button_name, repeat = 3):
   threading.Thread(target=ir_send, args=(button_name, repeat,)).start()
