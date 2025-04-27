@@ -197,7 +197,7 @@ def switch_projector_off():
 def switch_bar_on(input):
   ir_send_in_thread(f"BAR {input}") # powers it on, too
   time.sleep(15)
-  ir_send_in_thread("BEAM SURROUNDON") # we always want surround sound activated
+  ir_send_in_thread("BAR SURROUNDON") # we always want surround sound activated
 
 def led_max_brightness():
   for i in range(10):
