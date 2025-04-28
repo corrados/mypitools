@@ -51,7 +51,8 @@ map_DVD = {"CH+":"DVD UP", "CH-":"DVD DOWN", "VOL-":"DVD LEFT", "VOL+":"DVD RIGH
 "PLAY":"DVD PLAY", "FORWARD":"DVD FORWARD", "REWIND":"DVD REWIND", "STOP":"DVD STOP",
 "REC":"DVD EJECT"}
 
-map_PROJECTOR = {"RED":"BAR VOL+", "YELLOW":"BAR VOL-", "MUTE":"BAR MUTE", "HOLD":"BEAM SOURCE",
+map_PROJECTOR = {"RED":"BAR VOL+", "YELLOW":"BAR VOL-", "MUTE":"BAR MUTE",
+"HOLD":"BEAM SOURCE", "ENTER":"BEAM OK", "LAST":"BEAM EXIT",
 "CH+":"FIRETVBEAM KEYCODE_DPAD_UP", "CH-":"FIRETVBEAM KEYCODE_DPAD_DOWN",
 "VOL-":"FIRETVBEAM KEYCODE_DPAD_LEFT", "VOL+":"FIRETVBEAM KEYCODE_DPAD_RIGHT",
 "OK":"FIRETVBEAM KEYCODE_DPAD_CENTER"}
@@ -60,7 +61,12 @@ map_LIGHT = {"CH+":"LED BRIGHTER", "CH-":"LED DIMMER", "VOL-":"LED DIMMER", "VOL
 "RED":"LED BRIGHTER", "YELLOW":"LED DIMMER", "GREEN":"LED BRIGHTER", "BLUE":"LED DIMMER",
 "1":"LED WHITE", "2":"LED ORANGE", "3":"LED ORANGE1", "4":"LED BLUE", "5":"LED BLUE1",
 "6":"LED BLUE2", "7":"LED YELLOW", "8":"LED MAGENTA", "9":"LED MAGENTA1", "0":"LED MAGENTA2",
-"BACK_LEFT":"LED RED1", "OK":"LED WHITE", "BACK_RIGHT":"LED SMOOTH"}
+"LAST":"LED RED1", "ENTER":"LED CYAN", "OK":"LED WHITE", "PLAY":"LED SMOOTH"}
+
+map_select = {"CH+":"LED BRIGHTER", "CH-":"LED DIMMER",
+"RED":"BAR BASS+", "YELLOW":"BAR BASS-", "GREEN":"BAR TREB+", "BLUE":"BAR TREB-",
+"HOLD":"TV HDMI1", "STOP":"TV HDMI2", "TEXT":"TV HDMI3", "REC":"TV HDMI4",
+"REWIND":"DVD AUDIO", "FORWARD":"DVD SUBTITLE"}
 
 def watch_input():
   (last_scancode, last_time) = (None, 0) # state
@@ -166,7 +172,9 @@ def on_button_press(button_name):
       prev_state = state
       state      = state_map[button_name]
     else:
-      if mapping:
+      if alt_func:
+        ir_send_in_thread(f"{map_select.get(button_name, 'UNKNOWN')}")
+      elif mapping:
         ir_send_in_thread(f"{mapping.get(button_name, 'UNKNOWN')}")
     if alt_func and state != "IDLE":
       set_rgb([255, 0, 0]) # RED at highest power
