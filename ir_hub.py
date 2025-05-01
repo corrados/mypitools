@@ -83,6 +83,7 @@ def playstation_remote_input():
       #print("ir_hub: ACL Data:", value)
 
 def eyetv_remote_input():
+  time.sleep(5) # let device be initialized in system on startup
   target_device = None
   for device in [evdev.InputDevice(path) for path in evdev.list_devices()]:
     if "EyeTV" in device.name:
