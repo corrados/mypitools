@@ -79,10 +79,11 @@ def playstation_remote_input():
     if pkt[0] == HCI_EVENT_PKT:
       pass #print("ir_hub: HCI Event:", pkt.hex())
     elif pkt[0] == HCI_ACLDATA_PKT:
-      value = int.from_bytes(pkt[11:-7])
-      button_name = playstation_map.get(value, f"UNKNOWN ({value})")
-      threading.Thread(target=on_button_press, args=(button_name,)).start()
-      print("ir_hub: ACL Data:", pkt.hex())
+      if pkt.startswith(bytes.fromhex("02462011000d004100a101")) and pkt.endswith(bytes.fromhex("ffffffffff0104")):
+        value = int.from_bytes(pkt[11:-7])
+        button_name = playstation_map.get(value, f"UNKNOWN ({value})")
+        threading.Thread(target=on_button_press, args=(button_name,)).start()
+        #print("ir_hub: ACL Data:", pkt.hex())
 
 def eyetv_remote_input():
   time.sleep(5) # let device be initialized in system on startup
