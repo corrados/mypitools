@@ -21,7 +21,6 @@ state_rgb = {"PROJECTOR":[0, 0, rgb_val], "TV":[0, rgb_val, 0], "LIGHT":[rgb_val
              "DVD":[rgb_val, rgb_val, 0], "TVFIRE":[rgb_val, 0, rgb_val], "IDLE":[0, 0, 0]}
 
 # scancode to readable button name for Elgato EyeTV remote
-scancode_offset = 4539649
 scancode_map = {0:"POWER", 1:"MUTE", 2:"1", 3:"2", 4:"3", 5:"4", 6:"5", 7:"6", 8:"7", 9:"8",
 10:"9", 11:"LAST", 12:"0", 13:"ENTER", 14:"RED", 15:"CH+", 16:"GREEN", 17:"VOL-", 18:"OK",
 19:"VOL+", 20:"YELLOW", 21:"CH-", 22:"BLUE", 23:"BACK_LEFT", 24:"PLAY", 25:"BACK_RIGHT",
@@ -69,7 +68,8 @@ def playstation_remote_input():
     if pkt[0] == HCI_EVENT_PKT:
       print("ir_hub: HCI Event:", pkt.hex())
     elif pkt[0] == HCI_ACLDATA_PKT:
-      print("ir_hub: ACL Data:", pkt.hex())
+      value = int.from_bytes(pkt[11:-7])
+      print("ir_hub: ACL Data:", value)
 
 def eyetv_remote_input():
   target_device = None
@@ -87,7 +87,7 @@ def eyetv_remote_input():
       if data:
         _, _, event_type, code, value = struct.unpack("llHHI", data)
         if event_type == 4 and code == 4: # MSC_SCAN
-          scancode = value - scancode_offset
+          scancode = value - 4539649
           button_name = scancode_map.get(scancode, f"UNKNOWN ({scancode})")
           if scancode != last_scancode or time.time() - last_time > 0.2 or button_name in {"RED", "YELLOW"}:
             last_scancode = scancode
