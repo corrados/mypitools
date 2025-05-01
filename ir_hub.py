@@ -26,6 +26,15 @@ scancode_map = {0:"POWER", 1:"MUTE", 2:"1", 3:"2", 4:"3", 5:"4", 6:"5", 7:"6", 8
 19:"VOL+", 20:"YELLOW", 21:"CH-", 22:"BLUE", 23:"BACK_LEFT", 24:"PLAY", 25:"BACK_RIGHT",
 26:"REWIND", 27:"L", 28:"FORWARD", 29:"STOP", 30:"TEXT", 63:"REC", 64:"HOLD", 65:"SELECT"}
 
+# scancode to readable button name for Playstation BD remote
+playstation_map = {22:"EJECT", 0:"1", 1:"2", 2:"3", 3:"4", 4:"5", 5:"6", 6:"7", 7:"8", 8:"9", 9:"0",
+100:"AUIDO", 101:"ANGLE", 99:"SUBTITLE", 15:"CLEAR", 40:"TIME", 129:"RED", 130:"GREEN", 128:"BLUE",
+131:"YELLOW", 112:"DISPLAY", 26:"TOPMENU", 64:"POPUP", 14:"RETURN", 1048668:"OPTIONS", 2097245:"BACK",
+268435540:"UP", 1073741910:"DOWN", 2147483735:"LEFT", 536870997:"RIGHT", 2059:"ENTER", 8388703:"VIEW",
+4194398:"X", 262234:"L1", 65624:"L2", 33554513:"L3", 524379:"R1", 131161:"R2", 67108946:"R3",
+323:"PLAYSTATION", 16777296:"SELECT", 134217811:"START", 51:"REWIND", 50:"PLAY", 52:"FORWARD",
+48:"PREVIOUS", 56:"STOP", 49:"NEXT", 96:"SLOWREWIND", 57:"PAUSE", 97:"SLOWFORWARD"}
+
 # key mapping from EyeTV remote to other device remote
 map_TV = {"CH+":"TV UP", "CH-":"TV DOWN", "VOL-":"TV LEFT", "VOL+":"TV RIGHT", "OK":"TV OK",
 "1":"TV 1", "2":"TV 2", "3":"TV 3", "4":"TV 4", "5":"TV 5", "6":"TV 6", "7":"TV 7", "8":"TV 8",
@@ -66,10 +75,12 @@ def playstation_remote_input():
   while True:
     pkt = sock.recv(2048)
     if pkt[0] == HCI_EVENT_PKT:
-      print("ir_hub: HCI Event:", pkt.hex())
+      #print("ir_hub: HCI Event:", pkt.hex())
     elif pkt[0] == HCI_ACLDATA_PKT:
       value = int.from_bytes(pkt[11:-7])
-      print("ir_hub: ACL Data:", value)
+      button_name = playstation_map.get(value, f"UNKNOWN ({value})")
+      threading.Thread(target=on_button_press, args=(button_name,)).start()
+      #print("ir_hub: ACL Data:", value)
 
 def eyetv_remote_input():
   target_device = None
