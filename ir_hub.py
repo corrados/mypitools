@@ -103,7 +103,7 @@ def eyetv_remote_input():
         if event_type == 4 and code == 4: # MSC_SCAN
           scancode = value - 4539649
           button_name = eyetv_map.get(scancode, f"UNKNOWN ({scancode})")
-          button_name = eyetv_convert.get(scancode, button_name)
+          button_name = eyetv_convert.get(button_name, button_name)
           if scancode != last_scancode or time.time() - last_time > 0.2 or button_name in {"RED", "YELLOW"}:
             last_scancode = scancode
             threading.Thread(target=on_button_press, args=(button_name,)).start()
