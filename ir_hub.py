@@ -37,6 +37,8 @@ playstation_map = {22:"EJECT", 0:"1", 1:"2", 2:"3", 3:"4", 4:"5", 5:"6", 6:"7", 
 323:"PLAYSTATION", 16777296:"SELECT", 134217811:"START", 51:"REWIND", 50:"PLAY", 52:"FORWARD",
 48:"PREVIOUS", 56:"STOP", 49:"NEXT", 96:"SLOWREWIND", 57:"PAUSE", 97:"SLOWFORWARD"}
 
+playstation_convert = {"EJECT":"POWER", "L1":"LIGHT"}
+
 # key mapping from EyeTV remote to other device remote
 map_TV = {"UP":"TV UP", "DOWN":"TV DOWN", "LEFT":"TV LEFT", "RIGHT":"TV RIGHT", "OK":"TV OK",
 "1":"TV 1", "2":"TV 2", "3":"TV 3", "4":"TV 4", "5":"TV 5", "6":"TV 6", "7":"TV 7", "8":"TV 8",
@@ -82,6 +84,7 @@ def playstation_remote_input():
       if pkt.startswith(bytes.fromhex("02462011000d004100a101")) and pkt.endswith(bytes.fromhex("ffffffffff0104")):
         value = int.from_bytes(pkt[11:-7])
         button_name = playstation_map.get(value, f"UNKNOWN ({value})")
+        button_name = playstation_convert.get(button_name, button_name)
         threading.Thread(target=on_button_press, args=(button_name,)).start()
         #print("ir_hub: ACL Data:", pkt.hex())
 
