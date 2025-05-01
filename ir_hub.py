@@ -1,16 +1,6 @@
 #!/usr/bin/env python3
-
 # created with help of ChatGPT
-
-import threading
-import struct
-import time
-import evdev
-import subprocess
-import pigpio
-import math
-import spidev
-import random
+import threading, struct, time, evdev, subprocess, pigpio, math, spidev, random, socket, os
 
 out_pin     = 22
 device_path = None
@@ -68,6 +58,19 @@ map_select = {"CH+":"LED BRIGHTER", "CH-":"LED DIMMER",
 "HOLD":"TV HDMI1", "STOP":"TV HDMI2", "TEXT":"TV HDMI3", "REC":"TV HDMI4",
 "REWIND":"DVD AUDIO", "FORWARD":"DVD SUBTITLE"}
 
+def playstation_remote_input():
+  HCI_ACLDATA_PKT = 0x02
+  HCI_EVENT_PKT   = 0x04
+  sock = socket.socket(socket.AF_BLUETOOTH, socket.SOCK_RAW, 1)
+  sock.bind((0,))
+  sock.setsockopt(0, 2, struct.pack("LLLH", (1 << HCI_EVENT_PKT) | (1 << HCI_ACLDATA_PKT), 0xffffffff, 0xffffffff, 0))
+  while True:
+    pkt = sock.recv(2048)
+    if pkt[0] == HCI_EVENT_PKT:
+      pass #print("HCI Event:", pkt.hex())
+    elif pkt[0] == HCI_ACLDATA_PKT:
+      pass #print("ACL Data:", pkt.hex())
+
 def eyetv_remote_input():
   target_device = None
   for device in [evdev.InputDevice(path) for path in evdev.list_devices()]:
@@ -92,6 +95,22 @@ def eyetv_remote_input():
           last_time = time.time()
         elif event_type == 0: # EV_SYN (sync event)
           last_time = time.time() # mark last_time for idle detection
+
+def socket_input():
+  socket_path = "/tmp/ir_hub_script.sock"
+  if os.path.exists(socket_path):
+    os.remove(socket_path)
+  server_socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+  server_socket.bind(socket_path)
+  server_socket.listen(1)
+  while True:
+    client_socket, _ = server_socket.accept()
+    with client_socket:
+      while True:
+        data = client_socket.recv(1024)
+        if not data:
+          break
+        on_button_press(data.decode('utf-8').strip())
 
 def on_button_press(button_name):
   global state, prev_state, alt_func, mapping, led_is_on
@@ -590,3 +609,5 @@ if __name__ == '__main__':
   set_rgb(state_rgb[state]) # initial update of RGB LED (should be "IDLE" state)
   threading.Thread(target=adb_connect, args=("firetv1",)).start()
   threading.Thread(target=eyetv_remote_input).start()
+  threading.Thread(target=playstation_remote_input).start()
+  threading.Thread(target=socket_input).start()
