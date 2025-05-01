@@ -82,7 +82,7 @@ def playstation_remote_input():
       value = int.from_bytes(pkt[11:-7])
       button_name = playstation_map.get(value, f"UNKNOWN ({value})")
       threading.Thread(target=on_button_press, args=(button_name,)).start()
-      #print("ir_hub: ACL Data:", value)
+      print("ir_hub: ACL Data:", pkt.hex())
 
 def eyetv_remote_input():
   time.sleep(5) # let device be initialized in system on startup
