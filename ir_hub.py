@@ -75,7 +75,7 @@ def playstation_remote_input():
   while True:
     pkt = sock.recv(2048)
     if pkt[0] == HCI_EVENT_PKT:
-      #print("ir_hub: HCI Event:", pkt.hex())
+      pass #print("ir_hub: HCI Event:", pkt.hex())
     elif pkt[0] == HCI_ACLDATA_PKT:
       value = int.from_bytes(pkt[11:-7])
       button_name = playstation_map.get(value, f"UNKNOWN ({value})")
