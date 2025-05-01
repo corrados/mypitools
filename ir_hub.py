@@ -21,10 +21,12 @@ state_rgb = {"PROJECTOR":[0, 0, rgb_val], "TV":[0, rgb_val, 0], "LIGHT":[rgb_val
              "DVD":[rgb_val, rgb_val, 0], "TVFIRE":[rgb_val, 0, rgb_val], "IDLE":[0, 0, 0]}
 
 # scancode to readable button name for Elgato EyeTV remote
-scancode_map = {0:"POWER", 1:"MUTE", 2:"1", 3:"2", 4:"3", 5:"4", 6:"5", 7:"6", 8:"7", 9:"8",
+eyetv_map = {0:"POWER", 1:"MUTE", 2:"1", 3:"2", 4:"3", 5:"4", 6:"5", 7:"6", 8:"7", 9:"8",
 10:"9", 11:"LAST", 12:"0", 13:"ENTER", 14:"RED", 15:"UP", 16:"GREEN", 17:"LEFT", 18:"OK",
 19:"RIGHT", 20:"YELLOW", 21:"DOWN", 22:"BLUE", 23:"BACK_LEFT", 24:"PLAY", 25:"BACK_RIGHT",
 26:"REWIND", 27:"L", 28:"FORWARD", 29:"STOP", 30:"TEXT", 63:"REC", 64:"HOLD", 65:"SELECT"}
+
+eyetv_convert = {"L":"LIGHT"}
 
 # scancode to readable button name for Playstation BD remote
 playstation_map = {22:"EJECT", 0:"1", 1:"2", 2:"3", 3:"4", 4:"5", 5:"6", 6:"7", 7:"8", 8:"9", 9:"0",
@@ -100,7 +102,8 @@ def eyetv_remote_input():
         _, _, event_type, code, value = struct.unpack("llHHI", data)
         if event_type == 4 and code == 4: # MSC_SCAN
           scancode = value - 4539649
-          button_name = scancode_map.get(scancode, f"UNKNOWN ({scancode})")
+          button_name = eyetv_map.get(scancode, f"UNKNOWN ({scancode})")
+          button_name = eyetv_convert.get(scancode, button_name)
           if scancode != last_scancode or time.time() - last_time > 0.2 or button_name in {"RED", "YELLOW"}:
             last_scancode = scancode
             threading.Thread(target=on_button_press, args=(button_name,)).start()
@@ -131,7 +134,7 @@ def on_button_press(button_name):
     if button_name == "SELECT" and state != "IDLE":
       alt_func = not alt_func
     # special key: L
-    if button_name == "L": # toggles LED state, do not change color or brightness per definition
+    if button_name == "LIGHT": # toggles LED state, do not change color or brightness per definition
       ir_send_in_thread("LED POWEROFF", 7) if led_is_on else ir_send_in_thread("LED POWERON", 7)
       led_is_on = not led_is_on
     # special key: POWER
