@@ -68,7 +68,15 @@ map_select = {"CH+":"LED BRIGHTER", "CH-":"LED DIMMER",
 "HOLD":"TV HDMI1", "STOP":"TV HDMI2", "TEXT":"TV HDMI3", "REC":"TV HDMI4",
 "REWIND":"DVD AUDIO", "FORWARD":"DVD SUBTITLE"}
 
-def watch_input():
+def eyetv_remote_input():
+  target_device = None
+  for device in [evdev.InputDevice(path) for path in evdev.list_devices()]:
+    if "EyeTV" in device.name:
+      target_device = device
+  if target_device:
+    device_path = target_device.path
+  else:
+    raise RuntimeError("Input device EyeTV not found.")
   (last_scancode, last_time) = (None, 0) # state
   with open(device_path, "rb") as f:
     while True:
@@ -578,15 +586,7 @@ def send_command(device, command, repeat=1):
                send_trailing_pulse, trailing_gap, curkey, repeat, rc6_mode)
 
 if __name__ == '__main__':
-  target_device = None
-  for device in [evdev.InputDevice(path) for path in evdev.list_devices()]:
-    if "EyeTV" in device.name:
-      target_device = device
-  if target_device:
-    subprocess.Popen(["sudo", "pigpiod", "-m"]) # start pigpiod using "Disable alerts (sampling)" for lower CPU usage
-    set_rgb(state_rgb[state]) # initial update of RGB LED (should be "IDLE" state)
-    device_path = target_device.path
-    threading.Thread(target=adb_connect, args=("firetv1",)).start()
-    threading.Thread(target=watch_input).start()
-  else:
-    raise RuntimeError("Input device EyeTV not found.")
+  subprocess.Popen(["sudo", "pigpiod", "-m"]) # start pigpiod using "Disable alerts (sampling)" for lower CPU usage
+  set_rgb(state_rgb[state]) # initial update of RGB LED (should be "IDLE" state)
+  threading.Thread(target=adb_connect, args=("firetv1",)).start()
+  threading.Thread(target=eyetv_remote_input).start()
