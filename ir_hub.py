@@ -148,8 +148,7 @@ def on_button_press(button_name):
       if state == state_map[button_name]:
         print("Help action requested -> do transition again")
         state = prev_state;
-      match button_name:
-        case "POWER":
+        if button_name == "POWER":
           mapping   = None
           alt_func  = True # special case: per definition True, to be able to select mode right away
           led_is_on = False
@@ -160,7 +159,7 @@ def on_button_press(button_name):
           ir_send_in_thread("TV POWEROFF", 3)
           ir_send_in_thread("DVD POWEROFF", 3)
           ir_send_in_thread("LED POWEROFF", 7)
-        case "1": # PROJECTOR -----
+        elif button_name == "1": # PROJECTOR -----
           mapping   = map_PROJECTOR
           led_is_on = False
           if not state in ("DVD"):
@@ -172,7 +171,7 @@ def on_button_press(button_name):
           ir_send_in_thread("TV POWEROFF", 3)
           ir_send_in_thread("DVD POWEROFF", 3)
           ir_send_in_thread("LED POWEROFF", 7) # sometimes, LED did not turn off -> do power off again
-        case "2" | "5": # TV/TVFIRE -----
+        elif button_name == "2" or button_name == "5": # TV/TVFIRE -----
           mapping   = map_TV
           led_is_on = True
           ir_send_in_thread("LED POWERON", 3)
@@ -192,7 +191,7 @@ def on_button_press(button_name):
           ir_send_in_thread("DVD POWEROFF", 3)
           ir_send_in_thread("LED WHITE", 3) # initial state of LED
           threading.Thread(target=led_max_brightness).start()
-        case "3": # LIGHT -----
+        elif button_name == "3": # LIGHT -----
           mapping   = map_LIGHT
           led_is_on = True
           ir_send_in_thread("LED POWERON", 3)
@@ -204,7 +203,7 @@ def on_button_press(button_name):
           ir_send_in_thread("DVD POWEROFF", 3)
           ir_send_in_thread("LED WHITE", 3) # initial state of LED
           threading.Thread(target=led_max_brightness).start()
-        case "4": # DVD -----
+        elif button_name == "4": # DVD -----
           mapping   = map_DVD
           led_is_on = False
           ir_send_in_thread("DVD POWERON", 3)
@@ -631,3 +630,19 @@ if __name__ == '__main__':
   threading.Thread(target=eyetv_remote_input).start()
   threading.Thread(target=playstation_remote_input).start()
   threading.Thread(target=socket_input).start()
+
+# sudo systemctl enable ir_hub.service
+# ir_hub.service:
+# [Unit]
+# Description=Infraed hub with Python in mypitools
+# After=network.target
+#
+# [Service]
+# ExecStart=/usr/bin/python3 /home/pi/mypitools/ir_hub.py
+# WorkingDirectory=/home/pi/mypitools/
+# Restart=always
+# User=root
+# Environment=PYTHONUNBUFFERED=1
+#
+# [Install]
+# WantedBy=multi-user.target
