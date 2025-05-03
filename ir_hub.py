@@ -257,10 +257,10 @@ def switch_bar_on(input):
 def led_max_brightness():
   for i in range(10):
     ir_send_in_thread("LED BRIGHTER")
-    time.sleep(0.5)
+    time.sleep(0.3)
   for i in range(3): # make it a bit dimmer since max brightness is too intense
     ir_send_in_thread("LED DIMMER")
-    time.sleep(0.5)
+    time.sleep(0.3)
 
 def ir_send_in_thread(button_name, repeat = 1):
   threading.Thread(target=ir_send, args=(button_name, repeat,)).start()
