@@ -148,73 +148,73 @@ def on_button_press(button_name):
       if state == state_map[button_name]:
         print("Help action requested -> do transition again")
         state = prev_state;
-        if button_name == "POWER":
-          mapping   = None
-          alt_func  = True # special case: per definition True, to be able to select mode right away
-          led_is_on = False
-          if state in ("PROJECTOR", "DVD", "TV", "TVFIRE"):
-            ir_send_in_thread("BAR POWER", 3) # doesn't matter if incorrect, switches off after 15 minutes idle anyway
-          if state in ("PROJECTOR", "DVD"):
-            threading.Thread(target=switch_projector_off).start()
-          ir_send_in_thread("TV POWEROFF", 3)
-          ir_send_in_thread("DVD POWEROFF", 3)
-          ir_send_in_thread("LED POWEROFF", 7)
-        elif button_name == "1": # PROJECTOR -----
-          mapping   = map_PROJECTOR
-          led_is_on = False
-          if not state in ("DVD"):
-            threading.Thread(target=switch_projector_on_with_input_select, args=("PROJECTOR", "HDMI1",)).start()
+      if button_name == "POWER":
+        mapping   = None
+        alt_func  = True # special case: per definition True, to be able to select mode right away
+        led_is_on = False
+        if state in ("PROJECTOR", "DVD", "TV", "TVFIRE"):
+          ir_send_in_thread("BAR POWER", 3) # doesn't matter if incorrect, switches off after 15 minutes idle anyway
+        if state in ("PROJECTOR", "DVD"):
+          threading.Thread(target=switch_projector_off).start()
+        ir_send_in_thread("TV POWEROFF", 3)
+        ir_send_in_thread("DVD POWEROFF", 3)
+        ir_send_in_thread("LED POWEROFF", 7)
+      elif button_name == "1": # PROJECTOR -----
+        mapping   = map_PROJECTOR
+        led_is_on = False
+        if not state in ("DVD"):
+          threading.Thread(target=switch_projector_on_with_input_select, args=("PROJECTOR", "HDMI1",)).start()
+        else:
+          pass #ir_send_in_thread("BEAM HDMI1")
+        threading.Thread(target=switch_bar_on, args=("BLUETOOTH",)).start()
+        ir_send_in_thread("LED POWEROFF", 7)
+        ir_send_in_thread("TV POWEROFF", 3)
+        ir_send_in_thread("DVD POWEROFF", 3)
+        ir_send_in_thread("LED POWEROFF", 7) # sometimes, LED did not turn off -> do power off again
+      elif button_name == "2" or button_name == "5": # TV/TVFIRE -----
+        mapping   = map_TV
+        led_is_on = True
+        ir_send_in_thread("LED POWERON", 3)
+        if button_name == "2":
+          if state in ("TVFIRE"):
+            ir_send_in_thread("TV CH+")
           else:
-            pass #ir_send_in_thread("BEAM HDMI1")
-          threading.Thread(target=switch_bar_on, args=("BLUETOOTH",)).start()
-          ir_send_in_thread("LED POWEROFF", 7)
-          ir_send_in_thread("TV POWEROFF", 3)
-          ir_send_in_thread("DVD POWEROFF", 3)
-          ir_send_in_thread("LED POWEROFF", 7) # sometimes, LED did not turn off -> do power off again
-        elif button_name == "2" or button_name == "5": # TV/TVFIRE -----
-          mapping   = map_TV
-          led_is_on = True
-          ir_send_in_thread("LED POWERON", 3)
-          if button_name == "2":
-            if state in ("TVFIRE"):
-              ir_send_in_thread("TV CH+")
-            else:
-              threading.Thread(target=switch_tv_on, args=("TV", "CH+",)).start() # "TV TV" does not work correctly
-          if button_name == "5":
-            if state in ("TV"):
-              ir_send_in_thread("TV HDMI1", 3)
-            else:
-              threading.Thread(target=switch_tv_on, args=("TVFIRE", "HDMI1",)).start()
-          threading.Thread(target=switch_bar_on, args=("OPTICAL",)).start()
-          if state in ("PROJECTOR", "DVD"):
-            threading.Thread(target=switch_projector_off).start()
-          ir_send_in_thread("DVD POWEROFF", 3)
-          ir_send_in_thread("LED WHITE", 3) # initial state of LED
-          threading.Thread(target=led_max_brightness).start()
-        elif button_name == "3": # LIGHT -----
-          mapping   = map_LIGHT
-          led_is_on = True
-          ir_send_in_thread("LED POWERON", 3)
-          if state in ("PROJECTOR", "DVD", "TV", "TVFIRE"):
-            ir_send_in_thread("BAR POWER", 3) # doesn't matter if incorrect, switches off after 15 minutes idle anyway
-          if state in ("PROJECTOR", "DVD"):
-            threading.Thread(target=switch_projector_off).start()
-          ir_send_in_thread("TV POWEROFF", 3)
-          ir_send_in_thread("DVD POWEROFF", 3)
-          ir_send_in_thread("LED WHITE", 3) # initial state of LED
-          threading.Thread(target=led_max_brightness).start()
-        elif button_name == "4": # DVD -----
-          mapping   = map_DVD
-          led_is_on = False
-          ir_send_in_thread("DVD POWERON", 3)
-          threading.Thread(target=switch_bar_on, args=("BLUETOOTH",)).start()
-          if not state in ("PROJECTOR"):
-            threading.Thread(target=switch_projector_on_with_input_select, args=("DVD", "HDMI2",)).start()
+            threading.Thread(target=switch_tv_on, args=("TV", "CH+",)).start() # "TV TV" does not work correctly
+        if button_name == "5":
+          if state in ("TV"):
+            ir_send_in_thread("TV HDMI1", 3)
           else:
-            pass #ir_send_in_thread("BEAM HDMI2")
-          ir_send_in_thread("LED POWEROFF", 7)
-          ir_send_in_thread("TV POWEROFF", 3)
-          ir_send_in_thread("LED POWEROFF", 7) # sometimes, LED did not turn off -> do power off again
+            threading.Thread(target=switch_tv_on, args=("TVFIRE", "HDMI1",)).start()
+        threading.Thread(target=switch_bar_on, args=("OPTICAL",)).start()
+        if state in ("PROJECTOR", "DVD"):
+          threading.Thread(target=switch_projector_off).start()
+        ir_send_in_thread("DVD POWEROFF", 3)
+        ir_send_in_thread("LED WHITE", 3) # initial state of LED
+        threading.Thread(target=led_max_brightness).start()
+      elif button_name == "3": # LIGHT -----
+        mapping   = map_LIGHT
+        led_is_on = True
+        ir_send_in_thread("LED POWERON", 3)
+        if state in ("PROJECTOR", "DVD", "TV", "TVFIRE"):
+          ir_send_in_thread("BAR POWER", 3) # doesn't matter if incorrect, switches off after 15 minutes idle anyway
+        if state in ("PROJECTOR", "DVD"):
+          threading.Thread(target=switch_projector_off).start()
+        ir_send_in_thread("TV POWEROFF", 3)
+        ir_send_in_thread("DVD POWEROFF", 3)
+        ir_send_in_thread("LED WHITE", 3) # initial state of LED
+        threading.Thread(target=led_max_brightness).start()
+      elif button_name == "4": # DVD -----
+        mapping   = map_DVD
+        led_is_on = False
+        ir_send_in_thread("DVD POWERON", 3)
+        threading.Thread(target=switch_bar_on, args=("BLUETOOTH",)).start()
+        if not state in ("PROJECTOR"):
+          threading.Thread(target=switch_projector_on_with_input_select, args=("DVD", "HDMI2",)).start()
+        else:
+          pass #ir_send_in_thread("BEAM HDMI2")
+        ir_send_in_thread("LED POWEROFF", 7)
+        ir_send_in_thread("TV POWEROFF", 3)
+        ir_send_in_thread("LED POWEROFF", 7) # sometimes, LED did not turn off -> do power off again
       prev_state = state
       state      = state_map[button_name]
     else:
