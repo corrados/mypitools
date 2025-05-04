@@ -294,7 +294,7 @@ def adb_connect(ip_address): # returns True on success
       if adb_shell:
         adb_shell.terminate()
       adb_shell = None
-    time.sleep(1) # check adb status every second
+    time.sleep(5) # check adb status every 5 seconds
 
 def send_keyevent(keycode):
   if adb_shell and adb_shell.poll() is None:
@@ -646,3 +646,6 @@ if __name__ == '__main__':
 #
 # [Install]
 # WantedBy=multi-user.target
+#
+# /boot/firmware/config.txt
+# dtoverlay=vc4-kms-v3d,cma-512
