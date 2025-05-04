@@ -626,7 +626,7 @@ def send_command(device, command, repeat=1):
 if __name__ == '__main__':
   subprocess.Popen(["sudo", "pigpiod", "-m"]) # start pigpiod using "Disable alerts (sampling)" for lower CPU usage
   set_rgb(state_rgb[state]) # initial update of RGB LED (should be "IDLE" state)
-  threading.Thread(target=adb_connect, args=("firetv1",)).start()
+  #threading.Thread(target=adb_connect, args=("firetv1",)).start() # disable since much too laggy (2 s delay per click)
   threading.Thread(target=eyetv_remote_input).start()
   threading.Thread(target=playstation_remote_input).start()
   threading.Thread(target=socket_input).start()
@@ -646,6 +646,3 @@ if __name__ == '__main__':
 #
 # [Install]
 # WantedBy=multi-user.target
-#
-# /boot/firmware/config.txt
-# dtoverlay=vc4-kms-v3d,cma-512
