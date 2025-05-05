@@ -84,7 +84,7 @@ def playstation_remote_input():
     elif pkt[0] == HCI_ACLDATA_PKT:
       #print("ir_hub: ACL Data:", pkt.hex())
       if pkt[-7:-2] == bytes.fromhex("ffffffffff"):
-        value = int.from_bytes(pkt[11:-7])
+        value = int.from_bytes(pkt[11:-7], byteorder="big")
         button_name = playstation_map.get(value, f"UNKNOWN ({value})")
         button_name = playstation_convert.get(button_name, button_name)
         threading.Thread(target=on_button_press, args=(button_name,)).start()
