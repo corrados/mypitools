@@ -100,11 +100,13 @@ def eyetv_remote_input():
   else:
     raise RuntimeError("Input device EyeTV not found.")
   (last_scancode, last_time) = (None, 0) # state
+  event_format = "qqHHI"
+  event_size   = struct.calcsize(event_format)
   with open(device_path, "rb") as f:
     while True:
-      data = f.read(24)
-      if data:
-        _, _, event_type, code, value = struct.unpack("llHHI", data[:16])
+      data = f.read(event_size)
+      if len(data) == event_size::
+        _, _, event_type, code, value = struct.unpack(event_format, data)
         if event_type == 4 and code == 4: # MSC_SCAN
           scancode = value - 4539649
           button_name = eyetv_map.get(scancode, f"UNKNOWN ({scancode})")
