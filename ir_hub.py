@@ -105,7 +105,7 @@ def eyetv_remote_input():
   with open(device_path, "rb") as f:
     while True:
       data = f.read(event_size)
-      if len(data) == event_size::
+      if len(data) == event_size:
         _, _, event_type, code, value = struct.unpack(event_format, data)
         if event_type == 4 and code == 4: # MSC_SCAN
           scancode = value - 4539649
