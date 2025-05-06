@@ -646,3 +646,10 @@ if __name__ == '__main__':
 #
 # [Install]
 # WantedBy=multi-user.target
+#
+# Disable lirc exclusive grabbing eyeTV remote:
+# sudo nano /etc/udev/rules.d/99-ignore-eyetv.rules
+# SUBSYSTEM=="input", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="0018", ENV{eventlircd_enable}="false"
+#
+# sudo udevadm control --reload-rules
+# sudo udevadm trigger
