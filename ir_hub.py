@@ -104,7 +104,7 @@ def eyetv_remote_input():
     while True:
       data = f.read(24)
       if data:
-        _, _, event_type, code, value = struct.unpack("llHHI", data)
+        _, _, event_type, code, value = struct.unpack("llHHI", data[:16])
         if event_type == 4 and code == 4: # MSC_SCAN
           scancode = value - 4539649
           button_name = eyetv_map.get(scancode, f"UNKNOWN ({scancode})")
