@@ -37,8 +37,8 @@ playstation_map = {22:"EJECT", 0:"1", 1:"2", 2:"3", 3:"4", 4:"5", 5:"6", 6:"7", 
 323:"PLAYSTATION", 16777296:"SELECT", 134217811:"START", 51:"REWIND", 50:"PLAY", 52:"FORWARD",
 48:"PREVIOUS", 56:"STOP", 49:"NEXT", 96:"SLOWREWIND", 57:"PAUSE", 97:"SLOWFORWARD"}
 
-playstation_convert = {"EJECT":"POWER", "L1":"LIGHT", "AUIDO":"MUTE", "SLOWREWIND":"HOLD",
-"OPTIONS":"RED", "VIEW":"YELLOW", "BACK":"GREEN", "X":"BLUE"}
+playstation_convert = {"EJECT":"POWER", "L1":"LIGHT", "AUIDO":"MUTE",
+"SLOWREWIND":"HOLD", "SLOWFORWARD":"SELECT", "OPTIONS":"RED", "VIEW":"YELLOW", "BACK":"GREEN", "X":"BLUE"}
 
 # key mapping from EyeTV remote to other device remote
 map_TV = {"UP":"TV UP", "DOWN":"TV DOWN", "LEFT":"TV LEFT", "RIGHT":"TV RIGHT", "OK":"TV OK",
