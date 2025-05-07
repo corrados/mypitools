@@ -89,6 +89,11 @@ def playstation_remote_input():
         button_name = playstation_convert.get(button_name, button_name)
         threading.Thread(target=on_button_press, args=(button_name,)).start()
 
+def playstation_remote_periodic_sleep():
+  while True:
+    subprocess.run(["bluetoothctl", "disconnect", "00:1E:3D:10:CB:F0"])
+    time.sleep(10 * 60) # every 10 minutes disconnect (which should enable sleep mode in remote)
+
 def eyetv_remote_input():
   time.sleep(5) # let device be initialized in system on startup
   target_device = None
@@ -631,6 +636,7 @@ if __name__ == '__main__':
   #threading.Thread(target=adb_connect, args=("firetv1",)).start() # disable since much too laggy (2 s delay per click)
   threading.Thread(target=eyetv_remote_input).start()
   threading.Thread(target=playstation_remote_input).start()
+  threading.Thread(target=playstation_remote_periodic_sleep).start() # fix battery drain
   threading.Thread(target=socket_input).start()
 
 # sudo systemctl enable ir_hub.service
