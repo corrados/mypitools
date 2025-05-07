@@ -2,19 +2,20 @@
 # created with help of ChatGPT
 import threading, struct, time, evdev, subprocess, pigpio, math, spidev, random, socket, os
 
-out_pin     = 22
-device_path = None
-state       = "IDLE"
-prev_state  = "IDLE"
-led_is_on   = False
-mapping     = None
-pi          = None
-adb_shell   = None
-alt_func    = True
-toggle_bit  = 0
-rgb_val     = 10 # 0..255
-press_lock  = threading.Lock()
-ir_lock     = threading.Lock()
+out_pin           = 22
+ps3_bd_remote_mac = "00:1E:3D:10:CB:F0"
+rgb_val           = 10 # 0..255
+device_path       = None
+state             = "IDLE"
+prev_state        = "IDLE"
+led_is_on         = False
+mapping           = None
+pi                = None
+adb_shell         = None
+alt_func          = True
+toggle_bit        = 0
+press_lock        = threading.Lock()
+ir_lock           = threading.Lock()
 
 state_map = {"1":"PROJECTOR", "2":"TV", "3":"LIGHT", "4":"DVD", "5":"TVFIRE", "POWER":"IDLE"}
 state_rgb = {"PROJECTOR":[0, 0, rgb_val], "TV":[0, rgb_val, 0], "LIGHT":[rgb_val, rgb_val, rgb_val],
@@ -91,7 +92,7 @@ def playstation_remote_input():
 
 def playstation_remote_periodic_sleep():
   while True:
-    subprocess.run(["bluetoothctl", "disconnect", "00:1E:3D:10:CB:F0"])
+    subprocess.run(["bluetoothctl", "disconnect", ps3_bd_remote_mac])
     time.sleep(10 * 60) # every 10 minutes disconnect (which should enable sleep mode in remote)
 
 def eyetv_remote_input():
