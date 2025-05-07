@@ -263,7 +263,7 @@ def led_max_brightness():
     ir_send_in_thread("LED DIMMER", 1)
     time.sleep(0.3)
 
-def ir_send_in_thread(button_name, repeat = 3):
+def ir_send_in_thread(button_name, repeat = 2):
   threading.Thread(target=ir_send, args=(button_name, repeat,)).start()
 
 def ir_send(button_name, repeat):
