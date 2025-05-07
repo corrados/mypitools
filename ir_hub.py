@@ -639,7 +639,7 @@ if __name__ == '__main__':
   threading.Thread(target=playstation_remote_periodic_sleep).start() # fix battery drain
   threading.Thread(target=socket_input).start()
 
-# sudo systemctl enable ir_hub.service
+# sudo systemctl enable ir_hub.service -----------------------------------------
 # ir_hub.service:
 # [Unit]
 # Description=Infraed hub with Python in mypitools
@@ -655,8 +655,12 @@ if __name__ == '__main__':
 # [Install]
 # WantedBy=multi-user.target
 #
-# Disable lirc exclusive grabbing eyeTV remote:
-# sudo nano /etc/udev/rules.d/99-ignore-eyetv.rules
+# send_ir.sh: ------------------------------------------------------------------
+# #!/bin/bash
+# echo -n "$1" | sudo socat - UNIX-CONNECT:/tmp/ir_hub_script.sock
+#
+# Disable lirc exclusive grabbing eyeTV remote: --------------------------------
+# sudo vi /etc/udev/rules.d/99-ignore-eyetv.rules
 # SUBSYSTEM=="input", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="0018", ENV{eventlircd_enable}="false"
 #
 # sudo udevadm control --reload-rules
