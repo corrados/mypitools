@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # created with help of ChatGPT
 import threading, struct, time, evdev, subprocess, pigpio, math, spidev, random, socket, os
+from datetime import datetime
 
 out_pin           = 22
 ps3_bd_remote_mac = "00:1E:3D:10:CB:F0"
@@ -92,7 +93,8 @@ def playstation_remote_input():
 
 def playstation_remote_periodic_sleep():
   while True:
-    subprocess.run(["bluetoothctl", "disconnect", ps3_bd_remote_mac])
+    if not (datetime.strptime("20:00", "%H:%M").time() <= datetime.now().time() <= datetime.strptime("23:59", "%H:%M").time()):
+      subprocess.run(["bluetoothctl", "disconnect", ps3_bd_remote_mac])
     time.sleep(10 * 60) # every 10 minutes disconnect (which should enable sleep mode in remote)
 
 def eyetv_remote_input():
