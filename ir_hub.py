@@ -306,7 +306,10 @@ def adb_connect(ip_address): # returns True on success
 
 def send_keyevent(keycode):
   if adb_shell and adb_shell.poll() is None:
-    adb_shell.stdin.write(f"input keyevent {keycode}\n")
+    if keycode == "KEYCODE_DPAD_LEFT":
+      adb_shell.stdin.write("sendevent /dev/input/event4 1 105 1 && sendevent /dev/input/event4 0 0 0 && sendevent /dev/input/event4 1 105 0 && sendevent /dev/input/event4 0 0 0")
+    else:
+      adb_shell.stdin.write(f"input keyevent {keycode}\n")
     adb_shell.stdin.flush()
 
 def set_rgb(rgb_leds):
@@ -634,7 +637,7 @@ def send_command(device, command, repeat=1):
 if __name__ == '__main__':
   subprocess.Popen(["sudo", "pigpiod", "-m"]) # start pigpiod using "Disable alerts (sampling)" for lower CPU usage
   set_rgb(state_rgb[state]) # initial update of RGB LED (should be "IDLE" state)
-  #threading.Thread(target=adb_connect, args=("firetv1",)).start() # disable since much too laggy (2 s delay per click)
+  threading.Thread(target=adb_connect, args=("firetv1",)).start()
   threading.Thread(target=eyetv_remote_input).start()
   threading.Thread(target=playstation_remote_input).start()
   threading.Thread(target=socket_input).start()
