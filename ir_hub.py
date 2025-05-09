@@ -92,7 +92,7 @@ def playstation_remote_input():
         # disconnect PS3 BD remote after 2h of inactivity to avoid battery drain (goes into sleep if disconnected)
         if ps3_sleep_timer is not None:
           ps3_sleep_timer.cancel()
-        ps3_sleep_timer = Timer(7200, lambda: subprocess.run(["bluetoothctl", "disconnect", ps3_bd_remote_mac]))
+        ps3_sleep_timer = threading.Timer(7200, lambda: subprocess.run(["bluetoothctl", "disconnect", ps3_bd_remote_mac]))
         ps3_sleep_timer.start()
 
 def eyetv_remote_input():
