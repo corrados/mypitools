@@ -308,6 +308,12 @@ def send_keyevent(keycode):
   if adb_shell and adb_shell.poll() is None:
     if keycode == "KEYCODE_DPAD_LEFT":
       adb_shell.stdin.write("sendevent /dev/input/event4 1 105 1 && sendevent /dev/input/event4 0 0 0 && sendevent /dev/input/event4 1 105 0 && sendevent /dev/input/event4 0 0 0")
+    elif keycode == "KEYCODE_DPAD_RIGHT":
+      adb_shell.stdin.write("sendevent /dev/input/event4 1 106 1 && sendevent /dev/input/event4 0 0 0 && sendevent /dev/input/event4 1 106 0 && sendevent /dev/input/event4 0 0 0")
+    elif keycode == "KEYCODE_DPAD_UP":
+      adb_shell.stdin.write("sendevent /dev/input/event4 1 103 1 && sendevent /dev/input/event4 0 0 0 && sendevent /dev/input/event4 1 103 0 && sendevent /dev/input/event4 0 0 0")
+    elif keycode == "KEYCODE_DPAD_DOWN":
+      adb_shell.stdin.write("sendevent /dev/input/event4 1 108 1 && sendevent /dev/input/event4 0 0 0 && sendevent /dev/input/event4 1 108 0 && sendevent /dev/input/event4 0 0 0")
     else:
       adb_shell.stdin.write(f"input keyevent {keycode}\n")
     adb_shell.stdin.flush()
