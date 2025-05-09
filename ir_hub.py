@@ -314,9 +314,22 @@ def send_keyevent(keycode):
       adb_shell.stdin.write("sendevent /dev/input/event4 1 103 1 && sendevent /dev/input/event4 0 0 0 && sendevent /dev/input/event4 1 103 0 && sendevent /dev/input/event4 0 0 0\n")
     elif keycode == "KEYCODE_DPAD_DOWN":
       adb_shell.stdin.write("sendevent /dev/input/event4 1 108 1 && sendevent /dev/input/event4 0 0 0 && sendevent /dev/input/event4 1 108 0 && sendevent /dev/input/event4 0 0 0\n")
+    elif keycode == "KEYCODE_DPAD_CENTER":
+      adb_shell.stdin.write("sendevent /dev/input/event4 1 96 1 && sendevent /dev/input/event4 0 0 0 && sendevent /dev/input/event4 1 96 0 && sendevent /dev/input/event4 0 0 0\n")
+    elif keycode == "KEYCODE_BACK":
+      adb_shell.stdin.write("sendevent /dev/input/event4 1 158 1 && sendevent /dev/input/event4 0 0 0 && sendevent /dev/input/event4 1 158 0 && sendevent /dev/input/event4 0 0 0\n")
     else:
       adb_shell.stdin.write(f"input keyevent {keycode}\n")
     adb_shell.stdin.flush()
+
+# menu 139
+# play 64
+# disney+ 747
+# netflix 744
+# apps 746
+# fast forward 208
+# rewind 168
+# livetv 362
 
 def set_rgb(rgb_leds):
   spi = spidev.SpiDev()
