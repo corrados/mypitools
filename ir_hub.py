@@ -13,6 +13,7 @@ led_is_on         = False
 mapping           = None
 pi                = None
 adb_shell         = None
+ps3_sleep_timer   = None
 alt_func          = True
 toggle_bit        = 0
 press_lock        = threading.Lock()
@@ -74,6 +75,7 @@ map_select = {"UP":"LED BRIGHTER", "DOWN":"LED DIMMER",
 "REWIND":"DVD AUDIO", "FORWARD":"DVD SUBTITLE"}
 
 def playstation_remote_input():
+  global ps3_sleep_timer
   HCI_ACLDATA_PKT = 0x02
   HCI_EVENT_PKT   = 0x04
   sock = socket.socket(socket.AF_BLUETOOTH, socket.SOCK_RAW, 1)
@@ -90,12 +92,10 @@ def playstation_remote_input():
         button_name = playstation_map.get(value, f"UNKNOWN ({value})")
         button_name = playstation_convert.get(button_name, button_name)
         threading.Thread(target=on_button_press, args=(button_name,)).start()
-
-def playstation_remote_periodic_sleep():
-  while True:
-    if not (datetime.strptime("20:00", "%H:%M").time() <= datetime.now().time() <= datetime.strptime("23:59", "%H:%M").time()):
-      subprocess.run(["bluetoothctl", "disconnect", ps3_bd_remote_mac])
-    time.sleep(10 * 60) # every 10 minutes disconnect (which should enable sleep mode in remote)
+        if ps3_sleep_timer is not None:
+          ps3_sleep_timer.cancel()
+        ps3_sleep_timer = Timer(7200, lambda: subprocess.run(["bluetoothctl", "disconnect", ps3_bd_remote_mac]))
+        ps3_sleep_timer.start() # fixes bd remote battery drain (disconnected it goes into sleep mode)
 
 def eyetv_remote_input():
   time.sleep(5) # let device be initialized in system on startup
@@ -639,7 +639,6 @@ if __name__ == '__main__':
   #threading.Thread(target=adb_connect, args=("firetv1",)).start() # disable since much too laggy (2 s delay per click)
   threading.Thread(target=eyetv_remote_input).start()
   threading.Thread(target=playstation_remote_input).start()
-  threading.Thread(target=playstation_remote_periodic_sleep).start() # fix battery drain
   threading.Thread(target=socket_input).start()
 
 # sudo systemctl enable ir_hub.service -----------------------------------------
