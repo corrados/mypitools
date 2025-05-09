@@ -286,7 +286,7 @@ def adb_connect(ip_address): # returns True on success
   global adb_shell
   while True:
     try:
-      r = subprocess.run(["adb", "connect", f"{ip_address}"], capture_output=True, text=True)
+      r = subprocess.run(["adb", "connect", f"{ip_address}:5555"], capture_output=True, text=True)
       if "connected" in r.stdout or "already connected" in r.stdout:
         if not adb_shell or adb_shell.poll() is not None:
           if adb_shell:
@@ -307,13 +307,13 @@ def adb_connect(ip_address): # returns True on success
 def send_keyevent(keycode):
   if adb_shell and adb_shell.poll() is None:
     if keycode == "KEYCODE_DPAD_LEFT":
-      adb_shell.stdin.write("sendevent /dev/input/event4 1 105 1 && sendevent /dev/input/event4 0 0 0 && sendevent /dev/input/event4 1 105 0 && sendevent /dev/input/event4 0 0 0")
+      adb_shell.stdin.write("sendevent /dev/input/event4 1 105 1 && sendevent /dev/input/event4 0 0 0 && sendevent /dev/input/event4 1 105 0 && sendevent /dev/input/event4 0 0 0\n")
     elif keycode == "KEYCODE_DPAD_RIGHT":
-      adb_shell.stdin.write("sendevent /dev/input/event4 1 106 1 && sendevent /dev/input/event4 0 0 0 && sendevent /dev/input/event4 1 106 0 && sendevent /dev/input/event4 0 0 0")
+      adb_shell.stdin.write("sendevent /dev/input/event4 1 106 1 && sendevent /dev/input/event4 0 0 0 && sendevent /dev/input/event4 1 106 0 && sendevent /dev/input/event4 0 0 0\n")
     elif keycode == "KEYCODE_DPAD_UP":
-      adb_shell.stdin.write("sendevent /dev/input/event4 1 103 1 && sendevent /dev/input/event4 0 0 0 && sendevent /dev/input/event4 1 103 0 && sendevent /dev/input/event4 0 0 0")
+      adb_shell.stdin.write("sendevent /dev/input/event4 1 103 1 && sendevent /dev/input/event4 0 0 0 && sendevent /dev/input/event4 1 103 0 && sendevent /dev/input/event4 0 0 0\n")
     elif keycode == "KEYCODE_DPAD_DOWN":
-      adb_shell.stdin.write("sendevent /dev/input/event4 1 108 1 && sendevent /dev/input/event4 0 0 0 && sendevent /dev/input/event4 1 108 0 && sendevent /dev/input/event4 0 0 0")
+      adb_shell.stdin.write("sendevent /dev/input/event4 1 108 1 && sendevent /dev/input/event4 0 0 0 && sendevent /dev/input/event4 1 108 0 && sendevent /dev/input/event4 0 0 0\n")
     else:
       adb_shell.stdin.write(f"input keyevent {keycode}\n")
     adb_shell.stdin.flush()
