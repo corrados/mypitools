@@ -83,19 +83,17 @@ def playstation_remote_input():
   sock.setsockopt(0, 2, struct.pack("LLLH", (1 << HCI_EVENT_PKT) | (1 << HCI_ACLDATA_PKT), 0xffffffff, 0xffffffff, 0))
   while True:
     pkt = sock.recv(2048)
-    if pkt[0] == HCI_EVENT_PKT:
-      pass #print("ir_hub: HCI Event:", pkt.hex())
-    elif pkt[0] == HCI_ACLDATA_PKT:
-      #print("ir_hub: ACL Data:", pkt.hex())
+    if pkt[0] == HCI_ACLDATA_PKT:
       if pkt[-7:-2] == bytes.fromhex("ffffffffff"):
         value = int.from_bytes(pkt[11:-7], byteorder="big")
         button_name = playstation_map.get(value, f"UNKNOWN ({value})")
         button_name = playstation_convert.get(button_name, button_name)
         threading.Thread(target=on_button_press, args=(button_name,)).start()
+        # disconnect PS3 BD remote after 2h of inactivity to avoid battery drain (goes into sleep if disconnected)
         if ps3_sleep_timer is not None:
           ps3_sleep_timer.cancel()
         ps3_sleep_timer = Timer(7200, lambda: subprocess.run(["bluetoothctl", "disconnect", ps3_bd_remote_mac]))
-        ps3_sleep_timer.start() # fixes bd remote battery drain (disconnected it goes into sleep mode)
+        ps3_sleep_timer.start()
 
 def eyetv_remote_input():
   time.sleep(5) # let device be initialized in system on startup
