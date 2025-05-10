@@ -322,13 +322,10 @@ def send_keyevent(keycode):
       adb_shell.stdin.write(f"input keyevent {keycode}\n")
     adb_shell.stdin.flush()
 
-# menu 139
-# play 64
+# up:103,down:108,left:105,right:106,ok:96,back:158,menu:139,play:64,forward:208,rewind:168,apps:746
 # disney+ 747
 # netflix 744
 # apps 746
-# fast forward 208
-# rewind 168
 # livetv 362
 
 def set_rgb(rgb_leds):
