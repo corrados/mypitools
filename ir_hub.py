@@ -55,9 +55,9 @@ map_DVD = {"UP":"DVD UP", "DOWN":"DVD DOWN", "LEFT":"DVD LEFT", "RIGHT":"DVD RIG
 "9":"DVD 9", "0":"DVD 0", "LAST":"DVD MENU", "VOL+":"BAR VOL+", "VOL-":"BAR VOL-", "MUTE":"BAR MUTE",
 "RETURN":"DVD RETURN", "ENTER":"DVD HOME", "TEXT":"DVD POPUPMENU", "BACK_RIGHT":"DVD OPTIONS",
 "PLAY":"DVD PLAY", "FORWARD":"DVD FORWARD", "REWIND":"DVD REWIND", "STOP":"DVD STOP",
-"REC":"DVD EJECT"}
+"REC":"DVD EJECT", "ANGLE":"DVD EJECT"}
 
-# up:103,down:108,left:105,right:106,ok:96,back:158,menu:139,play:64,forward:208,rewind:168,apps:746
+# up:103,down:108,left:105,right:106,ok:96,back:158,menu:139,play:64,forward:208,rewind:168,apps:746 (input-event-codes.h)
 map_PROJECTOR = {"VOL+":"BAR VOL+", "VOL-":"BAR VOL-", "MUTE":"BAR MUTE",
 "HOLD":"BEAM SOURCE", "ENTER":"BEAM OK", "LAST":"BEAM EXIT",
 "UP":"FIRETVBEAM 103", "DOWN":"FIRETVBEAM 108", "LEFT":"FIRETVBEAM 105", "RIGHT":"FIRETVBEAM 106",
