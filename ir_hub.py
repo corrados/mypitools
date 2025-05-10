@@ -29,7 +29,7 @@ eyetv_map = {0:"POWER", 1:"MUTE", 2:"1", 3:"2", 4:"3", 5:"4", 6:"5", 7:"6", 8:"7
 19:"RIGHT", 20:"YELLOW", 21:"DOWN", 22:"BLUE", 23:"RETURN", 24:"PLAY", 25:"BACK_RIGHT",
 26:"REWIND", 27:"L", 28:"FORWARD", 29:"STOP", 30:"TEXT", 63:"REC", 64:"HOLD", 65:"SELECT"}
 
-eyetv_convert = {"L":"LIGHT"}
+eyetv_convert = {"L":"LIGHT", "RED":"VOL+", "YELLOW":"VOL-", "GREEN":"CH+", "BLUE":"CH-"}
 
 # scancode to readable button name for Playstation BD remote
 playstation_map = {22:"EJECT", 0:"1", 1:"2", 2:"3", 3:"4", 4:"5", 5:"6", 6:"7", 7:"8", 8:"9", 9:"0",
@@ -41,36 +41,36 @@ playstation_map = {22:"EJECT", 0:"1", 1:"2", 2:"3", 3:"4", 4:"5", 5:"6", 6:"7", 
 48:"PREVIOUS", 56:"STOP", 49:"NEXT", 96:"SLOWREWIND", 57:"PAUSE", 97:"SLOWFORWARD"}
 
 playstation_convert = {"EJECT":"POWER", "L1":"LIGHT", "AUIDO":"MUTE",
-"SLOWREWIND":"HOLD", "SLOWFORWARD":"SELECT", "OPTIONS":"RED", "VIEW":"YELLOW", "BACK":"GREEN", "X":"BLUE"}
+"SLOWREWIND":"HOLD", "SLOWFORWARD":"SELECT", "OPTIONS":"VOL+", "VIEW":"VOL-", "BACK":"CH+", "X":"CH-"}
 
 # key mapping from EyeTV remote to other device remote
 map_TV = {"UP":"TV UP", "DOWN":"TV DOWN", "LEFT":"TV LEFT", "RIGHT":"TV RIGHT", "OK":"TV OK",
 "1":"TV 1", "2":"TV 2", "3":"TV 3", "4":"TV 4", "5":"TV 5", "6":"TV 6", "7":"TV 7", "8":"TV 8",
 "9":"TV 9", "0":"TV 0", "RETURN":"TV RETURN", "LAST":"TV MENU", "MUTE":"BAR MUTE",
-"RED":"BAR VOL+", "YELLOW":"BAR VOL-", "GREEN":"TV CH+", "BLUE":"TV CH-",
+"VOL+":"BAR VOL+", "VOL-":"BAR VOL-", "CH+":"TV CH+", "CH-":"TV CH-",
 "TEXT":"TV TEXT", "BACK_RIGHT":"TV LIST", "ENTER":"TV EXIT", "HOLD":"TV SOURCE"}
 
 map_DVD = {"UP":"DVD UP", "DOWN":"DVD DOWN", "LEFT":"DVD LEFT", "RIGHT":"DVD RIGHT", "OK":"DVD OK",
 "1":"DVD 1", "2":"DVD 2", "3":"DVD 3", "4":"DVD 4", "5":"DVD 5", "6":"DVD 6", "7":"DVD 7", "8":"DVD 8",
-"9":"DVD 9", "0":"DVD 0", "LAST":"DVD MENU", "RED":"BAR VOL+", "YELLOW":"BAR VOL-", "MUTE":"BAR MUTE",
+"9":"DVD 9", "0":"DVD 0", "LAST":"DVD MENU", "VOL+":"BAR VOL+", "VOL-":"BAR VOL-", "MUTE":"BAR MUTE",
 "RETURN":"DVD RETURN", "ENTER":"DVD HOME", "TEXT":"DVD POPUPMENU", "BACK_RIGHT":"DVD OPTIONS",
 "PLAY":"DVD PLAY", "FORWARD":"DVD FORWARD", "REWIND":"DVD REWIND", "STOP":"DVD STOP",
 "REC":"DVD EJECT"}
 
-map_PROJECTOR = {"RED":"BAR VOL+", "YELLOW":"BAR VOL-", "MUTE":"BAR MUTE",
+# up:103,down:108,left:105,right:106,ok:96,back:158,menu:139,play:64,forward:208,rewind:168,apps:746
+map_PROJECTOR = {"VOL+":"BAR VOL+", "VOL-":"BAR VOL-", "MUTE":"BAR MUTE",
 "HOLD":"BEAM SOURCE", "ENTER":"BEAM OK", "LAST":"BEAM EXIT",
-"UP":"FIRETVBEAM KEYCODE_DPAD_UP", "DOWN":"FIRETVBEAM KEYCODE_DPAD_DOWN",
-"LEFT":"FIRETVBEAM KEYCODE_DPAD_LEFT", "RIGHT":"FIRETVBEAM KEYCODE_DPAD_RIGHT",
-"OK":"FIRETVBEAM KEYCODE_DPAD_CENTER", "RETURN":"FIRETVBEAM KEYCODE_BACK"}
+"UP":"FIRETVBEAM 103", "DOWN":"FIRETVBEAM 108", "LEFT":"FIRETVBEAM 105", "RIGHT":"FIRETVBEAM 106",
+"OK":"FIRETVBEAM 96", "RETURN":"FIRETVBEAM 158"}
 
 map_LIGHT = {"UP":"LED BRIGHTER", "DOWN":"LED DIMMER", "LEFT":"LED DIMMER", "RIGHT":"LED BRIGHTER",
-"RED":"LED BRIGHTER", "YELLOW":"LED DIMMER", "GREEN":"LED BRIGHTER", "BLUE":"LED DIMMER",
+"VOL+":"LED BRIGHTER", "VOL-":"LED DIMMER", "CH+":"LED BRIGHTER", "CH-":"LED DIMMER",
 "1":"LED WHITE", "2":"LED ORANGE", "3":"LED ORANGE1", "4":"LED BLUE", "5":"LED BLUE1",
 "6":"LED BLUE2", "7":"LED YELLOW", "8":"LED MAGENTA", "9":"LED MAGENTA1", "0":"LED MAGENTA2",
 "LAST":"LED RED1", "ENTER":"LED CYAN", "OK":"LED WHITE", "PLAY":"LED SMOOTH"}
 
 map_select = {"UP":"LED BRIGHTER", "DOWN":"LED DIMMER",
-"RED":"BAR BASS+", "YELLOW":"BAR BASS-", "GREEN":"BAR TREB+", "BLUE":"BAR TREB-",
+"VOL+":"BAR BASS+", "VOL-":"BAR BASS-", "CH+":"BAR TREB+", "CH-":"BAR TREB-",
 "HOLD":"TV HDMI1", "STOP":"TV HDMI2", "TEXT":"TV HDMI3", "REC":"TV HDMI4",
 "REWIND":"DVD AUDIO", "FORWARD":"DVD SUBTITLE"}
 
@@ -306,27 +306,9 @@ def adb_connect(ip_address): # returns True on success
 
 def send_keyevent(keycode):
   if adb_shell and adb_shell.poll() is None:
-    if keycode == "KEYCODE_DPAD_LEFT":
-      adb_shell.stdin.write("sendevent /dev/input/event4 1 105 1 && sendevent /dev/input/event4 0 0 0 && sendevent /dev/input/event4 1 105 0 && sendevent /dev/input/event4 0 0 0\n")
-    elif keycode == "KEYCODE_DPAD_RIGHT":
-      adb_shell.stdin.write("sendevent /dev/input/event4 1 106 1 && sendevent /dev/input/event4 0 0 0 && sendevent /dev/input/event4 1 106 0 && sendevent /dev/input/event4 0 0 0\n")
-    elif keycode == "KEYCODE_DPAD_UP":
-      adb_shell.stdin.write("sendevent /dev/input/event4 1 103 1 && sendevent /dev/input/event4 0 0 0 && sendevent /dev/input/event4 1 103 0 && sendevent /dev/input/event4 0 0 0\n")
-    elif keycode == "KEYCODE_DPAD_DOWN":
-      adb_shell.stdin.write("sendevent /dev/input/event4 1 108 1 && sendevent /dev/input/event4 0 0 0 && sendevent /dev/input/event4 1 108 0 && sendevent /dev/input/event4 0 0 0\n")
-    elif keycode == "KEYCODE_DPAD_CENTER":
-      adb_shell.stdin.write("sendevent /dev/input/event4 1 96 1 && sendevent /dev/input/event4 0 0 0 && sendevent /dev/input/event4 1 96 0 && sendevent /dev/input/event4 0 0 0\n")
-    elif keycode == "KEYCODE_BACK":
-      adb_shell.stdin.write("sendevent /dev/input/event4 1 158 1 && sendevent /dev/input/event4 0 0 0 && sendevent /dev/input/event4 1 158 0 && sendevent /dev/input/event4 0 0 0\n")
-    else:
-      adb_shell.stdin.write(f"input keyevent {keycode}\n")
+    adb_shell.stdin.write(f"sendevent /dev/input/event4 1 {keycode} 1 && sendevent /dev/input/event4 0 0 0 &&"
+                          f"sendevent /dev/input/event4 1 {keycode} 0 && sendevent /dev/input/event4 0 0 0\n")
     adb_shell.stdin.flush()
-
-# up:103,down:108,left:105,right:106,ok:96,back:158,menu:139,play:64,forward:208,rewind:168,apps:746
-# disney+ 747
-# netflix 744
-# apps 746
-# livetv 362
 
 def set_rgb(rgb_leds):
   spi = spidev.SpiDev()
