@@ -289,20 +289,20 @@ def adb_connect(ip_address): # returns True on success
       r = subprocess.run(["adb", "connect", f"{ip_address}:5555"], capture_output=True, text=True)
       if "connected" in r.stdout or "already connected" in r.stdout:
         if not adb_shell or adb_shell.poll() is not None:
-          if adb_shell:
-            adb_shell.terminate()
-            adb_shell = None
+          terminate_adb_shell()
           adb_shell = subprocess.Popen(["adb", "shell"],
                                        stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
       else:
-        if adb_shell:
-          adb_shell.terminate()
-        adb_shell = None
+        terminate_adb_shell()
     except Exception as e:
-      if adb_shell:
-        adb_shell.terminate()
-      adb_shell = None
+      terminate_adb_shell()
     time.sleep(5) # check adb status every 5 seconds
+
+def terminate_adb_shell():
+  global adb_shell
+  if adb_shell:
+    adb_shell.terminate()
+  adb_shell = None
 
 def send_keyevent(keycode):
   if adb_shell and adb_shell.poll() is None:
