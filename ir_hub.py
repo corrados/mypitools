@@ -79,8 +79,7 @@ map_select = {"UP":"LED BRIGHTER", "DOWN":"LED DIMMER", "PLAY":"LED SMOOTH",
 
 def playstation_remote_input():
   global ps3_sleep_timer
-  HCI_ACLDATA_PKT = 0x02
-  HCI_EVENT_PKT   = 0x04
+  (HCI_ACLDATA_PKT, HCI_EVENT_PKT) = (0x02, 0x04)
   sock = socket.socket(socket.AF_BLUETOOTH, socket.SOCK_RAW, 1)
   sock.bind((0,))
   sock.setsockopt(0, 2, struct.pack("LLLH", (1 << HCI_EVENT_PKT) | (1 << HCI_ACLDATA_PKT), 0xffffffff, 0xffffffff, 0))
