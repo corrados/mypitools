@@ -87,6 +87,8 @@ def playstation_remote_input():
     pkt = sock.recv(2048)
     if pkt[0] == HCI_ACLDATA_PKT:
       if pkt[-7:-2] == bytes.fromhex("ffffffffff"):
+        if pkt[-8] == 255 and pkt[-2] == 0:
+          print("Button Up detected!")
         value = int.from_bytes(pkt[11:-7], byteorder="big")
         button_name = playstation_map.get(value, f"UNKNOWN ({value})")
         button_name = playstation_convert.get(button_name, button_name)
