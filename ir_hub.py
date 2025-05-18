@@ -44,21 +44,22 @@ playstation_convert = {"EJECT":"POWER", "L1":"LIGHT", "AUIDO":"MUTE",
 "SLOWREWIND":"HOLD", "SLOWFORWARD":"SELECT", "OPTIONS":"VOL+", "VIEW":"VOL-", "BACK":"CH+", "X":"CH-"}
 
 # key mapping from EyeTV remote to other device remote
-map_TV = {"UP":"TV UP", "DOWN":"TV DOWN", "LEFT":"TV LEFT", "RIGHT":"TV RIGHT", "OK":"TV OK",
+map_TV = {"VOL+":"BAR VOL+", "VOL-":"BAR VOL-", "MUTE":"BAR MUTE", "DISPLAY":"BAR MUTE",
+"UP":"TV UP", "DOWN":"TV DOWN", "LEFT":"TV LEFT", "RIGHT":"TV RIGHT", "OK":"TV OK",
 "1":"TV 1", "2":"TV 2", "3":"TV 3", "4":"TV 4", "5":"TV 5", "6":"TV 6", "7":"TV 7", "8":"TV 8",
-"9":"TV 9", "0":"TV 0", "RETURN":"TV RETURN", "LAST":"TV MENU", "MUTE":"BAR MUTE",
-"VOL+":"BAR VOL+", "VOL-":"BAR VOL-", "CH+":"TV CH+", "CH-":"TV CH-",
+"9":"TV 9", "0":"TV 0", "RETURN":"TV RETURN", "LAST":"TV MENU", "CH+":"TV CH+", "CH-":"TV CH-",
 "TEXT":"TV TEXT", "BACK_RIGHT":"TV LIST", "ENTER":"TV EXIT", "HOLD":"TV SOURCE"}
 
-map_DVD = {"UP":"DVD UP", "DOWN":"DVD DOWN", "LEFT":"DVD LEFT", "RIGHT":"DVD RIGHT", "OK":"DVD OK",
+map_DVD = {"VOL+":"BAR VOL+", "VOL-":"BAR VOL-", "MUTE":"BAR MUTE", "DISPLAY":"BAR MUTE",
+"UP":"DVD UP", "DOWN":"DVD DOWN", "LEFT":"DVD LEFT", "RIGHT":"DVD RIGHT", "OK":"DVD OK",
 "1":"DVD 1", "2":"DVD 2", "3":"DVD 3", "4":"DVD 4", "5":"DVD 5", "6":"DVD 6", "7":"DVD 7", "8":"DVD 8",
-"9":"DVD 9", "0":"DVD 0", "LAST":"DVD MENU", "VOL+":"BAR VOL+", "VOL-":"BAR VOL-", "MUTE":"BAR MUTE",
+"9":"DVD 9", "0":"DVD 0", "LAST":"DVD MENU",
 "RETURN":"DVD RETURN", "ENTER":"DVD HOME", "TEXT":"DVD POPUPMENU", "BACK_RIGHT":"DVD OPTIONS",
 "PLAY":"DVD PLAY", "FORWARD":"DVD FORWARD", "REWIND":"DVD REWIND", "STOP":"DVD STOP",
 "REC":"DVD EJECT", "ANGLE":"DVD EJECT"}
 
 # up:103,down:108,left:105,right:106,ok:96,back:158,menu:139,play:64,forward:208,rewind:168,apps:746 (input-event-codes.h)
-map_PROJECTOR = {"VOL+":"BAR VOL+", "VOL-":"BAR VOL-", "MUTE":"BAR MUTE",
+map_PROJECTOR = {"VOL+":"BAR VOL+", "VOL-":"BAR VOL-", "MUTE":"BAR MUTE", "DISPLAY":"BAR MUTE",
 "HOLD":"BEAM SOURCE", "ENTER":"BEAM OK", "LAST":"BEAM EXIT",
 "UP":"FIRETVBEAM 103", "DOWN":"FIRETVBEAM 108", "LEFT":"FIRETVBEAM 105", "RIGHT":"FIRETVBEAM 106",
 "OK":"FIRETVBEAM 96", "RETURN":"FIRETVBEAM 158", "POPUP":"FIRETVBEAM 139", "REWIND":"FIRETVBEAM 168",
