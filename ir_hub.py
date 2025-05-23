@@ -93,10 +93,10 @@ def playstation_remote_input():
       if pkt[-8] == 255 and pkt[-2] == 0:
         sock.settimeout(None) # on button up even do blocking recv again
       else:
-        if sock.gettimeout() == 1:
-          sock.settimeout(0.3) # repeating auto presses time-out
-        else:
+        if sock.gettimeout() == None:
           sock.settimeout(1) # initial time-out for long press
+        elif sock.gettimeout() == 1:
+          sock.settimeout(0.3) # repeating auto presses time-out
         value = int.from_bytes(pkt[11:-7], byteorder="big")
         button_name = playstation_map.get(value, f"UNKNOWN ({value})")
         button_name = playstation_convert.get(button_name, button_name)
