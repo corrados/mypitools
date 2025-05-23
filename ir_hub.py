@@ -90,7 +90,7 @@ def playstation_remote_input():
       pkt = sock.recv(2048)
     except socket.timeout:
       pass
-    if pkt and pkt[0] == HCI_ACLDATA_PKT and pkt[-7:-2] == bytes.fromhex("ffffffffff"):
+    if pkt[0] == HCI_ACLDATA_PKT and pkt[-7:-2] == bytes.fromhex("ffffffffff"):
       if pkt[-8] == 255 and pkt[-2] == 0:
         sock.settimeout(None) # on button up even do blocking recv again
       else:
