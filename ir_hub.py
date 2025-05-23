@@ -93,7 +93,7 @@ def playstation_remote_input():
       pass
     if pkt and pkt[0] == HCI_ACLDATA_PKT and pkt[-7:-2] == bytes.fromhex("ffffffffff"):
       if pkt[-8] == 255 and pkt[-2] == 0:
-        pass # TODO act on button up detected
+        pkt = None # invalidate previous packet
       else:
         value = int.from_bytes(pkt[11:-7], byteorder="big")
         button_name = playstation_map.get(value, f"UNKNOWN ({value})")
