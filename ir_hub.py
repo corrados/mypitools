@@ -22,6 +22,7 @@ ir_lock           = threading.Lock()
 state_map = {"1":"PROJECTOR", "2":"TV", "3":"LIGHT", "4":"DVD", "5":"TVFIRE", "POWER":"IDLE"}
 state_rgb = {"PROJECTOR":[0, 0, rgb_val], "TV":[0, rgb_val, 0], "LIGHT":[rgb_val, rgb_val, rgb_val],
              "DVD":[rgb_val, rgb_val, 0], "TVFIRE":[rgb_val, 0, rgb_val], "IDLE":[0, 0, 0]}
+repeat_key = ("VOL+", "VOL-", "CH+", "CH-", "UP", "DOWN", "LEFT", "RIGHT")
 
 # scancode to readable button name for Elgato EyeTV remote
 eyetv_map = {0:"POWER", 1:"MUTE", 2:"1", 3:"2", 4:"3", 5:"4", 6:"5", 7:"6", 8:"7", 9:"8",
@@ -93,14 +94,15 @@ def playstation_remote_input():
       if pkt[-8] == 255 and pkt[-2] == 0:
         sock.settimeout(None) # on button up even do blocking recv again
       else:
-        if sock.gettimeout() == None:
-          sock.settimeout(1) # initial time-out for long press
-        elif sock.gettimeout() == 1:
-          sock.settimeout(0.3) # repeating auto presses time-out
         value = int.from_bytes(pkt[11:-7], byteorder="big")
         button_name = playstation_map.get(value, f"UNKNOWN ({value})")
         button_name = playstation_convert.get(button_name, button_name)
         threading.Thread(target=on_button_press, args=(button_name,)).start()
+        if button_name in repeat_key: # check if repeat operation is allowed for this key
+          if sock.gettimeout() == None:
+            sock.settimeout(1) # initial time-out for long press
+          elif sock.gettimeout() == 1:
+            sock.settimeout(0.3) # repeating auto presses time-out
         # disconnect PS3 BD remote after 1.5h of inactivity to avoid battery drain (goes into sleep if disconnected)
         if ps3_sleep_timer is not None:
           ps3_sleep_timer.cancel()
