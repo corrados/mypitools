@@ -82,6 +82,7 @@ def playstation_remote_input():
   global ps3_sleep_timer
   (HCI_ACLDATA_PKT, HCI_EVENT_PKT) = (0x02, 0x04)
   pkt                              = None
+  timeout_cnt                      = 0
   sock = socket.socket(socket.AF_BLUETOOTH, socket.SOCK_RAW, 1)
   sock.bind((0,))
   sock.setsockopt(0, 2, struct.pack("LLLH", (1 << HCI_EVENT_PKT) | (1 << HCI_ACLDATA_PKT), 0xffffffff, 0xffffffff, 0))
@@ -90,10 +91,13 @@ def playstation_remote_input():
     try:
       pkt = sock.recv(2048)
     except socket.timeout:
-      pass
+      if timeout_cnt < 7:
+        timeout_cnt += 1
+        continue
     if pkt and pkt[0] == HCI_ACLDATA_PKT and pkt[-7:-2] == bytes.fromhex("ffffffffff"):
       if pkt[-8] == 255 and pkt[-2] == 0:
-        pkt = None # invalidate previous packet
+        pkt         = None # invalidate previous packet
+        timeout_cnt = 0
       else:
         value = int.from_bytes(pkt[11:-7], byteorder="big")
         button_name = playstation_map.get(value, f"UNKNOWN ({value})")
