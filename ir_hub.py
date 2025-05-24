@@ -60,12 +60,12 @@ map_DVD = {"VOL+":"BAR VOL+", "VOL-":"BAR VOL-", "MUTE":"BAR MUTE", "DISPLAY":"B
 "REC":"DVD EJECT", "ANGLE":"DVD EJECT"}
 
 # up:103,down:108,left:105,right:106,ok:96,back:158,menu:139,play:64,forward:208,rewind:168,apps:746 (input-event-codes.h)
-# HOME: only via "adb shell input keyevent 3"
+# HOME: only via "adb shell input keyevent 3" -> implement as special case
 map_PROJECTOR = {"VOL+":"BAR VOL+", "VOL-":"BAR VOL-", "MUTE":"BAR MUTE", "DISPLAY":"BAR MUTE",
 "HOLD":"BEAM SOURCE", "ENTER":"BEAM OK", "LAST":"BEAM EXIT",
 "UP":"FIRETVBEAM 103", "DOWN":"FIRETVBEAM 108", "LEFT":"FIRETVBEAM 105", "RIGHT":"FIRETVBEAM 106",
 "OK":"FIRETVBEAM 96", "RETURN":"FIRETVBEAM 158", "POPUP":"FIRETVBEAM 139", "REWIND":"FIRETVBEAM 168",
-"PLAY":"FIRETVBEAM 164", "FORWARD":"FIRETVBEAM 208", "START":"FIRETVBEAM 746", "PLAYSTATION":"FIRETVBEAM 102"}
+"PLAY":"FIRETVBEAM 164", "FORWARD":"FIRETVBEAM 208", "START":"FIRETVBEAM 746", "PLAYSTATION":"FIRETVBEAM 3"}
 
 map_LIGHT = {"UP":"LED BRIGHTER", "DOWN":"LED DIMMER", "LEFT":"LED DIMMER", "RIGHT":"LED BRIGHTER",
 "VOL+":"LED BRIGHTER", "VOL-":"LED DIMMER", "CH+":"LED BRIGHTER", "CH-":"LED DIMMER",
@@ -329,8 +329,11 @@ def terminate_adb_shell():
 
 def send_keyevent(keycode):
   if adb_shell and adb_shell.poll() is None:
-    adb_shell.stdin.write(f"sendevent /dev/input/event4 1 {keycode} 1 && sendevent /dev/input/event4 0 0 0 &&"
-                          f"sendevent /dev/input/event4 1 {keycode} 0 && sendevent /dev/input/event4 0 0 0\n")
+    if keycode == 3: # special case for HOME
+      adb_shell.stdin.write(f"input keyevent {keycode}\n")
+    else:
+      adb_shell.stdin.write(f"sendevent /dev/input/event4 1 {keycode} 1 && sendevent /dev/input/event4 0 0 0 &&"
+                            f"sendevent /dev/input/event4 1 {keycode} 0 && sendevent /dev/input/event4 0 0 0\n")
     adb_shell.stdin.flush()
 
 def set_rgb(rgb_leds):
