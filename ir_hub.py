@@ -60,6 +60,7 @@ map_DVD = {"VOL+":"BAR VOL+", "VOL-":"BAR VOL-", "MUTE":"BAR MUTE", "DISPLAY":"B
 "REC":"DVD EJECT", "ANGLE":"DVD EJECT"}
 
 # up:103,down:108,left:105,right:106,ok:96,back:158,menu:139,play:64,forward:208,rewind:168,apps:746 (input-event-codes.h)
+# HOME: only via "adb shell input keyevent 3"
 map_PROJECTOR = {"VOL+":"BAR VOL+", "VOL-":"BAR VOL-", "MUTE":"BAR MUTE", "DISPLAY":"BAR MUTE",
 "HOLD":"BEAM SOURCE", "ENTER":"BEAM OK", "LAST":"BEAM EXIT",
 "UP":"FIRETVBEAM 103", "DOWN":"FIRETVBEAM 108", "LEFT":"FIRETVBEAM 105", "RIGHT":"FIRETVBEAM 106",
