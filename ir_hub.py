@@ -101,9 +101,9 @@ def playstation_remote_input():
         threading.Thread(target=on_button_press, args=(button_name,)).start()
         if button_name in repeat_key: # check if repeat operation is allowed for this key
           if sock.gettimeout() == None:
-            sock.settimeout(1) # initial time-out for long press
-          elif sock.gettimeout() == 1:
-            sock.settimeout(0.3) # repeating auto presses time-out
+            sock.settimeout(0.7) # initial time-out for long press
+          elif sock.gettimeout() == 0.7:
+            sock.settimeout(0.2) # repeating auto presses time-out
         # disconnect PS3 BD remote after 1.5h of inactivity to avoid battery drain (goes into sleep if disconnected)
         if ps3_sleep_timer is not None:
           ps3_sleep_timer.cancel()
