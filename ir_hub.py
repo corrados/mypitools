@@ -329,8 +329,7 @@ def terminate_adb_shell():
 
 def send_keyevent(keycode):
   if adb_shell and adb_shell.poll() is None:
-    if keycode == 3: # special case for HOME
-      print(f"input keyevent {keycode}\n")
+    if keycode == "3": # special case for HOME
       adb_shell.stdin.write(f"input keyevent {keycode}\n")
     else:
       adb_shell.stdin.write(f"sendevent /dev/input/event4 1 {keycode} 1 && sendevent /dev/input/event4 0 0 0 &&"
