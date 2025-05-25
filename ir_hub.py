@@ -163,10 +163,15 @@ def on_button_press(button_name):
     # special key: SELECT
     if button_name == "SELECT" and state != "IDLE":
       alt_func = not alt_func
-    # special key: L
-    if button_name == "LIGHT": # toggles LED state, do not change color or brightness per definition
-      ir_send_in_thread("LED POWEROFF", 1) if led_is_on else ir_send_in_thread("LED POWERON", 1)
-      led_is_on = not led_is_on
+    # special key: LIGHT
+    if button_name == "LIGHT": # in general, toggles LED state and does not change color or brightness
+      if state == "IDLE": # special case 1: if in IDLE, do the same as button "1"
+        button_name = "3"
+      elif state == "LIGHT": # special case 2: if in LIGHT, do the same as button "POWER"
+        button_name = "POWER"
+      else
+        ir_send_in_thread("LED POWEROFF", 1) if led_is_on else ir_send_in_thread("LED POWERON", 1)
+        led_is_on = not led_is_on
     # special case: in LIGHT mode assign numbers to state selection
     if state in ("LIGHT") and button_name in state_map:
       alt_func = True
