@@ -169,7 +169,7 @@ def on_button_press(button_name):
         button_name = "3"
       elif state == "LIGHT": # special case 2: if in LIGHT, do the same as button "POWER"
         button_name = "POWER"
-      else
+      else:
         ir_send_in_thread("LED POWEROFF", 1) if led_is_on else ir_send_in_thread("LED POWERON", 1)
         led_is_on = not led_is_on
     # special case: in LIGHT mode assign numbers to state selection
