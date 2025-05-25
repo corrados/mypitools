@@ -30,7 +30,8 @@ eyetv_map = {0:"POWER", 1:"MUTE", 2:"1", 3:"2", 4:"3", 5:"4", 6:"5", 7:"6", 8:"7
 19:"RIGHT", 20:"YELLOW", 21:"DOWN", 22:"BLUE", 23:"RETURN", 24:"PLAY", 25:"BACK_RIGHT",
 26:"REWIND", 27:"L", 28:"FORWARD", 29:"STOP", 30:"TEXT", 63:"REC", 64:"HOLD", 65:"SELECT"}
 
-eyetv_convert = {"L":"LIGHT", "RED":"VOL+", "YELLOW":"VOL-", "GREEN":"CH+", "BLUE":"CH-"}
+eyetv_convert = {"L":"LIGHT", "RED":"VOL+", "YELLOW":"VOL-", "GREEN":"CH+", "BLUE":"CH-",
+"LAST":"MENU", "HOLD":"SOURCE", "BACK_RIGHT":"LIST"}
 
 # scancode to readable button name for Playstation BD remote
 playstation_map = {22:"EJECT", 0:"1", 1:"2", 2:"3", 3:"4", 4:"5", 5:"6", 6:"7", 7:"8", 8:"9", 9:"0",
@@ -41,31 +42,32 @@ playstation_map = {22:"EJECT", 0:"1", 1:"2", 2:"3", 3:"4", 4:"5", 5:"6", 6:"7", 
 323:"PLAYSTATION", 16777296:"SELECT", 134217811:"START", 51:"REWIND", 50:"PLAY", 52:"FORWARD",
 48:"PREVIOUS", 56:"STOP", 49:"NEXT", 96:"SLOWREWIND", 57:"PAUSE", 97:"SLOWFORWARD"}
 
-playstation_convert = {"EJECT":"POWER", "L1":"LIGHT", "AUIDO":"MUTE",
-"SLOWREWIND":"HOLD", "SLOWFORWARD":"SELECT", "OPTIONS":"VOL+", "VIEW":"VOL-", "BACK":"CH+", "X":"CH-"}
+playstation_convert = {"EJECT":"POWER", "L1":"LIGHT", "AUIDO":"MUTE", "POPUP":"MENU",
+"SLOWREWIND":"SOURCE", "SLOWFORWARD":"SELECT", "OPTIONS":"VOL+", "VIEW":"VOL-", "BACK":"CH+", "X":"CH-",
+"TOPMENU":"LIST", "PLAYSTATION":"HOME"}
 
 # key mapping from EyeTV remote to other device remote
 map_TV = {"VOL+":"BAR VOL+", "VOL-":"BAR VOL-", "MUTE":"BAR MUTE", "DISPLAY":"BAR MUTE",
 "UP":"TV UP", "DOWN":"TV DOWN", "LEFT":"TV LEFT", "RIGHT":"TV RIGHT", "OK":"TV OK",
 "1":"TV 1", "2":"TV 2", "3":"TV 3", "4":"TV 4", "5":"TV 5", "6":"TV 6", "7":"TV 7", "8":"TV 8",
-"9":"TV 9", "0":"TV 0", "RETURN":"TV RETURN", "LAST":"TV MENU", "CH+":"TV CH+", "CH-":"TV CH-",
-"TEXT":"TV TEXT", "BACK_RIGHT":"TV LIST", "ENTER":"TV EXIT", "HOLD":"TV SOURCE"}
+"9":"TV 9", "0":"TV 0", "RETURN":"TV RETURN", "MENU":"TV MENU", "CH+":"TV CH+", "CH-":"TV CH-",
+"TEXT":"TV TEXT", "LIST":"TV LIST", "ENTER":"TV EXIT", "SOURCE":"TV SOURCE"}
 
 map_DVD = {"VOL+":"BAR VOL+", "VOL-":"BAR VOL-", "MUTE":"BAR MUTE", "DISPLAY":"BAR MUTE",
 "UP":"DVD UP", "DOWN":"DVD DOWN", "LEFT":"DVD LEFT", "RIGHT":"DVD RIGHT", "OK":"DVD OK",
 "1":"DVD 1", "2":"DVD 2", "3":"DVD 3", "4":"DVD 4", "5":"DVD 5", "6":"DVD 6", "7":"DVD 7", "8":"DVD 8",
-"9":"DVD 9", "0":"DVD 0", "LAST":"DVD MENU",
-"RETURN":"DVD RETURN", "ENTER":"DVD HOME", "TEXT":"DVD POPUPMENU", "BACK_RIGHT":"DVD OPTIONS",
+"9":"DVD 9", "0":"DVD 0", "MENU":"DVD MENU",
+"RETURN":"DVD RETURN", "HOME":"DVD HOME", "TEXT":"DVD POPUPMENU", "LIST":"DVD OPTIONS",
 "PLAY":"DVD PLAY", "FORWARD":"DVD FORWARD", "REWIND":"DVD REWIND", "STOP":"DVD STOP",
 "REC":"DVD EJECT", "ANGLE":"DVD EJECT"}
 
 # up:103,down:108,left:105,right:106,ok:96,back:158,menu:139,play:64,forward:208,rewind:168,apps:746 (input-event-codes.h)
 # HOME: only via "adb shell input keyevent 3" -> implement as special case
 map_PROJECTOR = {"VOL+":"BAR VOL+", "VOL-":"BAR VOL-", "MUTE":"BAR MUTE", "DISPLAY":"BAR MUTE",
-"HOLD":"BEAM SOURCE", "ENTER":"BEAM OK", "LAST":"BEAM EXIT",
+"R3":"BAR SOUND", "SOURCE":"BEAM SOURCE", "ENTER":"BEAM OK",
 "UP":"FIRETVBEAM 103", "DOWN":"FIRETVBEAM 108", "LEFT":"FIRETVBEAM 105", "RIGHT":"FIRETVBEAM 106",
-"OK":"FIRETVBEAM 96", "RETURN":"FIRETVBEAM 158", "POPUP":"FIRETVBEAM 139", "REWIND":"FIRETVBEAM 168",
-"PLAY":"FIRETVBEAM 164", "FORWARD":"FIRETVBEAM 208", "START":"FIRETVBEAM 746", "PLAYSTATION":"FIRETVBEAM 3"}
+"OK":"FIRETVBEAM 96", "RETURN":"FIRETVBEAM 158", "MENU":"FIRETVBEAM 139", "REWIND":"FIRETVBEAM 168",
+"PLAY":"FIRETVBEAM 164", "FORWARD":"FIRETVBEAM 208", "START":"FIRETVBEAM 746", "HOME":"FIRETVBEAM 3"}
 
 map_LIGHT = {"UP":"LED BRIGHTER", "DOWN":"LED DIMMER", "LEFT":"LED DIMMER", "RIGHT":"LED BRIGHTER",
 "VOL+":"LED BRIGHTER", "VOL-":"LED DIMMER", "CH+":"LED BRIGHTER", "CH-":"LED DIMMER",
