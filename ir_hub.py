@@ -340,8 +340,8 @@ def send_keyevent(keycode):
     if keycode == "3": # special case for HOME
       adb_shell.stdin.write(f"input keyevent {keycode}\n")
     else:
-      adb_shell.stdin.write(f"sendevent /dev/input/event4 1 {keycode} 1 && sendevent /dev/input/event4 0 0 0 &&"
-                            f"sendevent /dev/input/event4 1 {keycode} 0 && sendevent /dev/input/event4 0 0 0\n")
+      adb_shell.stdin.write(f"sendevent /dev/input/event1 1 {keycode} 1 && sendevent /dev/input/event1 0 0 0 &&"
+                            f"sendevent /dev/input/event1 1 {keycode} 0 && sendevent /dev/input/event1 0 0 0\n")
     adb_shell.stdin.flush()
 
 def set_rgb(rgb_leds):
