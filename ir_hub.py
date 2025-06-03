@@ -24,15 +24,6 @@ state_rgb = {"PROJECTOR":[0, 0, rgb_val], "TV":[0, rgb_val, 0], "LIGHT":[rgb_val
              "DVD":[rgb_val, rgb_val, 0], "TVFIRE":[rgb_val, 0, rgb_val], "IDLE":[0, 0, 0]}
 repeat_key = ("VOL+", "VOL-", "CH+", "CH-", "UP", "DOWN", "LEFT", "RIGHT")
 
-# scancode to readable button name for Elgato EyeTV remote
-eyetv_map = {0:"POWER", 1:"MUTE", 2:"1", 3:"2", 4:"3", 5:"4", 6:"5", 7:"6", 8:"7", 9:"8",
-10:"9", 11:"LAST", 12:"0", 13:"ENTER", 14:"RED", 15:"UP", 16:"GREEN", 17:"LEFT", 18:"OK",
-19:"RIGHT", 20:"YELLOW", 21:"DOWN", 22:"BLUE", 23:"RETURN", 24:"PLAY", 25:"BACK_RIGHT",
-26:"REWIND", 27:"L", 28:"FORWARD", 29:"STOP", 30:"TEXT", 63:"REC", 64:"HOLD", 65:"SELECT"}
-
-eyetv_convert = {"L":"LIGHT", "RED":"VOL+", "YELLOW":"VOL-", "GREEN":"CH+", "BLUE":"CH-",
-"LAST":"MENU", "HOLD":"SOURCE", "BACK_RIGHT":"LIST"}
-
 # scancode to readable button name for Playstation BD remote
 playstation_map = {22:"EJECT", 0:"1", 1:"2", 2:"3", 3:"4", 4:"5", 5:"6", 6:"7", 7:"8", 8:"9", 9:"0",
 100:"AUIDO", 101:"ANGLE", 99:"SUBTITLE", 15:"CLEAR", 40:"TIME", 129:"RED", 130:"GREEN", 128:"BLUE",
@@ -46,12 +37,12 @@ playstation_convert = {"EJECT":"POWER", "L1":"LIGHT", "AUIDO":"MUTE", "POPUP":"M
 "SLOWREWIND":"SOURCE", "SLOWFORWARD":"SELECT", "OPTIONS":"VOL+", "VIEW":"VOL-", "BACK":"CH+", "X":"CH-",
 "TOPMENU":"LIST", "PLAYSTATION":"HOME"}
 
-# key mapping from EyeTV remote to other device remote
+# key mapping from universal remote to other device remote
 map_TV = {"VOL+":"BAR VOL+", "VOL-":"BAR VOL-", "MUTE":"BAR MUTE", "DISPLAY":"BAR MUTE",
 "UP":"TV UP", "DOWN":"TV DOWN", "LEFT":"TV LEFT", "RIGHT":"TV RIGHT", "OK":"TV OK",
 "1":"TV 1", "2":"TV 2", "3":"TV 3", "4":"TV 4", "5":"TV 5", "6":"TV 6", "7":"TV 7", "8":"TV 8",
 "9":"TV 9", "0":"TV 0", "RETURN":"TV RETURN", "MENU":"TV MENU", "CH+":"TV CH+", "CH-":"TV CH-",
-"TEXT":"TV TEXT", "LIST":"TV LIST", "ENTER":"TV EXIT", "SOURCE":"TV SOURCE"}
+"TEXT":"TV TEXT", "LIST":"TV LIST", "SOURCE":"TV SOURCE"}
 
 map_DVD = {"VOL+":"BAR VOL+", "VOL-":"BAR VOL-", "MUTE":"BAR MUTE", "DISPLAY":"BAR MUTE",
 "SOURCE":"BEAM SOURCE", "R1":"BEAM OK",
@@ -65,7 +56,7 @@ map_DVD = {"VOL+":"BAR VOL+", "VOL-":"BAR VOL-", "MUTE":"BAR MUTE", "DISPLAY":"B
 # up:103,down:108,left:105,right:106,ok:96,back:158,menu:139,play:64,forward:208,rewind:168,apps:746 (input-event-codes.h)
 # HOME: only via "adb shell input keyevent 3" -> implement as special case
 map_PROJECTOR = {"VOL+":"BAR VOL+", "VOL-":"BAR VOL-", "MUTE":"BAR MUTE", "DISPLAY":"BAR MUTE",
-"R2":"BAR SURROUNDON", "R3":"BAR SURROUNDOFF", "SOURCE":"BEAM SOURCE", "ENTER":"BEAM OK", "R1":"BEAM OK",
+"R2":"BAR SURROUNDON", "R3":"BAR SURROUNDOFF", "SOURCE":"BEAM SOURCE", "R1":"BEAM OK",
 "UP":"FIRETVBEAM 103", "DOWN":"FIRETVBEAM 108", "LEFT":"FIRETVBEAM 105", "RIGHT":"FIRETVBEAM 106",
 "OK":"FIRETVBEAM 96", "RETURN":"FIRETVBEAM 158", "MENU":"FIRETVBEAM 139", "REWIND":"FIRETVBEAM 168",
 "PLAY":"FIRETVBEAM 164", "FORWARD":"FIRETVBEAM 208", "START":"FIRETVBEAM 746", "HOME":"FIRETVBEAM 3"}
@@ -112,35 +103,6 @@ def playstation_remote_input():
           ps3_sleep_timer.cancel()
         ps3_sleep_timer = threading.Timer(5400, lambda: subprocess.run(["bluetoothctl", "disconnect", ps3_bd_remote_mac]))
         ps3_sleep_timer.start()
-
-def eyetv_remote_input():
-  time.sleep(5) # let device be initialized in system on startup
-  target_device = None
-  for device in [evdev.InputDevice(path) for path in evdev.list_devices()]:
-    if "EyeTV" in device.name:
-      target_device = device
-  if target_device:
-    device_path = target_device.path
-  else:
-    raise RuntimeError("Input device EyeTV not found.")
-  (last_scancode, last_time) = (None, 0) # state
-  event_format = "qqHHI"
-  event_size   = struct.calcsize(event_format)
-  with open(device_path, "rb") as f:
-    while True:
-      data = f.read(event_size)
-      if len(data) == event_size:
-        _, _, event_type, code, value = struct.unpack(event_format, data)
-        if event_type == 4 and code == 4: # MSC_SCAN
-          scancode = value - 4539649
-          button_name = eyetv_map.get(scancode, f"UNKNOWN ({scancode})")
-          button_name = eyetv_convert.get(button_name, button_name)
-          if scancode != last_scancode or time.time() - last_time > 0.2 or button_name in {"RED", "YELLOW"}:
-            last_scancode = scancode
-            threading.Thread(target=on_button_press, args=(button_name,)).start()
-          last_time = time.time()
-        elif event_type == 0: # EV_SYN (sync event)
-          last_time = time.time() # mark last_time for idle detection
 
 def socket_input():
   socket_path = "/tmp/ir_hub_script.sock"
@@ -670,7 +632,6 @@ if __name__ == '__main__':
   subprocess.Popen(["sudo", "pigpiod", "-m"]) # start pigpiod using "Disable alerts (sampling)" for lower CPU usage
   set_rgb(state_rgb[state]) # initial update of RGB LED (should be "IDLE" state)
   threading.Thread(target=adb_connect, args=("firetv1",)).start()
-  threading.Thread(target=eyetv_remote_input).start()
   threading.Thread(target=playstation_remote_input).start()
   threading.Thread(target=socket_input).start()
 
@@ -693,10 +654,3 @@ if __name__ == '__main__':
 # send_ir.sh: ------------------------------------------------------------------
 # #!/bin/bash
 # echo -n "$1" | sudo socat - UNIX-CONNECT:/tmp/ir_hub_script.sock
-#
-# Disable lirc exclusive grabbing eyeTV remote: --------------------------------
-# sudo vi /etc/udev/rules.d/99-ignore-eyetv.rules
-# SUBSYSTEM=="input", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="0018", ENV{eventlircd_enable}="false"
-#
-# sudo udevadm control --reload-rules
-# sudo udevadm trigger
