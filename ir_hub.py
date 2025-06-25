@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # created with help of ChatGPT
-import threading, struct, time, evdev, subprocess, pigpio, math, spidev, random, socket, os
+import threading, struct, time, evdev, subprocess, pigpio, math, spidev, random, socket, os, requests
 from datetime import datetime
 
 out_pin           = 22
@@ -128,7 +128,7 @@ def on_button_press(button_name):
       alt_func = not alt_func
     # special key: LIGHT
     if button_name == "LIGHT": # in general, toggles LED state and does not change color or brightness
-      if state == "IDLE": # special case 1: if in IDLE, do the same as button "1"
+      if state == "IDLE": # special case 1: if in IDLE, do the same as button "3"
         button_name = "3"
       elif state == "LIGHT": # special case 2: if in LIGHT, do the same as button "POWER"
         button_name = "POWER"
@@ -144,6 +144,8 @@ def on_button_press(button_name):
       if state == state_map[button_name]:
         print("Help action requested -> do transition again")
         state = prev_state;
+      if state == "IDLE" and button_name != "POWER":
+        switch_radio_socket_on()
       if button_name == "POWER":
         mapping   = None
         alt_func  = True # special case: per definition True, to be able to select mode right away
@@ -157,6 +159,7 @@ def on_button_press(button_name):
           threading.Thread(target=switch_projector_off).start()
         ir_send_in_thread("DVD POWEROFF")
         ir_send_in_thread("LED POWEROFF")
+        threading.Thread(target=switch_radio_socket_off).start()
       elif button_name == "1": # PROJECTOR -----
         mapping   = map_PROJECTOR
         led_is_on = False
@@ -274,6 +277,21 @@ def ir_send(button_name, repeat):
         send_keyevent(command)
       else:
         send_command(device, command, repeat)
+
+def switch_radio_socket_on:
+  try:
+    requests.get("http://radiosocket/cm", {"cmnd": f"Power On"}) # Tasmota socket
+    time.sleep(1) # give devices some time to cold start
+  except:
+    pass
+
+def switch_radio_socket_off:
+  try:
+    time.sleep(60) # wait some time before switching off in case, e.g., a state change was done with power off
+    if state == "IDLE": # only switch off if still in IDLE state
+      requests.get("http://radiosocket/cm", {"cmnd": f"Power Off"}) # Tasmota socket
+  except:
+    pass
 
 def adb_connect(ip_address): # returns True on success
   global adb_shell
