@@ -14,6 +14,7 @@ mapping           = None
 pi                = None
 adb_shell         = None
 ps3_sleep_timer   = None
+rs_sleep_timer    = None
 alt_func          = True
 toggle_bit        = 0
 press_lock        = threading.Lock()
@@ -121,7 +122,7 @@ def socket_input():
         on_button_press(data.decode('utf-8').strip())
 
 def on_button_press(button_name):
-  global state, prev_state, alt_func, mapping, led_is_on
+  global state, prev_state, alt_func, mapping, led_is_on, rs_sleep_timer
   with press_lock:
     # special key: SELECT
     if button_name == "SELECT" and state != "IDLE":
@@ -145,7 +146,10 @@ def on_button_press(button_name):
         print("Help action requested -> do transition again")
         state = prev_state;
       if state == "IDLE" and button_name != "POWER":
-        switch_radio_socket_on()
+        if rs_sleep_timer is not None:
+          rs_sleep_timer.cancel()
+        switch_radio_socket("On")
+        time.sleep(6) # give devices some time to cold start
       if button_name == "POWER":
         mapping   = None
         alt_func  = True # special case: per definition True, to be able to select mode right away
@@ -159,7 +163,9 @@ def on_button_press(button_name):
           threading.Thread(target=switch_projector_off).start()
         ir_send_in_thread("DVD POWEROFF")
         ir_send_in_thread("LED POWEROFF")
-        threading.Thread(target=switch_radio_socket_off).start()
+        # switch off radio socket after 1.5h of inactivity
+        rs_sleep_timer = threading.Timer(30, target=switch_radio_socket, args=["Off"])
+        rs_sleep_timer.start()
       elif button_name == "1": # PROJECTOR -----
         mapping   = map_PROJECTOR
         led_is_on = False
@@ -278,18 +284,9 @@ def ir_send(button_name, repeat):
       else:
         send_command(device, command, repeat)
 
-def switch_radio_socket_on():
+def switch_radio_socket(state):
   try:
-    requests.get("http://radiosocket/cm", {"cmnd": f"Power On"}) # Tasmota socket
-    time.sleep(6) # give devices some time to cold start
-  except:
-    pass
-
-def switch_radio_socket_off():
-  try:
-    time.sleep(60) # wait some time before switching off in case, e.g., a state change was done with power off
-    if state == "IDLE": # only switch off if still in IDLE state
-      requests.get("http://radiosocket/cm", {"cmnd": f"Power Off"}) # Tasmota socket
+    requests.get("http://radiosocket/cm", params={"cmnd": f"Power {state}"})
   except:
     pass
 
