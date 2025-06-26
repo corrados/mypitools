@@ -281,7 +281,7 @@ def ir_send(button_name, repeat):
 def switch_radio_socket_on():
   try:
     requests.get("http://radiosocket/cm", {"cmnd": f"Power On"}) # Tasmota socket
-    time.sleep(1) # give devices some time to cold start
+    time.sleep(6) # give devices some time to cold start
   except:
     pass
 
