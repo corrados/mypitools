@@ -278,14 +278,14 @@ def ir_send(button_name, repeat):
       else:
         send_command(device, command, repeat)
 
-def switch_radio_socket_on:
+def switch_radio_socket_on():
   try:
     requests.get("http://radiosocket/cm", {"cmnd": f"Power On"}) # Tasmota socket
     time.sleep(1) # give devices some time to cold start
   except:
     pass
 
-def switch_radio_socket_off:
+def switch_radio_socket_off():
   try:
     time.sleep(60) # wait some time before switching off in case, e.g., a state change was done with power off
     if state == "IDLE": # only switch off if still in IDLE state
