@@ -146,10 +146,12 @@ def on_button_press(button_name):
         print("Help action requested -> do transition again")
         state = prev_state;
       if state == "IDLE" and button_name != "POWER":
-        if rs_sleep_timer is not None:
-          rs_sleep_timer.cancel()
-        switch_radio_socket("On")
-        time.sleep(6) # give devices some time to cold start
+        if rs_sleep_timer is not None and rs_sleep_timer.is_alive():
+          rs_sleep_timer.cancel() # socket was still On
+        else:
+          switch_radio_socket("On")
+          set_rgb([0, 255, 0]) # BLUE at highest power to indicate cold start delay
+          time.sleep(6) # give devices some time to cold start
       if button_name == "POWER":
         mapping   = None
         alt_func  = True # special case: per definition True, to be able to select mode right away
