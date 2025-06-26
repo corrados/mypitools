@@ -166,7 +166,7 @@ def on_button_press(button_name):
         ir_send_in_thread("DVD POWEROFF")
         ir_send_in_thread("LED POWEROFF")
         # switch off radio socket after 1.5h of inactivity
-        rs_sleep_timer = threading.Timer(30, switch_radio_socket, args=["Off"])
+        rs_sleep_timer = threading.Timer(5400, switch_radio_socket, args=["Off"])
         rs_sleep_timer.start()
       elif button_name == "1": # PROJECTOR -----
         mapping   = map_PROJECTOR
