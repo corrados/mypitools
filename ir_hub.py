@@ -6,6 +6,7 @@ from datetime import datetime
 out_pin           = 22
 ps3_bd_remote_mac = "00:1E:3D:10:CB:F0"
 rgb_val           = 10 # 0..255
+standby_timeout   = 3600 # 1h standby time used for BD remote and radio socket
 device_path       = None
 state             = "IDLE"
 prev_state        = "IDLE"
@@ -99,10 +100,10 @@ def playstation_remote_input():
             sock.settimeout(0.7) # initial time-out for long press
           elif sock.gettimeout() == 0.7:
             sock.settimeout(0.2) # repeating auto presses time-out
-        # disconnect PS3 BD remote after 1.5h of inactivity to avoid battery drain (goes into sleep if disconnected)
+        # disconnect PS3 BD remote after some time of inactivity to avoid battery drain (goes into sleep if disconnected)
         if ps3_sleep_timer is not None:
           ps3_sleep_timer.cancel()
-        ps3_sleep_timer = threading.Timer(5400, lambda: subprocess.run(["bluetoothctl", "disconnect", ps3_bd_remote_mac]))
+        ps3_sleep_timer = threading.Timer(standby_timeout, lambda: subprocess.run(["bluetoothctl", "disconnect", ps3_bd_remote_mac]))
         ps3_sleep_timer.start()
 
 def socket_input():
@@ -165,8 +166,8 @@ def on_button_press(button_name):
           threading.Thread(target=switch_projector_off).start()
         ir_send_in_thread("DVD POWEROFF")
         ir_send_in_thread("LED POWEROFF")
-        # switch off radio socket after 1.5h of inactivity
-        rs_sleep_timer = threading.Timer(5400, switch_radio_socket, args=["Off"])
+        # switch off radio socket after some time of inactivity
+        rs_sleep_timer = threading.Timer(standby_timeout, switch_radio_socket, args=["Off"])
         rs_sleep_timer.start()
       elif button_name == "1": # PROJECTOR -----
         mapping   = map_PROJECTOR
