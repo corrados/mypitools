@@ -61,7 +61,8 @@ map_PROJECTOR = {"VOL+":"BAR VOL+", "VOL-":"BAR VOL-", "MUTE":"BAR MUTE", "DISPL
 "R2":"BAR SURROUNDON", "R3":"BAR SURROUNDOFF", "SOURCE":"BEAM SOURCE", "R1":"BEAM OK",
 "UP":"FIRETVBEAM 103", "DOWN":"FIRETVBEAM 108", "LEFT":"FIRETVBEAM 105", "RIGHT":"FIRETVBEAM 106",
 "OK":"FIRETVBEAM 96", "RETURN":"FIRETVBEAM 158", "MENU":"FIRETVBEAM 127", "REWIND":"FIRETVBEAM 168",
-"PLAY":"FIRETVBEAM 164", "FORWARD":"FIRETVBEAM 208", "START":"FIRETVBEAM 746", "HOME":"FIRETVBEAM 3"}
+"PLAY":"FIRETVBEAM 164", "FORWARD":"FIRETVBEAM 208", "START":"FIRETVBEAM 746", "HOME":"FIRETVBEAM HOME",
+"1":"FIRETVBEAM 1", "2":"FIRETVBEAM 2", "3":"FIRETVBEAM 3"}
 
 map_LIGHT = {"UP":"LED BRIGHTER", "DOWN":"LED DIMMER", "LEFT":"LED DIMMER", "RIGHT":"LED BRIGHTER",
 "VOL+":"LED BRIGHTER", "VOL-":"LED DIMMER", "CH+":"LED BRIGHTER", "CH-":"LED DIMMER",
@@ -317,8 +318,14 @@ def terminate_adb_shell():
 
 def send_keyevent(keycode):
   if adb_shell and adb_shell.poll() is None:
-    if keycode == "3": # special case for HOME
-      adb_shell.stdin.write(f"input keyevent {keycode}\n")
+    if keycode == "HOME": # special case for HOME
+      adb_shell.stdin.write(f"input keyevent 3\n")
+    elif keycode == "1":  # special case to start ARD Mediathek
+      adb_shell.stdin.write("am start -n de.swr.ard.avp.mobile.android.amazon/.TvActivity\n")
+    elif keycode == "2":  # special case to start Kodi
+      adb_shell.stdin.write("am start -n org.xbmc.kodi/.Splash\n")
+    elif keycode == "3":  # special case to start Youtube
+      adb_shell.stdin.write("am start -n com.amazon.firetv.youtube/dev.cobalt.app.MainActivity\n")
     else:
       adb_shell.stdin.write(f"sendevent /dev/input/event1 1 {keycode} 1 && sendevent /dev/input/event1 0 0 0 &&"
                             f"sendevent /dev/input/event1 1 {keycode} 0 && sendevent /dev/input/event1 0 0 0\n")
