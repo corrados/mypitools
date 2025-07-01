@@ -6,7 +6,7 @@ from datetime import datetime
 out_pin           = 22
 ps3_bd_remote_mac = "00:1E:3D:10:CB:F0"
 rgb_val           = 10 # 0..255
-standby_timeout   = 3600 # 1h standby time used for BD remote and radio socket
+standby_timeout   = 1800 # 1/2 h standby time used for BD remote and radio socket
 device_path       = None
 state             = "IDLE"
 prev_state        = "IDLE"
