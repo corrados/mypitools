@@ -1,3 +1,7 @@
+
+# Code generated with assistance from OpenAI's ChatGPT
+# based on Gadgetbridge: https://codeberg.org/Freeyourgadget/Gadgetbridge/src/branch/master/app/src/main/java/nodomain/freeyourgadget/gadgetbridge/service/devices/xiaomi/activity/impl/DailyDetailsParser.java
+
 import struct
 from typing import List, Dict
 from datetime import datetime, timedelta, UTC
