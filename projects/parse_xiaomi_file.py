@@ -164,9 +164,11 @@ def parse_xiaomi_v5_file(filename: str) -> List[Dict]:
                 sample["calories"] = parser.get(2, 6)
 
         if parser.next_group(8):
+            #sample["unknown"] = parser.get(0, 8)
             pass # TODO
 
-        if parser.next_group(16):
+        if parser.next_group(16): # looks like steps...?
+            #sample["unknown"] = parser.get(0, 16)
             pass # TODO distance
 
         if parser.next_group(8):
@@ -176,10 +178,12 @@ def parse_xiaomi_v5_file(filename: str) -> List[Dict]:
                 ok = True
 
         if parser.next_group(8):
+            #sample["unknown"] = parser.get(0, 8)
             if parser.has(0): # hasFirst
                 pass # energy, 8 bits
 
-        if parser.next_group(16):
+        if parser.next_group(16): # looks like calories...?
+            #sample["unknown"] = parser.get(0, 16)
             pass # TODO
 
         if version >= 3:
@@ -199,11 +203,14 @@ def parse_xiaomi_v5_file(filename: str) -> List[Dict]:
 
         if includeExtraEntry == 1:
             if parser.next_group(8):
+                #sample["unknown"] = parser.get(0, 8)
                 pass # TODO
 
         if version >= 4:
             parser.next_group(16) # TODO: light value (short)
+            #sample["unknown"] = parser.get(0, 16)
             parser.next_group(16) # TODO: body momentum (short)
+            #sample["unknown"] = parser.get(0, 16)
 
         consumed = parser.offset
         offset += consumed
@@ -217,8 +224,8 @@ def parse_xiaomi_v5_file(filename: str) -> List[Dict]:
 if __name__ == "__main__":
     #samples = parse_xiaomi_v5_file("xiaomi_20250719T143946_01_16_00_v5.bin") # <- v5 seems not to be supported
     samples = parse_xiaomi_v5_file("xiaomi_20250720T164200_00_00_00_v4.bin")
-    #for s in samples:
-    #    print(s)
+    for s in samples:
+        print(s)
 
     #g
 
@@ -231,9 +238,10 @@ if __name__ == "__main__":
     calories = [s.get("calories", None) for s in samples]
     spo2 = [s.get("spo2", None) for s in samples]
     stress = [s.get("stress", None) for s in samples]
+    unknown = [s.get("unknown", None) for s in samples]
 
     # Create a plot with multiple subplots
-    fig, axs = plt.subplots(5, 1, figsize=(12, 15), sharex=True)
+    fig, axs = plt.subplots(6, 1, figsize=(12, 15), sharex=True)
 
     axs[0].plot(times, steps, marker='o', label="Steps")
     axs[0].set_ylabel("Steps")
@@ -255,7 +263,11 @@ if __name__ == "__main__":
     axs[4].set_ylabel("Stress")
     axs[4].legend()
 
-    axs[4].set_xlabel("Time")
+    axs[5].plot(times, unknown, marker='o', color='black', label="Unknown")
+    axs[5].set_ylabel("Unknown")
+    axs[5].legend()
+
+    axs[5].set_xlabel("Time")
 
     plt.suptitle("Xiaomi Activity Data Over Time")
     plt.tight_layout(rect=[0, 0, 1, 0.96])
