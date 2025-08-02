@@ -126,7 +126,7 @@ def parse_xiaomi_v5_file(filename: str) -> List[Dict]:
     minute = 0
 
     while offset < len(data):
-        MAX_BYTES_PER_SAMPLE = 20
+        MAX_BYTES_PER_SAMPLE = 50
         sample_buf = data[offset:offset + MAX_BYTES_PER_SAMPLE]
         if len(sample_buf) < 1:
             break  # avoid passing empty or tiny buffer
@@ -187,14 +187,13 @@ def parse_xiaomi_v5_file(filename: str) -> List[Dict]:
                         sample["stress"] = stress
                         ok = True
 
-        # TODO!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        if True:#includeExtraEntry == 1:
+        if includeExtraEntry == 1:
             if parser.next_group(8):
                 pass # TODO
 
         if version >= 4:
-            parser.next_group(16)  # TODO: light value (short)
-            parser.next_group(16)  # TODO: body momentum (short)
+            parser.next_group(16) # TODO: light value (short)
+            parser.next_group(16) # TODO: body momentum (short)
 
         consumed = parser.offset
         offset += consumed
@@ -207,8 +206,8 @@ def parse_xiaomi_v5_file(filename: str) -> List[Dict]:
 
 if __name__ == "__main__":
     samples = parse_xiaomi_v5_file("xiaomi_20250719T143946_01_16_00_v5.bin")
-    for s in samples:
-        print(s)
+    #for s in samples:
+    #    print(s)
 
     #g
 
