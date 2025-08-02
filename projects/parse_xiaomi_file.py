@@ -187,7 +187,8 @@ def parse_xiaomi_v5_file(filename: str) -> List[Dict]:
                         sample["stress"] = stress
                         ok = True
 
-        if includeExtraEntry == 1:
+        # TODO!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        if True:#includeExtraEntry == 1:
             if parser.next_group(8):
                 pass # TODO
 
@@ -206,7 +207,6 @@ def parse_xiaomi_v5_file(filename: str) -> List[Dict]:
 
 if __name__ == "__main__":
     samples = parse_xiaomi_v5_file("xiaomi_20250719T143946_01_16_00_v5.bin")
-    #samples = parse_xiaomi_v5_file("xiaomi_20250720T192300_00_00_00_v4.bin")
     for s in samples:
         print(s)
 
