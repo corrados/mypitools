@@ -105,13 +105,23 @@ def parse_xiaomi_v5_file(filename: str) -> List[Dict]:
     with open(filename, "rb") as f:
         raw = f.read()
 
-    version = 5 # assumtion from file name
+    version = 4 # assumtion from file name
+
+    if version == 1 or version == 2:
+        headerSize = 4
+    elif version == 3:
+        headerSize = 5
+    elif version == 4:
+        headerSize = 6
+    else:
+        # TODO
+        headerSize = 7
 
     index = 0
-    file_id = raw[0:7]
-    padding = raw[7]
-    header = raw[8:15]  # 7 bytes
-    data = raw[15:-4]   # skip CRC
+    file_id = raw[0:7] # skip fileId bytes
+    fileIdPadding = raw[7]
+    header = raw[8:(8 + headerSize)]
+    data = raw[8 + headerSize:-4]   # skip CRC
 
     # Try to extract timestamp from file ID if possible
     # (this is guessed based on your earlier output)
@@ -205,7 +215,8 @@ def parse_xiaomi_v5_file(filename: str) -> List[Dict]:
 
 
 if __name__ == "__main__":
-    samples = parse_xiaomi_v5_file("xiaomi_20250719T143946_01_16_00_v5.bin")
+    #samples = parse_xiaomi_v5_file("xiaomi_20250719T143946_01_16_00_v5.bin") # <- v5 seems not to be supported
+    samples = parse_xiaomi_v5_file("xiaomi_20250720T164200_00_00_00_v4.bin")
     #for s in samples:
     #    print(s)
 
