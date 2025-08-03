@@ -223,10 +223,13 @@ def parse_xiaomi_v5_file(filename: str) -> List[Dict]:
 
 if __name__ == "__main__":
     #samples = parse_xiaomi_v5_file("xiaomi_20250719T143946_01_16_00_v5.bin") # <- v5 seems not to be supported
-    samples = parse_xiaomi_v5_file("xiaomi_20250720T164200_00_00_00_v4.bin")
+    #samples = parse_xiaomi_v5_file("xiaomi_20250720T164200_00_00_00_v4.bin")
+    samples = parse_xiaomi_v5_file("xiaomi_20250803T000000_00_00_00_v4.bin")
+
     for s in samples:
         print(s)
 
+    print(len(samples))
     #g
 
     # Extract timestamps and values for each metric
