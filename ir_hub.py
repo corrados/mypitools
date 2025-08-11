@@ -332,12 +332,15 @@ def send_keyevent(keycode):
     adb_shell.stdin.flush()
 
 def set_rgb(rgb_leds):
-  spi = spidev.SpiDev()
-  spi.open(bus=0, device=0)
-  spi.mode         = 0b00
-  spi.max_speed_hz = 1000000
-  spi.writebytes(rgb_leds)
-  spi.close()
+  try:
+    spi = spidev.SpiDev()
+    spi.open(bus=0, device=0)
+    spi.mode         = 0b00
+    spi.max_speed_hz = 1000000
+    spi.writebytes(rgb_leds)
+    spi.close()
+  except:
+    pass
 
 def carrier_frequency(out_pin, frequency, duty_cycle, duration, ir_signal):
   one_cycle_time = 1_000_000.0 / frequency
