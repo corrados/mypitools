@@ -138,6 +138,7 @@ def on_button_press(button_name):
       else:
         ir_send_in_thread("LED POWEROFF", 1) if led_is_on else ir_send_in_thread("LED POWERON", 1)
         led_is_on = not led_is_on
+        send_alexa_text("play HR1") # TEST
     # special case: in LIGHT mode assign numbers to state selection
     if state in ("LIGHT") and button_name in state_map:
       alt_func = True
@@ -329,6 +330,17 @@ def send_keyevent(keycode):
     else:
       adb_shell.stdin.write(f"sendevent /dev/input/event1 1 {keycode} 1 && sendevent /dev/input/event1 0 0 0 &&"
                             f"sendevent /dev/input/event1 1 {keycode} 0 && sendevent /dev/input/event1 0 0 0\n")
+    adb_shell.stdin.flush()
+
+def send_alexa_text(command):
+  if adb_shell and adb_shell.poll() is None:
+    adb_shell.stdin.write("am start -a android.intent.action.SEARCH -n com.amazon.tv.launcher/.ui.SearchActivity\n")
+    adb_shell.stdin.flush()
+    time.sleep(2)
+    adb_shell.stdin.write(f"input text {command.replace(" ", "+")}\n")
+    adb_shell.stdin.flush()
+    time.sleep(0.5)
+    adb_shell.stdin.write("input keyevent 66\n") # enter key
     adb_shell.stdin.flush()
 
 def set_rgb(rgb_leds):
