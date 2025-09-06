@@ -337,7 +337,8 @@ def send_alexa_text(command):
     adb_shell.stdin.write("am start -a android.intent.action.SEARCH -n com.amazon.tv.launcher/.ui.SearchActivity\n")
     adb_shell.stdin.flush()
     time.sleep(2)
-    adb_shell.stdin.write(f"input text {command.replace(" ", "+")}\n")
+    safe_cmd = command.replace(" ", "+")
+    adb_shell.stdin.write(f"input text {safe_cmd}\n")
     adb_shell.stdin.flush()
     time.sleep(0.5)
     adb_shell.stdin.write("input keyevent 66\n") # enter key
