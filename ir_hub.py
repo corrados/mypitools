@@ -145,10 +145,10 @@ def on_button_press(button_name):
     if (alt_func or button_name == "POWER") and button_name in state_map:
       alt_func = False # clear SELECT state
       if state == "IDLE" and button_name != "POWER":
+        switch_radio_socket("On") # always send command to switch on (even if it is still on)
         if rs_sleep_timer is not None and rs_sleep_timer.is_alive():
           rs_sleep_timer.cancel() # socket was still On
         else:
-          switch_radio_socket("On")
           set_rgb([0, 255, 0]) # BLUE at highest power to indicate cold start delay
           time.sleep(6) # give devices some time to cold start
       if state == state_map[button_name]:
