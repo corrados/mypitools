@@ -29,11 +29,13 @@ def read_and_plot(path, do_pdf=False):
   # Band Data/Scale Measurements
   (band_x, band_r, band_i) = ([], [], [])
   (scale_x, scale_y, running_workouts) = ([], [], [])
+  (segments, hr_time, hr_data, data, prev_time) = ([], [], [], np.array([]), datetime.datetime.now() - datetime.timedelta(days=365 * 1000)) # 1000 years ago for initialization
   cursor1 = sqlite3.connect(path + "/Gadgetbridge").cursor().execute("""
     SELECT TIMESTAMP, RAW_INTENSITY, HEART_RATE FROM MI_BAND_ACTIVITY_SAMPLE UNION ALL
     SELECT TIMESTAMP, RAW_INTENSITY, HEART_RATE FROM XIAOMI_ACTIVITY_SAMPLE ORDER BY TIMESTAMP ASC""")
   cursor2 = sqlite3.connect(path + "/Gadgetbridge").cursor().execute("SELECT * FROM MI_SCALE_WEIGHT_SAMPLE")
   cursor3 = sqlite3.connect(path + "/Gadgetbridge").cursor().execute("SELECT START_TIME FROM BASE_ACTIVITY_SUMMARY WHERE ACTIVITY_KIND = 16")
+  cursor4 = sqlite3.connect(path + "/Gadgetbridge").cursor().execute("SELECT * FROM POLAR_H10_ECG")
   for row in cursor1.fetchall():
     rate = row[2]
     if rate < 250 and rate > 20:
@@ -47,6 +49,17 @@ def read_and_plot(path, do_pdf=False):
       scale_y.append(weight)
   for row in cursor3.fetchall():
     running_workouts.append(datetime.datetime.fromtimestamp(row[0] / 1000))
+  for row in cursor4.fetchall():
+    cur_hr_time = datetime.datetime.strptime(row[0].split('.')[0], '%Y-%m-%d %H:%M:%S')
+    if (cur_hr_time - prev_time).total_seconds() > 3600:
+      segments.append((hr_time, hr_data, data))
+      (hr_time, hr_data, data_segment) = ([], [], np.array([]))
+      prev_time = cur_hr_time
+    hr_time.append(cur_hr_time)
+    hr_data.append(float(row[1]))
+    if row[2] is not None:
+      data = np.append(data, list(map(float, row[2].split())))
+  segments.append((hr_time, hr_data, data))
 
   # apple watch
   (watch_x, watch_r) = ([], [])
@@ -68,13 +81,37 @@ def read_and_plot(path, do_pdf=False):
   # Special, Comparison
   (special_x, special_y, comparison_x, comparison_y) = ([], [], [], [])
   special, comparison = load_rr(path, last_num_plots=0, do_plot=False, create_pdf=do_pdf)
+  #for cur_s in special:
+  #  special_x.append(cur_s[0])
+  #  special_y.append(100 / float(cur_s[1]))
+  #for cur_c in comparison:
+  #  if int(cur_c[1]) > 20: # only plausible values
+  #    comparison_x.append(cur_c[0])
+  #    comparison_y.append(int(cur_c[1]))
+
+
+  y = data - medfilt(data, kernel_size=3)
+  z = np.where(np.abs(y) > 100)[0] # only signal above noise level
+  s = z[np.where(np.diff(z) == 1)[0]]
+  tot_time_minutes = (hr_time[-1] - hr_time[0]).total_seconds() / 60
+
+  special = []
+  num_pos    = len(s)
+  ratio      = float('inf')
+  title_text = ""
+  if num_pos > 0:
+    ratio      = tot_time_minutes / num_pos
+    title_text = f", one peak per {round(ratio)} minutes"
+  special.append([hr_time[0], ratio])
+
   for cur_s in special:
     special_x.append(cur_s[0])
     special_y.append(100 / float(cur_s[1]))
-  for cur_c in comparison:
+  for cur_c in zip(hr_time, hr_data):
     if int(cur_c[1]) > 20: # only plausible values
       comparison_x.append(cur_c[0])
       comparison_y.append(int(cur_c[1]))
+
 
   # scale: polynomial fitting
   warnings.simplefilter("ignore", np.RankWarning)
@@ -111,7 +148,7 @@ def read_and_plot(path, do_pdf=False):
   #ax1.plot(band_x,       moving_min,    'b', linewidth=1)
   ax1.plot(band_x, iir_filtered,   'b', linewidth=2)
   #ax1.plot(watch_x,      watch_r,       'g', linewidth=1)
-  #ax1.plot(comparison_x, comparison_y,  'b.')
+  ax1.plot(comparison_x, comparison_y,  'b.')
   ax1.plot(scale_x,      scale_y,      'k.')
   ax1.plot(scale_x_fit,  scale_y_fit,  'g.')
   #ax1.plot(pressure_x,   pressure_y,    'r.')
