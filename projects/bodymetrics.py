@@ -33,7 +33,7 @@ def read_and_plot(path, do_pdf=False):
     SELECT TIMESTAMP, RAW_INTENSITY, HEART_RATE FROM MI_BAND_ACTIVITY_SAMPLE UNION ALL
     SELECT TIMESTAMP, RAW_INTENSITY, HEART_RATE FROM XIAOMI_ACTIVITY_SAMPLE ORDER BY TIMESTAMP ASC""")
   cursor2 = sqlite3.connect(path + "/Gadgetbridge").cursor().execute("SELECT * FROM MI_SCALE_WEIGHT_SAMPLE")
-  cursor3 = sqlite3.connect(path + "/Gadgetbridge").cursor().execute("SELECT START_TIME FROM BASE_ACTIVITY_SUMMARY WHERE ACTIVITY_KIND = 16")
+  cursor3 = sqlite3.connect(path + "/Gadgetbridge").cursor().execute("SELECT START_TIME FROM BASE_ACTIVITY_SUMMARY WHERE ACTIVITY_KIND IN (16, 67109041)")
   for row in cursor1.fetchall():
     rate = row[2]
     if rate < 250 and rate > 20:
