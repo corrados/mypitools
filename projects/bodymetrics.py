@@ -92,9 +92,9 @@ def read_and_plot(path, do_pdf=False):
   zi              = [moving_min[int(window_size / 2):4 * window_size].mean() * (1 - alpha)]
   iir_filtered, _ = lfilter([alpha], [1, alpha - 1], moving_min.bfill(), zi=zi)
 
-  # only show data of last 1 1/2 year
-  time_limit_hist        = datetime.datetime.now() - datetime.timedelta(days=200)
-  time_limit             = datetime.datetime.now() - datetime.timedelta(days=600)
+  # restrict displayed data to a defined limit of days to consider
+  time_limit_hist        = datetime.datetime.now() - datetime.timedelta(days=500)
+  time_limit             = datetime.datetime.now() - datetime.timedelta(days=1000)
   pressure_y_hist        =      [y      for x, y in zip(pressure_x, pressure_y) if x >= time_limit_hist]
   pressure_x, pressure_y = zip(*[(x, y) for x, y in zip(pressure_x, pressure_y) if x >= time_limit])
   scale_x, scale_y       = zip(*[(x, y) for x, y in zip(scale_x,    scale_y)    if x >= time_limit])
