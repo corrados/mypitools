@@ -15,7 +15,7 @@ mapping           = None
 pi                = None
 adb_shell         = None
 ps3_sleep_timer   = None
-ps3_battery_low   = False
+ps3_battery_level = 5 # 0 to 5, assume full battery level on startup
 rs_sleep_timer    = None
 alt_func          = True
 toggle_bit        = 0
@@ -79,7 +79,7 @@ map_select = {"UP":"LED BRIGHTER", "DOWN":"LED DIMMER", "PLAY":"LED SMOOTH",
 "RED":"LED RED", "GREEN":"LED GREEN", "BLUE":"LED BLUE", "YELLOW":"LED YELLOW"}
 
 def playstation_remote_input():
-  global ps3_sleep_timer, ps3_battery_low
+  global ps3_sleep_timer, ps3_battery_level
   (HCI_ACLDATA_PKT, HCI_EVENT_PKT) = (0x02, 0x04)
   sock = socket.socket(socket.AF_BLUETOOTH, socket.SOCK_RAW, 1)
   sock.bind((0,))
@@ -93,7 +93,7 @@ def playstation_remote_input():
       if len(pkt) > 21:
         raw_battery_value = pkt[21] & 0x0F # assuming 0-5 value in the low 4 bits
         if raw_battery_value > 0 and raw_battery_value <= 5:
-          ps3_battery_low = raw_battery_value < 4
+          ps3_battery_level = raw_battery_value
       if pkt[-8] == 255 and pkt[-2] == 0:
         sock.settimeout(None) # on button up even do blocking recv again
       else:
@@ -154,8 +154,10 @@ def on_button_press(button_name):
         if rs_sleep_timer is not None and rs_sleep_timer.is_alive():
           rs_sleep_timer.cancel() # socket was still On
         else:
-          if ps3_battery_low:
-            set_rgb([255, 0, 0]) # RED at highest power to indicate cold start delay and low battery of remote
+          if ps3_battery_level < 4:
+            set_rgb([255, 0, 0]) # RED at highest power to indicate cold start delay and low battery level of remote
+          elif ps3_battery_level > 4:
+            set_rgb([0, 0, 255]) # GREEN at highest power to indicate cold start delay and high battery level of remote
           else:
             set_rgb([0, 255, 0]) # BLUE at highest power to indicate cold start delay
           time.sleep(6) # give devices some time to cold start
