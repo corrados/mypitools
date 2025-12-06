@@ -89,6 +89,12 @@ def playstation_remote_input():
     except socket.timeout:
       pass
     if pkt[0] == HCI_ACLDATA_PKT and pkt[-7:-2] == bytes.fromhex("ffffffffff"):
+      if len(pkt) > 21:
+        raw_battery_value = pkt[21] & 0x0F # assuming 0-5 value in the low 4 bits
+        # Or, if it's stored in the high 4 bits (e.g., 0x50, 0x40, etc.):
+        #raw_battery_value = (pkt[21] & 0xF0) >> 4
+        if raw_battery_value > 0 and raw_battery_value <= 5:
+          print(f"PS3 BD Remote Battery Level: {raw_battery_value} / 5")
       if pkt[-8] == 255 and pkt[-2] == 0:
         sock.settimeout(None) # on button up even do blocking recv again
       else:
