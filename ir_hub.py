@@ -154,12 +154,13 @@ def on_button_press(button_name):
         if rs_sleep_timer is not None and rs_sleep_timer.is_alive():
           rs_sleep_timer.cancel() # socket was still On
         else:
-          if ps3_battery_level < 4:
-            set_rgb([255, 0, 0]) # RED at highest power to indicate cold start delay and low battery level of remote
-          elif ps3_battery_level > 4:
-            set_rgb([0, 0, 255]) # GREEN at highest power to indicate cold start delay and high battery level of remote
+          # during cold start delay indicate battery level of remote with color coding
+          if ps3_battery_level < 3:
+            set_rgb([255, 0, 0]) # RED at highest power to indicate low battery level of remote
+          elif ps3_battery_level < 4:
+            set_rgb([255, 0, 255]) # YELLOW at highest power to indicate mid battery level of remote
           else:
-            set_rgb([0, 255, 0]) # BLUE at highest power to indicate cold start delay
+            set_rgb([0, 0, 255]) # GREEN at highest power to indicate high battery level of remote
           time.sleep(6) # give devices some time to cold start
       if state == state_map[button_name]:
         print("Help action requested -> do transition again")
@@ -247,7 +248,7 @@ def on_button_press(button_name):
       elif mapping:
         ir_send_in_thread(f"{mapping.get(button_name, 'UNKNOWN')}", 1)
     if alt_func and state != "IDLE":
-      set_rgb([255, 0, 255]) # YELLOW at highest power
+      set_rgb([255, 255, 255]) # WHITE at highest power to indicate select mode
     else:
       set_rgb(state_rgb[state]) # always update RGB LED
 
