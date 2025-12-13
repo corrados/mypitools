@@ -161,7 +161,7 @@ def on_button_press(button_name):
               time.sleep(0.5)
               set_rgb([0, 0, 0]) # LED off
               time.sleep(0.5)
-          else
+          else:
             if ps3_battery_level < 4:
               set_rgb([255, 0, 255]) # YELLOW at highest power to indicate mid battery level of remote
             else:
