@@ -155,24 +155,18 @@ def on_button_press(button_name):
           rs_sleep_timer.cancel() # socket was still On
         else:
           # during cold start delay indicate battery level of remote with color coding
-          cold_start_delay = 6   # s, give devices some time to cold start
-          blink_interval   = 0.5 # s
-          cycles           = math.ceil(cold_start_delay / (2 * blink_interval))
           if ps3_battery_level < 3:
-            for _ in range(cycles):
+            for _ in range(6): # blinking LED loop (6 times 2*0.5 equals 6 s, ignoring set_rgb() delay)
               set_rgb([255, 0, 0]) # RED at highest power to indicate low battery level of remote
-              time.sleep(blink_interval)
+              time.sleep(0.5)
               set_rgb([0, 0, 0]) # LED off
-              time.sleep(blink_interval)
-          elif ps3_battery_level < 4:
-            for _ in range(cycles):
+              time.sleep(0.5)
+          else
+            if ps3_battery_level < 4:
               set_rgb([255, 0, 255]) # YELLOW at highest power to indicate mid battery level of remote
-              time.sleep(blink_interval)
-              set_rgb([0, 0, 0]) # LED off
-              time.sleep(blink_interval)
-          else:
-            set_rgb([0, 0, 255]) # GREEN at highest power to indicate high battery level of remote
-            time.sleep(cold_start_delay)
+            else:
+              set_rgb([0, 0, 255]) # GREEN at highest power to indicate high battery level of remote
+            time.sleep(6) # give devices some time to cold start
       if state == state_map[button_name]:
         print("Help action requested -> do transition again")
         state = prev_state;
