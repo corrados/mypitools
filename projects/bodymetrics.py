@@ -48,13 +48,6 @@ def read_and_plot(path, do_pdf=False):
   for row in cursor3.fetchall():
     running_workouts.append(datetime.datetime.fromtimestamp(row[0] / 1000))
 
-  # apple watch
-  (watch_x, watch_r) = ([], [])
-  cursor = sqlite3.connect(path + "/heart_rate.db").cursor().execute("SELECT * FROM heart_rate")
-  for row in cursor.fetchall():
-    watch_x.append(datetime.datetime.fromtimestamp(row[1]))
-    watch_r.append(row[2])
-
   # Pressure
   (pressure_x, pressure_y) = ([], [])
   with open(path + "/pressure.txt", 'r') as file:
@@ -110,7 +103,6 @@ def read_and_plot(path, do_pdf=False):
   #ax1.plot(band_x,       band_r_median, 'g', linewidth=1)
   #ax1.plot(band_x,       moving_min,    'b', linewidth=1)
   ax1.plot(band_x, iir_filtered,   'b', linewidth=2)
-  #ax1.plot(watch_x,      watch_r,       'g', linewidth=1)
   #ax1.plot(comparison_x, comparison_y,  'b.')
   ax1.plot(scale_x,      scale_y,      'k.')
   ax1.plot(scale_x_fit,  scale_y_fit,  'g.')
