@@ -80,7 +80,7 @@ class PriceWorker(QThread):
 class StockApp(QDialog):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("VoFiSoft Stocks")
+        self.setWindowTitle("Stocks")
         self.settings = QSettings("VoFiSoft", "Stocks")
 
         self.f_invest = 0.0
@@ -191,9 +191,9 @@ class StockApp(QDialog):
             self.table.item(i, 6).setText("")
 
         # 3. Selection Logic
-        cur_idx = min_idx if self.f_invest >= 0 else max_idx
+        cur_idx = min_idx if self.f_invest > 0 else max_idx
         selected = self.table.selectedItems()
-        if selected:
+        if selected: # special case: selection overrules min/max
             cur_idx = selected[0].row()
 
         # 4. Calculate New Shares
@@ -217,8 +217,8 @@ class StockApp(QDialog):
             self.v_stocks[cur_idx].iN += new_shares
             self.table.item(cur_idx, 3).setText(str(self.v_stocks[cur_idx].iN))
             active_stock.save(self.settings)
+            self.update_cur_perc(False) # note: no infinite recursion possible since "false"
             self.log_transaction()
-            self.update_cur_perc(False)
 
         self.table.blockSignals(False)
 
