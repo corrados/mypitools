@@ -17,6 +17,11 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
 #*******************************************************************************
 
+# sudo apt install python3-venv python3-pip libegl1
+# python3 -m venv venv
+# source venv/bin/activate
+# pip install PySide6 requests
+
 import sys
 import math
 import requests
