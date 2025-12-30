@@ -287,7 +287,14 @@ class StockApp(QDialog):
 
     def on_live_price(self, index, price):
         self.v_stocks[index].fQuote = price
-        self.table.item(index, 2).setText(f"{price:.2f}")
+        # Get the item for the "Quote/€" column (Column 2)
+        item = self.table.item(index, 2)
+        if item:
+            item.setText(f"{price:.2f}")
+            # Create a bold font and apply it to the item
+            font = item.font()
+            font.setBold(True)
+            item.setFont(font)
         self.update_cur_perc()
 
     def closeEvent(self, event):
