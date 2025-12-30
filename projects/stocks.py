@@ -20,11 +20,11 @@
 # sudo apt install python3-venv python3-pip libegl1
 # python3 -m venv venv
 # source venv/bin/activate
-# pip install PySide6 requests
+# pip install PySide6 yfinance
 
 import sys
 import math
-import requests
+import yfinance as yf
 import csv
 from datetime import datetime
 from PySide6.QtWidgets import (QApplication, QDialog, QVBoxLayout, QHBoxLayout,
@@ -57,7 +57,6 @@ class CStock:
         self.fQuote = float(settings.value(f"quote/{self.sSym}", float('nan')))
 
 class PriceWorker(QThread):
-    """Background thread to fetch prices to avoid freezing UI."""
     price_updated = Signal(int, float)
     finished_all = Signal()
 
@@ -67,16 +66,27 @@ class PriceWorker(QThread):
 
     def run(self):
         for i, stock in enumerate(self.stocks):
-            url = f"https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol={stock.sSym}&apikey={ALPHAVANTAGE_KEY}"
             try:
-                response = requests.get(url, timeout=10)
-                data = response.json()
-                price = data.get("Global Quote", {}).get("05. price")
-                if price:
-                    self.price_updated.emit(i, float(price))
+                # 1. Create a Ticker object for the symbol (e.g., "EXX5.DE")
+                ticker = yf.Ticker(stock.sSym)
+
+                # 2. Get the most recent 1-day history
+                # Using fast_info or history is more reliable than .info
+                data = ticker.history(period="1d")
+
+                if not data.empty:
+                    # Get the last closing price
+                    latest_price = data['Close'].iloc[-1]
+                    self.price_updated.emit(i, float(latest_price))
+                else:
+                    print(f"No data found for {stock.sSym}")
+
             except Exception as e:
-                print(f"Error fetching {stock.sSym}: {e}")
-            self.msleep(500)
+                print(f"yfinance error for {stock.sSym}: {e}")
+
+            # Small delay to be polite to Yahoo's servers
+            self.msleep(200)
+
         self.finished_all.emit()
 
 class StockApp(QDialog):
