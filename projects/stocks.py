@@ -51,7 +51,7 @@ class CStock:
         self.fQuote = float(settings.value(f"quote/{self.sSym}", float('nan')))
 
 class PriceWorker(QThread):
-    price_updated = Signal(int, float)
+    price_updated = Signal(int, float, str)
     finished_all = Signal()
 
     def __init__(self, stocks):
@@ -68,10 +68,14 @@ class PriceWorker(QThread):
                 # Using fast_info or history is more reliable than .info
                 data = ticker.history(period="1d")
 
+                # Fetching the name (info lookup can be slow, but it's the most reliable for names)
+                # Fallback to symbol if name is not found
+                s_name = ticker.info.get('longName', stock.sSym)
+
                 if not data.empty:
                     # Get the last closing price
                     latest_price = data['Close'].iloc[-1]
-                    self.price_updated.emit(i, float(latest_price))
+                    self.price_updated.emit(i, float(latest_price), s_name)
                 else:
                     print(f"No data found for {stock.sSym}")
 
@@ -135,7 +139,7 @@ class StockApp(QDialog):
 
         self.table = QTableWidget(len(self.v_stocks), 8)
         self.table.setHorizontalHeaderLabels([
-            "Class", "Name", "Quote/€", "Shares", "Diff./%",
+            "Class", "Full Name of Stocks After Refresh Quotes", "Quote/€", "Shares", "Diff./%",
             "New Shares", "New Diff./%", "Ratio/%"
         ])
         self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
@@ -290,16 +294,26 @@ class StockApp(QDialog):
         self.worker.finished_all.connect(lambda: self.btn_update.setEnabled(True))
         self.worker.start()
 
-    def on_live_price(self, index, price):
+    @Slot(int, float, str)
+    def on_live_price(self, index, price, name):
+        # Update internal data
         self.v_stocks[index].fQuote = price
-        # Get the item for the "Quote/€" column (Column 2)
-        item = self.table.item(index, 2)
-        if item:
-            item.setText(f"{price:.2f}")
+        self.v_stocks[index].sName = name
+
+        # 1. Update Quote Column (Column 2)
+        item_quote = self.table.item(index, 2)
+        if item_quote:
+            item_quote.setText(f"{price:.2f}")
+            font = item_quote.font()
             # Create a bold font and apply it to the item
-            font = item.font()
             font.setBold(True)
-            item.setFont(font)
+            item_quote.setFont(font)
+
+        # 2. Update Name Column (Column 1)
+        item_name = self.table.item(index, 1)
+        if item_name:
+            item_name.setText(name)
+
         self.update_cur_perc()
 
     def closeEvent(self, event):
