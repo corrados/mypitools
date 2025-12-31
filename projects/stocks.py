@@ -203,6 +203,8 @@ class StockApp(QDialog):
             if diff > max_val: max_val, max_idx = diff, i
 
             self.table.item(i, 4).setText(f"{diff:.2f}")
+            self.table.item(i, 5).setText("") # clear "New Shares" column
+            self.table.item(i, 6).setText("") # clear "New Diff./%" column
 
         # 3. Target Stock Selection
         cur_idx = min_idx if self.f_invest > 0 else max_idx
@@ -218,7 +220,10 @@ class StockApp(QDialog):
         if not math.isnan(quote_eur) and quote_eur > 0:
             new_shares = math.floor(self.f_invest / quote_eur)
 
-        self.table.item(cur_idx, 5).setText(str(new_shares))
+        if new_shares > 0:
+            self.table.item(cur_idx, 5).setText(str(new_shares))
+        else:
+            self.table.item(cur_idx, 5).setText("")
 
         # 5. Preview New Diffs
         total_new = self.f_total + (quote_eur * new_shares)
