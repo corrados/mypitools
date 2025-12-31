@@ -32,11 +32,7 @@ from PySide6.QtWidgets import (QApplication, QDialog, QVBoxLayout, QHBoxLayout,
                                QTableWidgetItem, QAbstractItemView)
 from PySide6.QtCore import Qt, QSettings, QStandardPaths, QThread, Signal, Slot, QLocale
 
-# API Key from main.cpp
-ALPHAVANTAGE_KEY = "BC4BAK7UY9DHZ7NX"
-
 class CStock:
-    """Python implementation of CStock protected class from main.h"""
     def __init__(self, sym, currency, a_class, ratio):
         self.sSym = sym
         self.eCurcy = currency # "EUR" or "USD"
@@ -47,12 +43,10 @@ class CStock:
         self.fQuote = float('nan')
 
     def save(self, settings):
-        # Match Store() in main.h
         settings.setValue(f"stock/{self.sSym}", self.iN)
         settings.setValue(f"quote/{self.sSym}", self.fQuote)
 
     def recall(self, settings):
-        # Match Recall() in main.h
         self.iN = int(settings.value(f"stock/{self.sSym}", 0))
         self.fQuote = float(settings.value(f"quote/{self.sSym}", float('nan')))
 
@@ -92,15 +86,14 @@ class PriceWorker(QThread):
 class StockApp(QDialog):
     def __init__(self):
         super().__init__()
-        # Match organization name from main.cpp
         self.settings = QSettings(QSettings.IniFormat, QSettings.UserScope, "VoFiSoft", "Stocks")
 
         self.f_invest = 0.0
         self.f_total = 0.0
-        self.fEurInUsd = 1.0 # Conversion factor from main.cpp/h
+        self.fEurInUsd = 1.0 # Conversion factor
         self.s_trans_file = "transactions.txt"
 
-        # Initialize stocks exactly as in main.cpp
+        # Initialize stocks
         self.v_stocks = [
             CStock("EXX5.DE", "EUR", "LARGE_US", 11.0),
             CStock("EXW1.DE", "EUR", "LARGE_EU", 12.0),
@@ -115,7 +108,7 @@ class StockApp(QDialog):
         for stock in self.v_stocks:
             stock.recall(self.settings)
 
-        # Set desktop path for transactions as in main.cpp
+        # Set desktop path for transactions
         paths = QStandardPaths.standardLocations(QStandardPaths.DesktopLocation)
         if paths:
             self.s_trans_file = f"{paths[0]}/{self.s_trans_file}"
@@ -125,7 +118,7 @@ class StockApp(QDialog):
 
     def init_ui(self):
         self.setWindowTitle("Stocks Portfolio Manager")
-        self.resize(800, 400) # Match resize in main.cpp
+        self.resize(800, 400)
         layout = QVBoxLayout(self)
 
         sub_layout = QHBoxLayout()
@@ -155,7 +148,6 @@ class StockApp(QDialog):
 
         self.init_table_data()
 
-        # Connections from main.cpp/h
         self.edit_invest.textChanged.connect(self.on_invest_changed)
         self.btn_buy.clicked.connect(lambda: self.update_cur_perc(True))
         self.btn_update.clicked.connect(self.start_live_update)
@@ -165,7 +157,6 @@ class StockApp(QDialog):
     def init_table_data(self):
         self.table.blockSignals(True)
         for i, stock in enumerate(self.v_stocks):
-            # Column 0: Class (Symbol) - Match NewROTabWidIt
             self.table.setItem(i, 0, self.ro_item(f"{stock.sAClass} ({stock.sSym})"))
             self.table.setItem(i, 1, self.ro_item(stock.sName))
             self.table.setItem(i, 2, QTableWidgetItem(f"{stock.fQuote:.2f}"))
@@ -252,7 +243,7 @@ class StockApp(QDialog):
         self.table.blockSignals(False)
 
     def log_transaction(self):
-        """Append to file exactly as LogTransactionInFile in main.cpp"""
+        """Append to file"""
         try:
             with open(self.s_trans_file, "a", newline='') as f:
                 # CStockApp format: Date, Total, Sym, Quote, N...
@@ -272,7 +263,6 @@ class StockApp(QDialog):
         self.update_cur_perc()
 
     def on_cell_edited(self, item):
-        """Match change(QTableWidgetItem*) slot in main.h"""
         row, col = item.row(), item.column()
         self.table.blockSignals(True)
         try:
@@ -308,7 +298,6 @@ class StockApp(QDialog):
         self.update_cur_perc()
 
     def closeEvent(self, event):
-        """Match ~CStockApp() destructor to save settings"""
         for s in self.v_stocks:
             s.save(self.settings)
         event.accept()
