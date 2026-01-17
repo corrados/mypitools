@@ -22,9 +22,9 @@ toggle_bit        = 0
 press_lock        = threading.Lock()
 ir_lock           = threading.Lock()
 
-state_map = {"1":"PROJECTOR", "2":"TV", "3":"LIGHT", "4":"DVD", "5":"TVFIRE", "POWER":"IDLE"}
+state_map = {"1":"PROJECTOR", "2":"TV", "3":"LIGHT", "4":"DVD", "5":"SWITCH", "POWER":"IDLE"}
 state_rgb = {"PROJECTOR":[0, 0, rgb_val], "TV":[0, rgb_val, 0], "LIGHT":[rgb_val, rgb_val, rgb_val],
-             "DVD":[rgb_val, rgb_val, 0], "TVFIRE":[rgb_val, 0, rgb_val], "IDLE":[0, 0, 0]}
+             "DVD":[rgb_val, rgb_val, 0], "SWITCH":[rgb_val, 0, rgb_val], "IDLE":[0, 0, 0]}
 repeat_key = ("VOL+", "VOL-", "CH+", "CH-", "UP", "DOWN", "LEFT", "RIGHT")
 
 # scancode to readable button name for Playstation BD remote
@@ -175,9 +175,9 @@ def on_button_press(button_name):
         alt_func  = True # special case: per definition True, to be able to select mode right away
         led_is_on = False
         ir_send_in_thread("TV POWEROFF") # need to be first (avoid interference with IR signal)
-        if state in ("TV", "TVFIRE"):
+        if state in ("TV", "SWITCH"):
           time.sleep(3) # if TV was on, add delay (avoid interference with IR signal)
-        if state in ("PROJECTOR", "DVD", "TV", "TVFIRE"):
+        if state in ("PROJECTOR", "DVD", "TV", "SWITCH"):
           ir_send_in_thread("BAR POWER") # doesn't matter if incorrect, switches off after 15 minutes idle anyway
         if state in ("PROJECTOR", "DVD"):
           threading.Thread(target=switch_projector_off).start()
@@ -190,7 +190,7 @@ def on_button_press(button_name):
         mapping   = map_PROJECTOR
         led_is_on = False
         ir_send_in_thread("TV POWEROFF") # need to be first (avoid interference with IR signal)
-        if state in ("TV", "TVFIRE"):
+        if state in ("TV", "SWITCH"):
           time.sleep(3) # if TV was on, add delay (avoid interference with IR signal)
         threading.Thread(target=switch_bar_on, args=("BLUETOOTH",)).start()
         if not state in ("DVD"):
@@ -199,7 +199,7 @@ def on_button_press(button_name):
           pass #ir_send_in_thread("BEAM HDMI1", 1)
         ir_send_in_thread("LED POWEROFF")
         ir_send_in_thread("DVD POWEROFF")
-      elif button_name == "2" or button_name == "5": # TV/TVFIRE -----
+      elif button_name == "2" or button_name == "5": # TV/SWITCH -----
         mapping   = map_TV
         led_is_on = True
         ir_send_in_thread("LED POWEROFF")
@@ -208,23 +208,23 @@ def on_button_press(button_name):
           time.sleep(3) # if TV was on, add delay (avoid interference with IR signal)
         ir_send_in_thread("DVD POWEROFF")
         if button_name == "2":
-          if state in ("TVFIRE"):
+          if state in ("SWITCH"):
             ir_send_in_thread("TV CH+", 1)
           else:
             threading.Thread(target=switch_tv_on, args=("TV", "CH+",)).start() # "TV TV" does not work correctly
         if button_name == "5":
           if state in ("TV"):
-            ir_send_in_thread("TV HDMI1")
+            ir_send_in_thread("TV HDMI2")
           else:
-            threading.Thread(target=switch_tv_on, args=("TVFIRE", "HDMI1",)).start()
+            threading.Thread(target=switch_tv_on, args=("SWITCH", "HDMI2",)).start()
         threading.Thread(target=switch_bar_on, args=("OPTICAL",)).start()
       elif button_name == "3": # LIGHT -----
         mapping   = map_LIGHT
         led_is_on = True
         ir_send_in_thread("TV POWEROFF") # need to be first (avoid interference with IR signal)
-        if state in ("TV", "TVFIRE"):
+        if state in ("TV", "SWITCH"):
           time.sleep(3) # if TV was on, add delay (avoid interference with IR signal)
-        if state in ("PROJECTOR", "DVD", "TV", "TVFIRE"):
+        if state in ("PROJECTOR", "DVD", "TV", "SWITCH"):
           ir_send_in_thread("BAR POWER") # doesn't matter if incorrect, switches off after 15 minutes idle anyway
         ir_send_in_thread("LED POWERON")
         if state in ("PROJECTOR", "DVD"):
@@ -236,7 +236,7 @@ def on_button_press(button_name):
         mapping   = map_DVD
         led_is_on = False
         ir_send_in_thread("TV POWEROFF") # need to be first (avoid interference with IR signal)
-        if state in ("TV", "TVFIRE"):
+        if state in ("TV", "SWITCH"):
           time.sleep(3) # if TV was on, add delay (avoid interference with IR signal)
         ir_send_in_thread("DVD POWERON")
         threading.Thread(target=switch_bar_on, args=("BLUETOOTH",)).start()
@@ -263,7 +263,7 @@ def switch_tv_on(cur_state, input):
   if state in (cur_state): # only switch input if exactly the same state
     ir_send_in_thread(f"TV {input}", 1)
   time.sleep(10) # after cold start, it takes long until it starts
-  if state in ("TV", "TVFIRE"): # only continue if still in TV state
+  if state in ("TV", "SWITCH"): # only continue if still in TV state
     ir_send_in_thread("TV POWERON") # try again after a while
     # after cold start, do not switch input since it may be anoying after warm start
 
