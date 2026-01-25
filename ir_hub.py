@@ -143,8 +143,8 @@ def on_button_press(button_name):
       else:
         ir_send_in_thread("LED POWEROFF", 1) if led_is_on else ir_send_in_thread("LED POWERON", 1)
         led_is_on = not led_is_on
-    # special case: in LIGHT mode assign numbers to state selection
-    if state in ("LIGHT") and button_name in state_map:
+    # special case: in LIGHT or SWITCH mode assign numbers to state selection
+    if state in ("LIGHT", "SWITCH") and button_name in state_map:
       alt_func = True
     # special keys: POWER and numbers with select state
     if (alt_func or button_name == "POWER") and button_name in state_map:
