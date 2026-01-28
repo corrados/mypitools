@@ -153,6 +153,7 @@ def on_button_press(button_name):
         switch_radio_socket("On") # always send command to switch on (even if it is still on)
         if rs_sleep_timer is not None and rs_sleep_timer.is_alive():
           rs_sleep_timer.cancel() # socket was still On
+          print("rs_sleep_timer.cancel")
         else:
           # during cold start delay indicate battery level of remote with color coding
           if ps3_battery_level < 3:
@@ -186,6 +187,7 @@ def on_button_press(button_name):
         # switch off radio socket after some time of inactivity
         rs_sleep_timer = threading.Timer(standby_timeout, switch_radio_socket, args=["Off"])
         rs_sleep_timer.start()
+        print("rs_sleep_timer.start")
       elif button_name == "1": # PROJECTOR -----
         mapping   = map_PROJECTOR
         led_is_on = False
@@ -306,6 +308,7 @@ def ir_send(button_name, repeat):
 
 def switch_radio_socket(state):
   try:
+    print(f"switch_radio_socket: Power {state}")
     requests.get("http://radiosocket/cm", params={"cmnd": f"Power {state}"})
   except:
     pass
