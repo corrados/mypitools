@@ -346,7 +346,7 @@ def send_keyevent(keycode):
     elif keycode == "3":  # special case to start Youtube
       adb_shell.stdin.write("am start -n com.amazon.firetv.youtube/dev.cobalt.app.MainActivity\n")
     elif keycode == "4":  # special case to start SmartTube
-      adb_shell.stdin.write("am start -n com.teamsmart.videomanager.tv/com.liskovsoft.smartyoutubetv2.tv.ui.main.SplashActivity\n")
+      adb_shell.stdin.write("am start -n org.smarttube.stable/com.liskovsoft.smartyoutubetv2.tv.ui.main.SplashActivity\n")
     else:
       adb_shell.stdin.write(f"sendevent /dev/input/event1 1 {keycode} 1 && sendevent /dev/input/event1 0 0 0 &&"
                             f"sendevent /dev/input/event1 1 {keycode} 0 && sendevent /dev/input/event1 0 0 0\n")
