@@ -14,7 +14,7 @@ IMAGE="linode/ubuntu24.04"
 # Name/Label für die Linode
 LABEL="jamulus-server-$$"
 # Jamulus Version / Git Tag / Branch
-JAMULUS_VERSION="r3_9_0"
+JAMULUS_VERSION="r3_12_5"
 # Jamulus Server Name / Serverinfo
 SERVER_INFO="Linode Server;FFM;82"
 # Central Server URL
