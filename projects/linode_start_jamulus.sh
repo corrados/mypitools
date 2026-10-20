@@ -13,6 +13,8 @@ TYPE="g6-nanode-1"
 IMAGE="linode/ubuntu24.04"
 # Name/Label für die Linode
 LABEL="jamulus-server-$$"
+# Jamulus Version / Git Tag / Branch
+JAMULUS_VERSION="r3_9_0"
 # Jamulus Server Name / Serverinfo
 SERVER_INFO="Linode Server;FFM;82"
 # Central Server URL
@@ -29,7 +31,7 @@ if ! command -v linode-cli &> /dev/null; then
     exit 1
 fi
 
-echo "🚀 Erstelle neue Linode ($LABEL in$REGION)..."
+echo "🚀 Erstelle neue Linode ($LABEL in $REGION)..."
 
 # 2. Linode erstellen und JSON-Antwort parsen
 # HINWEIS: Es wird empfohlen, zuvor bei Linode deinen SSH-Public-Key zu hinterlegen
@@ -47,12 +49,12 @@ CREATE_OUTPUT=$(linode-cli linodes create \
 LINODE_ID=$(echo "$CREATE_OUTPUT" | grep -o '"id": [0-9]*' | head -1 | awk '{print $2}')
 IP_ADDRESS=$(echo "$CREATE_OUTPUT" | grep -o '"ipv4": \["[^"]*' | head -1 | cut -d'"' -f4)
 
-if [ -z "$LINODE_ID" ] \vert{}\vert{} [ -z "$IP_ADDRESS" ]; then
+if [ -z "$LINODE_ID" ] || [ -z "$IP_ADDRESS" ]; then
     echo "❌ Fehler beim Erstellen der Linode."
     exit 1
 fi
 
-echo "✅ Linode erstellt! (ID: $LINODE_ID \vert{} IP:$IP_ADDRESS)"
+echo "✅ Linode erstellt! (ID: $LINODE_ID | IP: $IP_ADDRESS)"
 
 # Sicherstellen, dass die Linode beim Beenden des Skripts (auch bei Abbruch/Fehler) gelöscht wird
 cleanup() {
@@ -75,7 +77,7 @@ echo ""
 echo "✅ SSH-Verbindung hergestellt!"
 
 # 4. Jamulus installieren und ausführen
-echo "🛠️  Installiere Abhängigkeiten und kompiliere Jamulus (kann 1-2 Minuten dauern)..."
+echo "🛠️  Installiere Abhängigkeiten und kompiliere Jamulus Version $JAMULUS_VERSION (kann 1-2 Minuten dauern)..."
 
 ssh $SSH_OPTS root@"$IP_ADDRESS" bash -c "'
 export DEBIAN_FRONTEND=noninteractive
@@ -84,7 +86,7 @@ apt-get install -y git build-essential libjack-jackd2-dev qtbase5-dev qttools5-d
 
 git clone https://github.com/jamulussoftware/jamulus.git
 cd jamulus
-git checkout r3_9_0
+git checkout $JAMULUS_VERSION
 qmake \"CONFIG+=nojsonrpc headless serveronly\"
 make
 
@@ -94,7 +96,7 @@ echo \"🎵 Starte Jamulus Server...\"
 
 echo ""
 echo "======================================================="
-echo "🎉 Jamulus Server läuft auf IP: $IP_ADDRESS"
+echo "🎉 Jamulus Server ($JAMULUS_VERSION) läuft auf IP: $IP_ADDRESS"
 echo "======================================================="
 echo ""
 read -p "Press [ENTER] um die Session zu beenden und den Server zu LÖSCHEN..."
