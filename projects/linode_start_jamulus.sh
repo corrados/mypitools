@@ -40,6 +40,7 @@ CREATE_OUTPUT=$($LINODE_CMD linodes create \
   --image "$IMAGE" \
   --label "$LABEL" \
   --root_pass "$ROOT_PASS" \
+  --no-defaults \
   --json)
 
 # ID und IP-Adresse aus der JSON-Antwort extrahieren
@@ -64,7 +65,7 @@ trap cleanup EXIT
 
 # 3. Warten, bis der Server gebootet hat und per SSH erreichbar ist
 echo "⏳ Warte darauf, dass der Server bootet und SSH bereit ist..."
-SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=5"
+SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=no -o ConnectTimeout=5"
 
 until ssh $SSH_OPTS root@"$IP_ADDRESS" "echo ready" &>/dev/null; do
     sleep 3
