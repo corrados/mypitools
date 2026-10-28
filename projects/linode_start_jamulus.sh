@@ -15,6 +15,13 @@ CENTRAL_SERVER="jamulus.fischvolk.de:11214" # Adresse des Central Servers
 ROOT_PASS="$(openssl rand -base64 16)!" # Zufälliges Root-Passwort generieren
 # ==========================================
 
+# Prüfen, ob sshpass installiert ist
+if ! command -v sshpass &> /dev/null; then
+    echo "❌ Fehler: 'sshpass' ist nicht installiert."
+    echo "Bitte installieren mit: sudo apt-get install sshpass"
+    exit 1
+fi
+
 # 1. Lokale Python Virtual Environment (.venv) im Skript-Verzeichnis einrichten
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VENV_DIR="$SCRIPT_DIR/.venv"
@@ -67,7 +74,7 @@ trap cleanup EXIT
 echo "⏳ Warte darauf, dass der Server bootet und SSH bereit ist..."
 SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=no -o ConnectTimeout=5"
 
-until ssh $SSH_OPTS root@"$IP_ADDRESS" "echo ready" &>/dev/null; do
+until sshpass -p "$ROOT_PASS" ssh $SSH_OPTS root@"$IP_ADDRESS" "echo ready" &>/dev/null; do
     sleep 3
     echo -n "."
 done
@@ -77,7 +84,7 @@ echo "✅ SSH-Verbindung hergestellt!"
 # 4. Jamulus auf dem Remote-Server installieren und im Hintergrund starten
 echo "🛠️  Installiere Abhängigkeiten und kompiliere Jamulus Version $JAMULUS_VERSION..."
 
-ssh $SSH_OPTS root@"$IP_ADDRESS" bash -c "'
+sshpass -p "$ROOT_PASS" ssh $SSH_OPTS root@"$IP_ADDRESS" bash -c "'
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -y
 apt-get install -y git build-essential libjack-jackd2-dev qtbase5-dev qttools5-dev-tools qtmultimedia5-dev
@@ -98,5 +105,3 @@ echo "🎉 Jamulus Server ($JAMULUS_VERSION) läuft auf IP: $IP_ADDRESS"
 echo "======================================================="
 echo ""
 read -p "Press [ENTER] um die Session zu beenden und den Server zu LÖSCHEN..."
-
-# Beim Beenden greift automatisch die 'trap cleanup' Funktion.
