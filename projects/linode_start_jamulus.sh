@@ -40,7 +40,6 @@ CREATE_OUTPUT=$($LINODE_CMD linodes create \
   --image "$IMAGE" \
   --label "$LABEL" \
   --root_pass "$ROOT_PASS" \
-  --authorized_users "$($LINODE_CMD profile get --json | grep -o '"username": "[^"]*' | cut -d'"' -f4)" \
   --json)
 
 # ID und IP-Adresse aus der JSON-Antwort extrahieren
