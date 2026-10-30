@@ -6,7 +6,7 @@ set -e
 # KONFIGURATION
 # ==========================================
 REGION="eu-central"                 # Region Frankfurt (niedrige Latenz)
-TYPE="g6-nanode-1"                  # Kleinster Tarif (1 vCPU, 1 GB RAM - $0.0075/Std)
+TYPE="g6-dedicated-2"               # g6-nanode-1: Kleinster Tarif (1 vCPU, 1 GB RAM - $0.0075/Std)
 IMAGE="linode/ubuntu24.04"          # Betriebssystem Ubuntu 24.04 LTS
 LABEL="jamulus-server-$$"           # Eindeutiger Name für die Linode (mit Prozess-ID)
 JAMULUS_VERSION="r3_12_5"           # Gewünschte Jamulus-Version (Git Tag/Branch)
