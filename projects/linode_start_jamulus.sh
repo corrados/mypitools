@@ -96,7 +96,7 @@ qmake \"CONFIG+=nojsonrpc headless serveronly\"
 make
 
 echo \"🎵 Starte Jamulus Server mit hoher Priorität...\"
-/usr/bin/ionice -c1 /usr/bin/nice -n -20 ./Jamulus -s -n -F -u 30 -e \"$CENTRAL_SERVER\" -o \"$SERVER_INFO\" > /dev/null 2>&1 &
+/usr/bin/ionice -c1 /usr/bin/nice -n -20 ./Jamulus -6 -s -n -F -u 30 -e \"$CENTRAL_SERVER\" -o \"$SERVER_INFO\" > /dev/null 2>&1 &
 '"
 
 echo ""
