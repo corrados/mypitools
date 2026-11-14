@@ -6,6 +6,7 @@
 #include "esp_log.h"
 #include "input/script_server.hpp"
 #include "ir/ir_tx.hpp"
+#include "net/radio_socket.hpp"
 #include "net/wifi.hpp"
 #include "output/rgb_led.hpp"
 
@@ -33,6 +34,9 @@ void handle_serial_command() {
                     if (!irhub::ir::submit_name(command + 3)) {
                         Serial.println("IR command rejected");
                     }
+                } else if (std::strcmp(command, "STATE") == 0) {
+                    Serial.printf("state=%s\n",
+                                  irhub::control::state_name(irhub::control::current_state()));
                 } else if (!irhub::control::post(command, irhub::control::ButtonSource::Internal)) {
                     Serial.println("control queue full");
                 }
@@ -57,9 +61,11 @@ void setup() {
     require_ok(irhub::rgb_led::init(), "rgb_led::init");
     require_ok(irhub::control::init(), "control::init");
     require_ok(irhub::ir::init(), "ir::init");
+    require_ok(irhub::radio_socket::init(), "radio_socket::init");
     require_ok(irhub::wifi::start(), "wifi::start");
     require_ok(irhub::control::start(), "control::start");
     require_ok(irhub::ir::start(), "ir::start");
+    require_ok(irhub::radio_socket::start(), "radio_socket::start");
     require_ok(irhub::script_server::start(), "script_server::start");
     Serial.println("IR hub started");
     Serial.println("Send a button name or 'IR DEVICE COMMAND' followed by newline");

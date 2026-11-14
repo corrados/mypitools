@@ -21,5 +21,7 @@ struct ControlEvent {
 esp_err_t init();
 esp_err_t start();
 bool post(const char* button, ButtonSource source);
+State current_state();
+void set_battery_level(uint8_t level);
 
 }  // namespace irhub::control

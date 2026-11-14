@@ -26,3 +26,14 @@ target_include_directories(test_ir_waveform PRIVATE ../../arduino/ir_hub/src)
 target_compile_options(test_ir_waveform PRIVATE -Wall -Wextra -Werror)
 
 add_test(NAME ir_waveform COMMAND test_ir_waveform)
+
+add_executable(test_state_machine
+    test_state_machine.cpp
+    ../../arduino/ir_hub/src/control/state_machine.cpp
+    ../../arduino/ir_hub/src/control/state_maps.cpp
+    ../../arduino/ir_hub/src/control/state_preview.cpp
+)
+target_include_directories(test_state_machine PRIVATE ../../arduino/ir_hub/src)
+target_compile_options(test_state_machine PRIVATE -Wall -Wextra -Werror)
+
+add_test(NAME state_machine COMMAND test_state_machine)
