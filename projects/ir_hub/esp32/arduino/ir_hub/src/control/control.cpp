@@ -1,5 +1,7 @@
 #include "control/control.hpp"
 
+#include <Arduino.h>
+
 #include <cstring>
 
 #include "config.hpp"
@@ -52,7 +54,7 @@ void handle_event(const ControlEvent& event) {
     s_state = next;
 
     const Rgb color = display_color(s_state, s_alt_func, config::kRgbValue);
-    rgb_led_set(color.r, color.g, color.b);
+    rgb_led::set(color.r, color.g, color.b);
 }
 
 void control_task(void*) {
@@ -75,7 +77,7 @@ esp_err_t init() {
     s_state = State::Idle;
     s_alt_func = false;
     const Rgb color = display_color(s_state, s_alt_func, config::kRgbValue);
-    rgb_led_set(color.r, color.g, color.b);
+    rgb_led::set(color.r, color.g, color.b);
     return ESP_OK;
 }
 

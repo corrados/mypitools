@@ -1,5 +1,7 @@
 #include "input/script_server.hpp"
 
+#include <Arduino.h>
+
 #include <algorithm>
 #include <cctype>
 #include <cerrno>

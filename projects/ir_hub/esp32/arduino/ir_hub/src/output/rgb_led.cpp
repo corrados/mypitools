@@ -1,5 +1,7 @@
 #include "output/rgb_led.hpp"
 
+#include <Arduino.h>
+
 #include "config.hpp"
 #include "driver/spi_master.h"
 #include "esp_log.h"

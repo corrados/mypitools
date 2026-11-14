@@ -22,19 +22,19 @@ Port the complete behavior of `ir_hub.py` to C++ on the original ESP32, includin
 
 The ESP32 is the original 2x Xtensa LX6 version (240 MHz dual core). It has Bluetooth Classic, Wi-Fi, RMT, SPI, and enough RAM for this application. Do **not** target ESP32-S2/S3/C3/C6: they do not provide Bluetooth Classic.
 
-Recommended decisions
----------------------
+Implementation decisions
+------------------------
 
-1. **Framework:** ESP-IDF v5.5.x with C++17. Do not use Arduino as the primary framework.
-   - ESP-IDF provides the supported Bluetooth Classic HID Host API, RMT carrier modulation, Wi-Fi/lwIP, mbedTLS, event loops, and coexistence control.
-   - Arduino hides too much of the Bluetooth Classic and RMT configuration for this project.
-2. **Bluetooth:** Start with the ESP-IDF `esp_hid_host` component. Keep a raw L2CAP HID-host fallback because the PS3 BD remote is old and may expose report/pairing quirks that the generic host does not handle.
+1. **Framework:** Arduino ESP32 core 3.3.12 with C++17, built with `arduino-cli`. The core bundles ESP-IDF v5.x libraries; call the ESP-IDF APIs directly where Arduino does not expose the required configuration.
+   - The earlier plan recommended ESP-IDF as the primary framework. The user selected the Arduino path because the toolchain and test board are already available.
+   - Arduino libraries are used for Wi-Fi, `FreeRTOS`, and general startup. Direct ESP-IDF APIs are retained for SPI, RMT, Bluetooth HID, and other hardware-specific work.
+2. **Bluetooth:** Start with the ESP-IDF `esp_hid_host` APIs bundled with the Arduino core. Keep a raw L2CAP HID-host fallback because the PS3 BD remote is old and may expose report/pairing quirks that the generic host does not handle.
 3. **IR:** Generate mark/space envelopes in software and let the RMT peripheral generate the carrier. Do not bit-bang the carrier and do not use `IRremoteESP8266` as the runtime encoder.
    - RMT handles 36/38 kHz carrier timing in hardware.
    - Software only needs to emit durations in microseconds.
 4. **RGB LED:** Treat it as a WS2801-compatible SPI LED until the hardware is verified. The Python code writes exactly three bytes over SPI mode 0 at 1 MHz, which matches WS2801-style wiring. WS2812 is only a fallback and requires a different driver.
 5. **ADB:** Implement a small ADB-over-TCP client instead of spawning an `adb` binary. Prefer a device-generated RSA key stored persistently; reusing the Pi's `~/.android/adbkey` is acceptable only for temporary bring-up.
-6. **Input socket:** Replace the Raspberry Pi Unix socket with a small TCP line-oriented command server, or optionally support both TCP and UART. A Unix socket is not a natural ESP-IDF interface.
+6. **Input socket:** Replace the Raspberry Pi Unix socket with a small TCP line-oriented command server, or optionally support both TCP and UART. A Unix socket is not a natural ESP32 interface.
 7. **Serialization:** Run button handling in one control task. Run IR transmissions through one queue-backed IR worker so waveforms never overlap. Bluetooth, ADB, HTTP, and LED work remain separate tasks.
 
 Target hardware and pin plan
@@ -83,54 +83,59 @@ There must be exactly one owner of each hardware resource:
 Project layout
 --------------
 
-Create the ESP-IDF project under the existing project directory:
+Create the Arduino project under the existing project directory:
 
 ```text
 projects/ir_hub/
   IMPLEMENTATION_PLAN.md
   ir_hub.py                         # reference implementation, not compiled
   esp32/
-    CMakeLists.txt
-    sdkconfig.defaults
-    partitions.csv
-    main/
-      CMakeLists.txt
-      app_main.cpp
-      config.hpp
-      control/
-        state_machine.hpp
-        state_machine.cpp
-        button_router.hpp
-        button_router.cpp
-      input/
-        ps3_remote.hpp
-        ps3_remote.cpp
-        script_server.hpp
-        script_server.cpp
-      ir/
-        ir_tx.hpp
-        ir_tx.cpp
-        ir_codes.hpp
-        ir_codes.cpp
-      output/
-        rgb_led.hpp
-        rgb_led.cpp
-      net/
-        adb_client.hpp
-        adb_client.cpp
-        radio_socket.hpp
-        radio_socket.cpp
-      util/
-        time.hpp
-        logging.hpp
+    arduino/
+      ir_hub/
+        ir_hub.ino                  # Arduino setup/loop entry point
+        src/
+          config.hpp
+          control/
+            control.hpp
+            control.cpp
+            state_preview.hpp
+            state_preview.cpp
+          input/
+            ps3_remote.hpp
+            ps3_remote.cpp
+            script_server.hpp
+            script_server.cpp
+          ir/
+            ir_tx.hpp
+            ir_tx.cpp
+            ir_codes.hpp
+            ir_codes.cpp
+          output/
+            rgb_led.hpp
+            rgb_led.cpp
+          net/
+            adb_client.hpp
+            adb_client.cpp
+            radio_socket.hpp
+            radio_socket.cpp
+            wifi.hpp
+            wifi.cpp
+          util/
+            rgb.hpp
+            time.hpp
+            logging.hpp
     test/
+      arduino_smoke/
+        arduino_smoke.ino
       host/
-        test_ir_encoding.cpp
+        CMakeLists.txt
+        test_ir_waveform.cpp
         test_state_machine.cpp
         test_key_maps.cpp
+        test_state_preview.cpp
 ```
 
-The `test/host` tests should compile on a normal Linux host where possible. Keep pure logic (key maps, report decoding, waveform construction, state transitions) independent of ESP-IDF headers.
+The `test/host` tests should compile on a normal Linux host where possible. Keep pure logic (key maps, report decoding, waveform construction, state transitions) independent of Arduino and ESP-IDF headers.
 
 Runtime model
 -------------
@@ -878,15 +883,18 @@ Implementation phases
 
 Exit criterion: hardware and protocol facts are known, and the expected waveforms are stored as test fixtures.
 
-### Phase 1: ESP-IDF skeleton and RGB
+### Phase 1: Arduino skeleton and RGB (complete)
 
-- Create `esp32/` with an ESP-IDF v5.5.x project targeting `esp32`.
+- Create `esp32/arduino/ir_hub/` with the ESP32 Arduino core targeting `esp32`.
 - Add configuration for pins, Wi-Fi, Fire TV, radio socket, and optional PS3 MAC.
 - Implement `rgb_led.cpp` with SPI mode 0, 1 MHz, three-byte writes, and latch delay.
 - Implement a minimal control queue and script TCP server.
 - Verify `POWER`, `1`-`5`, and `LIGHT` command strings can be injected without a remote.
+- Add a serial command console so state/color behavior can be tested before Wi-Fi is configured.
 
 Exit criterion: the RGB LED shows the six state colors, white in select mode, and the script socket can drive a fake state machine.
+
+Status: the scaffold compiles, flashes, boots, listens on TCP port 3333, and processes serial-injected button names. Wi-Fi credentials are not configured, so the TCP path is not yet exercised end to end. The RGB LED has not been physically verified.
 
 ### Phase 2: Standard IR protocols over RMT
 
@@ -899,6 +907,8 @@ Exit criterion: the RGB LED shows the six state colors, white in select mode, an
 
 Exit criterion: TV power and input selection work reliably; the projector and LED strip respond; no watchdog resets or RMT transfer errors.
 
+Status: waveform encoding, the IR code tables, the RMT worker, and serial `IR DEVICE COMMAND` injection are implemented. Host tests cover TV, BEAM, LED, DVD, and RC6/bar waveforms. The sketch compiles, flashes, and transmits without RMT errors. Real-device IR verification and script/state-machine integration are still pending.
+
 ### Phase 3: RC6 soundbar
 
 - Implement the RC6 encoder and toggle-bit state.
@@ -907,6 +917,8 @@ Exit criterion: TV power and input selection work reliably; the projector and LE
 - Compare a captured `VOL+` waveform with the Pi capture.
 
 Exit criterion: soundbar power, input select, volume, mute, surround, tone, and sync keys work, including repeated volume presses.
+
+Status: the RC6 encoder, toggle bit, 36 kHz carrier selection, and BAR key table are implemented and host-tested. Real soundbar verification is pending.
 
 ### Phase 4: Button routing and state machine
 
@@ -949,14 +961,36 @@ Exit criterion: no memory leaks, no stuck IR queue, no missed remote presses, an
 Build and test commands
 -----------------------
 
+The Arduino CLI 1.6.0 binary is currently extracted from the Arduino IDE AppImage:
+
 ```bash
-. "$IDF_PATH/export.sh"
-cd /home/corrados/mypitools/projects/ir_hub/esp32
-idf.py set-target esp32
-idf.py menuconfig
-idf.py build
-idf.py -p /dev/ttyUSB0 flash monitor
+ARDUINO_CLI=/tmp/arduino-cli-extract/arduino-cli
+PROJECT=/home/corrados/mypitools/projects/ir_hub
+
+"$ARDUINO_CLI" compile \
+  --fqbn esp32:esp32:esp32 \
+  --board-options DebugLevel=info \
+  --warnings all \
+  --build-property "compiler.cpp.extra_flags=-I$PROJECT/esp32/arduino/ir_hub/src" \
+  --output-dir /tmp/ir_hub_arduino_build \
+  "$PROJECT/esp32/arduino/ir_hub"
+
+"$ARDUINO_CLI" upload \
+  -p /dev/ttyUSB0 \
+  --fqbn esp32:esp32:esp32 \
+  --input-dir /tmp/ir_hub_arduino_build \
+  "$PROJECT/esp32/arduino/ir_hub"
 ```
+
+The host tests are independent of the Arduino toolchain:
+
+```bash
+cmake -S esp32/test/host -B /tmp/ir_hub_host_build
+cmake --build /tmp/ir_hub_host_build --parallel
+ctest --test-dir /tmp/ir_hub_host_build --output-on-failure
+```
+
+ESP-IDF is not required for the current build. If the project later needs APIs that the Arduino core does not expose, an ESP-IDF component can be added without discarding the Arduino sketch.
 
 Recommended `sdkconfig.defaults` starting points:
 
