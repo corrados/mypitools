@@ -1,0 +1,58 @@
+menu "IR Hub Configuration"
+
+config IR_HUB_WIFI_SSID
+    string "Wi-Fi SSID"
+    default ""
+
+config IR_HUB_WIFI_PASSWORD
+    string "Wi-Fi password"
+    default ""
+
+config IR_HUB_WIFI_MAX_RETRY
+    int "Wi-Fi reconnect attempts"
+    range 1 100
+    default 10
+
+config IR_HUB_SCRIPT_PORT
+    int "Script command TCP port"
+    range 1 65535
+    default 3333
+
+config IR_HUB_IR_GPIO
+    int "IR transmitter GPIO"
+    range 0 39
+    default 22
+
+config IR_HUB_RGB_SCLK_GPIO
+    int "RGB LED SPI SCLK GPIO"
+    range 0 39
+    default 18
+
+config IR_HUB_RGB_MOSI_GPIO
+    int "RGB LED SPI MOSI GPIO"
+    range 0 39
+    default 23
+
+config IR_HUB_RGB_VALUE
+    int "RGB state LED brightness"
+    range 0 255
+    default 10
+
+config IR_HUB_PS3_REMOTE_MAC
+    string "PS3 BD remote MAC address"
+    default "00:1E:3D:10:CB:F0"
+
+config IR_HUB_FIRETV_HOST
+    string "Fire TV hostname or IP address"
+    default "firetv1"
+
+config IR_HUB_RADIO_SOCKET_HOST
+    string "Radio socket hostname or IP address"
+    default "radiosocket"
+
+config IR_HUB_STANDBY_SECONDS
+    int "Standby timeout in seconds"
+    range 1 86400
+    default 1800
+
+endmenu

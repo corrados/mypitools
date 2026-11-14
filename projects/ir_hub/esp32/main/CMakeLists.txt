@@ -1,0 +1,25 @@
+idf_component_register(
+    SRCS
+        "app_main.cpp"
+        "control/control.cpp"
+        "control/state_preview.cpp"
+        "input/script_server.cpp"
+        "net/wifi.cpp"
+        "output/rgb_led.cpp"
+    INCLUDE_DIRS
+        "."
+        "control"
+        "input"
+        "ir"
+        "output"
+        "net"
+        "util"
+    REQUIRES
+        driver
+        esp_event
+        esp_netif
+        esp_rom
+        esp_wifi
+        lwip
+        nvs_flash
+)
