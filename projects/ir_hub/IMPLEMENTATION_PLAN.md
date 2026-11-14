@@ -4,7 +4,9 @@ Port ../../ir_hub.py to ESP32
 Current status
 --------------
 
-`ir_hub.py` currently runs stable on a Raspberry Pi 3B+. An RGB LED and four IR transmitter diodes are connected.
+`ir_hub.py` currently runs stable on a Raspberry Pi 3B+. An RGB LED and four IR transmitter diodes are connected to the Pi.
+
+The ESP32 port is being developed on a bare ESP32 dev board. The IR transmitter stage, the four IR diodes, and the RGB LED are **not connected yet** and will be added later. Initial implementation and testing must therefore work without those peripherals; physical IR/RGB acceptance is deferred until the hardware is installed.
 
 Note that I do not use a standard PS3 controller but the PS3 BD remote, which is like a normal TV remote but with Bluetooth instead of IR.
 
@@ -22,6 +24,19 @@ Port the complete behavior of `ir_hub.py` to C++ on the original ESP32, includin
 
 The ESP32 is the original 2x Xtensa LX6 version (240 MHz dual core). It has Bluetooth Classic, Wi-Fi, RMT, SPI, and enough RAM for this application. Do **not** target ESP32-S2/S3/C3/C6: they do not provide Bluetooth Classic.
 
+Bare-board bring-up strategy
+-----------------------------
+
+The first implementation and test target is the bare ESP32 dev board, with no IR transmitter, IR diodes, or RGB LED attached.
+
+- Implement and compile the IR and RGB drivers now, but treat their hardware output as unverified until the peripherals are connected.
+- Boot must succeed when the IR pin is unconnected and when no RGB LED responds. A missing peripheral must not crash or block control, Bluetooth, Wi-Fi, or ADB work.
+- Validate pure behavior with host tests: code tables, waveform construction, RC6 toggle, state transitions, key maps, report decoding, and timer logic.
+- Validate firmware behavior with serial logs, queue/backpressure metrics, and injected button/IR commands. Do not claim that a device responded until it has actually been tested.
+- Optional early bench checks that do not require the final hardware: RMT TX-to-RX loopback on a spare GPIO, logic-analyzer capture of GPIO 22, SPI decoder capture of GPIO 18/23, or a single IR receiver LED/photodiode.
+- Defer all physical acceptance tests, LED identification, IR driver-polarity checks, and real-device response tests until the hardware is added.
+- Keep the hardware-dependent questions and risks visible in this plan rather than silently assuming answers.
+
 Implementation decisions
 ------------------------
 
@@ -35,21 +50,22 @@ Implementation decisions
 4. **RGB LED:** Treat it as a WS2801-compatible SPI LED until the hardware is verified. The Python code writes exactly three bytes over SPI mode 0 at 1 MHz, which matches WS2801-style wiring. WS2812 is only a fallback and requires a different driver.
 5. **ADB:** Implement a small ADB-over-TCP client instead of spawning an `adb` binary. Prefer a device-generated RSA key stored persistently; reusing the Pi's `~/.android/adbkey` is acceptable only for temporary bring-up.
 6. **Input socket:** Replace the Raspberry Pi Unix socket with a small TCP line-oriented command server, or optionally support both TCP and UART. A Unix socket is not a natural ESP32 interface.
-7. **Serialization:** Run button handling in one control task. Run IR transmissions through one queue-backed IR worker so waveforms never overlap. Bluetooth, ADB, HTTP, and LED work remain separate tasks.
+7. **Concurrency:** Preserve the Python threading model deliberately, not just functionally. Run button handling in one serialized control task, but start long-running sequences as detached jobs so they can continue after the button handler returns. Run IR transmissions through one queue-backed IR worker so waveforms never overlap. Keep Bluetooth, script socket, ADB, HTTP/timers, and LED work independent. See "Python concurrency model to preserve" below for the exact mapping and the reasons behind it.
 
 Target hardware and pin plan
 ----------------------------
 
-| Function | ESP32 pin | Notes |
-|---|---:|---|
-| IR transmitter | GPIO 22 | Same logical output as the Python `out_pin`. Four IR diodes may be driven through the existing transistor/driver stage. |
-| RGB LED SPI SCLK | GPIO 18 | SPI clock, mode 0, 1 MHz. |
-| RGB LED SPI MOSI | GPIO 23 | Three bytes per update for one WS2801 LED. |
-| Optional WS2812 data | GPIO 16 | Only if the LED is later identified as WS2812. |
-| Optional IR receiver | GPIO 27 | Not required by the current Python program. |
-| Power/ground | — | Use a proper 5 V/3.3 V supply; do not power IR diodes directly from a GPIO. |
+| Function | ESP32 pin | Availability | Notes |
+|---|---:|---|---|
+| Bare ESP32 dev board | — | Available now | Initial implementation and test target. No IR or RGB hardware attached. |
+| IR transmitter | GPIO 22 | Deferred | Same logical output as the Python `out_pin`. Four IR diodes may be driven through the existing transistor/driver stage. |
+| RGB LED SPI SCLK | GPIO 18 | Deferred | SPI clock, mode 0, 1 MHz. |
+| RGB LED SPI MOSI | GPIO 23 | Deferred | Three bytes per update for one WS2801 LED. |
+| Optional WS2812 data | GPIO 16 | Deferred | Only if the LED is later identified as WS2812. |
+| Optional IR receiver | GPIO 27 | Deferred | Useful for RMT/IR bench verification; not required by the current Python program. |
+| Power/ground | — | Deferred | Use a proper 5 V/3.3 V supply; do not power IR diodes directly from a GPIO. |
 
-Keep the IR output current-limited and verify the existing driver polarity. The ESP32 GPIO is a logic signal, not the IR diode power source.
+Keep the IR output current-limited and verify the existing driver polarity when the hardware is connected. The ESP32 GPIO is a logic signal, not the IR diode power source. Until then, keep the pin configured but do not treat successful transmission as proof that an IR device received the code.
 
 System architecture
 -------------------
@@ -57,28 +73,32 @@ System architecture
 ```text
 PS3 BD remote --Bluetooth Classic--> ps3_remote task --+
                                                        |
-TCP/UART command socket -------------------------------+--> control queue
+TCP/UART command socket -------------------------------+--> control queue (press events)
                                                        |
-                                                       +--> state_machine task
+                                                       +--> control task (serialized press handler)
                                                               |
                           +-----------------------------------+------------------+
                           |                                   |                  |
-                     IR submit queue                     ADB queue          LED/status
+                  sequence job queue                   IR submit queue     ADB queue
                           |                                   |                  |
-                     RMT IR worker                       ADB client        SPI LED task
-                          |                                   |
-                     IR diodes                         Fire TV :5555
+                  fixed sequence worker pool          RMT IR worker        ADB client
+                          |                                   |                  |
+                  delayed IR/state steps               IR diodes          Fire TV :5555
 
-radio socket <---- esp_http_client ---- radio timer / control task
+radio socket <---- esp_http_client ---- radio esp_timer / control task
+PS3 sleep     <---- disconnect -------- ps3 esp_timer
 ```
 
 There must be exactly one owner of each hardware resource:
 
 - RMT TX channel: IR worker only.
-- SPI bus: RGB LED task only, protected by a mutex if a second SPI user is added.
+- SPI bus: RGB driver only, protected by a mutex because control and sequence jobs can update the LED.
 - Bluetooth HID connection: Bluetooth task only.
 - ADB socket: ADB task only.
 - State variables: control task only.
+- Sequence job pool: the only place that runs delayed helper sequences. It must not modify state directly; it reads state and submits IR/ADB/radio requests.
+
+The control task serializes press handling like Python's `press_lock`. Sequence jobs are intentionally detached from the press handler, matching the Python helper threads. A fixed-size pool is used instead of unbounded thread creation; sequence jobs queue when all workers are busy.
 
 Project layout
 --------------
@@ -144,13 +164,15 @@ Use these FreeRTOS tasks and fixed-size queues. Avoid unbounded dynamic allocati
 
 | Task | Responsibility | Priority suggestion |
 |---|---|---:|
-| `control_task` | Consume button events, own all state variables, run transition sequences. | 8 |
+| `control_task` | Consume button events, own all state variables, execute the serialized press handler, and start detached sequence jobs. It may block for the Python-equivalent serialized delays (including 3 s and 6 s), but it must not perform IR transmission itself. | 8 |
+| `sequence_pool` | Fixed pool of workers (start with 4-6) that run `switch_tv_on`, `switch_projector_off`, `switch_bar_on`, `led_max_brightness`, and future delayed helpers. Multiple jobs may run concurrently, matching the Python helper threads. | 6 |
 | `ir_task` | Consume IR requests, build RMT symbols, transmit, serialize all IR. | 10 |
 | `ps3_remote_task` | HID host callback/raw L2CAP receive, report decoding, button repeat timing. | 9 |
 | `script_server_task` | Accept TCP/UART commands and enqueue button names. | 4 |
 | `adb_task` | Connect/authenticate, open shell, execute Fire TV commands, reconnect every 5 s. | 5 |
 | `rgb_task` | Consume RGB updates and write the SPI LED, or perform short mutex-protected writes. | 3 |
 | `radio_timer` | `esp_timer` callback that requests radio socket off after 1800 s. | timer |
+| `ps3_sleep_timer` | `esp_timer` callback that disconnects the PS3 BD remote after 1800 s of inactivity. | timer |
 
 Use one `control_event_t` queue for all button presses:
 
@@ -164,6 +186,77 @@ struct ControlEvent {
 
 All button names must be normalized to the exact strings used by `ir_hub.py`. Preserve the typo `AUIDO` in the PS3 map and in `playstation_convert`; changing it silently breaks the mapping.
 
+Python concurrency model to preserve
+------------------------------------
+
+`ir_hub.py` uses threads for different reasons. The ESP32 design must preserve those reasons, not merely reproduce the same final states.
+
+### Long-lived independent services
+
+- `playstation_remote_input()` blocks on the Bluetooth socket and handles autorepeat timeouts.
+- `socket_input()` blocks on the Unix socket and reads script commands.
+- `adb_connect()` periodically reconnects and maintains the ADB shell.
+
+These must remain independent tasks. A slow or disconnected ADB server must never stop Bluetooth input, script input, IR, or timers. A blocking Bluetooth read must never stop ADB reconnects or script handling.
+
+### Serialized press handling
+
+- Each PS3 press is dispatched in its own Python thread, but all press handlers acquire `press_lock`.
+- The lock serializes the *handler body*: only one press is processed at a time, and pending presses wait.
+- The script socket calls `on_button_press()` directly, so it also participates in the same serialization.
+
+ESP32 mapping: all sources enqueue to one control queue. `control_task` consumes one event at a time and owns all state, which is the equivalent of `press_lock`. Keeping a separate input task per source preserves the Python property that input sources do not block each other.
+
+One deliberate difference: Python's script thread blocks inside `on_button_press()` while handling a command. The ESP32 script task should enqueue and keep accepting/reading, preserving per-connection command order, so a slow transition does not stop the script server from ingesting further commands. If strict blocking parity is required, make the script task wait for each enqueued handler to finish; document the choice instead of mixing both.
+
+### Detached long-running sequences
+
+- The press handler starts helpers such as `switch_bar_on()` and `switch_tv_on()` in new threads and then returns.
+- Those helpers continue after `press_lock` is released, so they overlap with later presses and with each other.
+- Their `time.sleep()` calls do **not** block Bluetooth input, script input, ADB reconnects, or IR submission.
+- The 3 s transition delay and the 6 s cold-start battery indication are different: they happen inside the press handler while `press_lock` is held, so later presses wait during those delays.
+
+ESP32 mapping:
+
+- The short transition delays remain in the serialized control context (`vTaskDelay()` in `control_task`, or an equivalent serialized job). Input tasks keep receiving and queueing during the delay.
+- Long helpers become detached jobs in a fixed-size sequence worker pool. Do not serialize all helpers through one worker, and do not run their sleeps in `control_task`.
+- If the pool or its queue is full, apply bounded backpressure and log it. Do not create an unbounded number of FreeRTOS tasks per press.
+- Sequence jobs check live state where Python does, and must not write `state`, `prev_state`, `alt_func`, `mapping`, or `led_is_on` directly. Submit requests and let the control task own state changes.
+
+### Asynchronous, serialized IR
+
+- `ir_send_in_thread()` starts a thread per send and returns immediately.
+- `ir_lock` serializes the actual IR transmission, so waveforms never overlap.
+- Python thread scheduling does not guarantee IR request order.
+
+ESP32 mapping: `ir_submit()` is non-blocking and a single IR worker owns the RMT channel. A FIFO queue is an intentional improvement for deterministic order, especially for `TV POWEROFF`; it preserves the non-blocking and serialization properties while removing an accidental race.
+
+### Independent timers
+
+- `ps3_sleep_timer` disconnects the remote after 1800 s of inactivity and is reset on each received report.
+- `rs_sleep_timer` turns the radio socket off after 1800 s and is reset/cancelled by state transitions.
+
+ESP32 mapping: one-shot `esp_timer` instances, cancellable and resettable from the owning task. They must not be ordinary `vTaskDelay()` calls in the control loop. Timer callbacks must not mutate control state directly; enqueue an internal control event or submit the radio-off/disconnect request.
+
+### Shared resources
+
+`set_rgb()` is called both from the press handler and from detached helpers. Protect the SPI/LED path with a mutex or an LED task so a sequence cannot interleave bytes with a state-color update. The IR worker, not the control task, owns the RMT channel. The ADB task owns the ADB socket.
+
+Sequence jobs read the live `state` for their guards. Python gets atomic-enough reads from the GIL; C++ must not read an unsynchronized multi-field state casually. Expose a small mutex-protected or atomic state snapshot accessor for sequence jobs. Take the snapshot only before/after a delay and never hold the state mutex across `vTaskDelay()`, or the control task will stall.
+
+Python calls `switch_radio_socket()` synchronously inside the press handler and timer callback, so the HTTP GET can delay presses; failures are swallowed. Keep the ESP32 HTTP path short-timeout and non-fatal. Either perform it in the control task for closest ordering parity or hand it to a dedicated radio worker with a bounded wait; in both cases the radio `On` request must complete before the cold-start indication and a failed request must not block the transition indefinitely.
+
+### Behavioral tests for concurrency
+
+Add host or on-target tests that verify:
+
+- A long `switch_bar_on()` job does not prevent a later button press from being handled.
+- A later press can start while an earlier helper is still sleeping.
+- Two different helpers can overlap, but IR requests remain serialized.
+- A 6 s cold-start indication blocks further press handling but not input ingestion or timers.
+- PS3 sleep and radio-off timers can be cancelled and re-armed without blocking any task.
+- Sequence-pool exhaustion queues work in a bounded way and does not crash or leak tasks.
+
 Configuration constants to keep identical initially:
 
 ```cpp
@@ -175,7 +268,7 @@ constexpr uint32_t   kStandbyMs    = 1800 * 1000;
 constexpr char       kPs3RemoteMac[] = "00:1E:3D:10:CB:F0";
 ```
 
-Do not hard-code Wi-Fi credentials, the Fire TV IP address, or the ADB private key. Put them in `menuconfig`, a provisioning file, or NVS. The host name `firetv1` must be resolvable or replaced by a configured IPv4 address.
+Do not hard-code Wi-Fi credentials, the Fire TV IP address, or the ADB private key in source control. Provide them through `config.hpp`/build flags for development, a provisioning file, or NVS for deployment. The host name `firetv1` must be resolvable or replaced by a configured IPv4 address.
 
 IR subsystem
 ------------
@@ -347,10 +440,10 @@ It must accept names such as `BAR VOL+`, `TV HDMI2`, `LED POWERON`, and `FIRETVB
 - The IR worker alone owns the RMT channel.
 - `ir_send_in_thread()` becomes a non-blocking `ir_submit()`; it must not block the control task.
 - Use a FIFO queue. The Python code uses a mutex but thread scheduling does not guarantee request order; FIFO is an intentional improvement that makes the critical `TV POWEROFF` first-send deterministic.
-- Long sequences such as `switch_bar_on()` must not sleep on the IR task. Implement them in a sequence task or with `esp_timer` one-shot callbacks that submit each IR request at the correct time.
-- Do not hold the control queue while sleeping. The Python code blocks its press thread during `time.sleep()` but accepts other presses; keep the ESP32 equivalent non-blocking or explicitly serialize sequences while still allowing the required state checks.
+- Long sequences such as `switch_bar_on()` must not sleep on the IR task or the control task. Run them as detached jobs in the sequence worker pool, or as `esp_timer` one-shot callbacks, and submit each IR request at the correct time.
+- The control task may sleep only for the serialized delays that hold `press_lock` in Python: the 3 s transition delay and the 6 s cold-start indication. Other input tasks keep receiving and queueing during those delays. Do not move helper sleeps into the control task, and do not remove the serialized delays.
 
-IR self-test firmware should first emit a known TV `POWER` command. If the TV responds, the carrier, pin, and waveform order are correct before testing the soundbar RC6 path.
+IR self-test firmware should first emit a known TV `POWER` command. On the bare board this only proves RMT submission and timing. Once the IR transmitter is attached, the TV response proves the carrier, pin, and waveform order before testing the soundbar RC6 path.
 
 Bluetooth PS3 BD remote
 -----------------------
@@ -614,7 +707,7 @@ All unknown lookups resolve to the string `UNKNOWN` and are ignored by the IR se
 
 ### Processing order
 
-`on_button_press()` is protected by `press_lock` in Python. Implement the equivalent by consuming a single control queue in one task. The order inside the handler must be preserved:
+`on_button_press()` is protected by `press_lock` in Python. Implement the equivalent by consuming a single control queue in one task. The handler body must stay serialized, but long helper sequences must be started as detached jobs and allowed to continue after the handler returns, as Python does. The order inside the handler must be preserved:
 
 1. **SELECT handling:** if the button is `SELECT` and the current state is not `IDLE`, toggle `alt_func`.
 2. **LIGHT handling:**
@@ -642,11 +735,13 @@ The transition branch is entered from `IDLE` for every button except `POWER`. Be
    - Else: set RGB `[0,0,255]` and wait 6 s. The source comment calls this green, but the actual value is blue.
 4. Then run the selected transition.
 
-Keep the actual RGB values, not the comments, unless the hardware is deliberately corrected.
+Keep the actual RGB values, not the comments, unless the hardware is deliberately corrected. On the bare dev board the RGB output has no visible effect; the timing and ordering still matter and must be exercised through logs or a future LED. This cold-start indication runs in the serialized press context, so additional presses wait, but Bluetooth/script input tasks and timers keep running.
 
 ### Transition branches
 
 These branches use the **old** state for their conditions. The state is changed only after the branch completes. Preserve this; it is essential for the "help action" retry behavior.
+
+In the diagrams below, "start X sequence" means enqueue a detached sequence job that continues after the press handler returns. A "sleep N s" inside the branch is a serialized delay in the control context and holds press processing, matching `press_lock`. Do not move the serialized sleeps into a sequence worker, and do not run the detached helpers inline.
 
 #### POWER
 
@@ -775,7 +870,7 @@ else:
 
 ### Long-running sequences
 
-Implement each Python helper as a non-blocking sequence job that submits IR requests at the documented times.
+Implement each Python helper as a detached sequence job that may delay internally but does not block the control task or input ingestion. It submits IR requests at the documented times.
 
 #### `switch_tv_on(cur_state, input)`
 
@@ -826,7 +921,7 @@ repeat 3 times:
     wait 0.3 s
 ```
 
-Use `esp_timer` or a dedicated sequence task for the waits. Do not sleep in the control queue consumer if that would block new button events longer than the Python program does. If exact parity is preferred initially, run each sequence in its own FreeRTOS task and use `vTaskDelay()`; this mirrors the Python thread model most closely.
+Run each helper as a detached job in the bounded sequence worker pool and use `vTaskDelay()` inside that job. This mirrors the Python helper threads most closely while avoiding unbounded `xTaskCreate()` calls. Do not serialize all helpers through one worker: Python allows `switch_bar_on`, `switch_tv_on`, `switch_projector_off`, and `led_max_brightness` to overlap. Do not sleep in `control_task` for these helpers. The 3 s transition delay and 6 s cold-start indication are the exception: they happen inside the serialized press handler, so later presses wait, while input tasks continue to queue events and timers continue to run.
 
 ### Script command socket
 
@@ -852,24 +947,39 @@ Do not expose the command server to the public internet. It has no authenticatio
 
 ### Startup order
 
-`app_main.cpp` should perform this sequence:
+`ir_hub.ino` `setup()` should perform this sequence:
 
-1. Initialize NVS and logging.
-2. Load configuration (Wi-Fi, Fire TV address, radio socket address, optional PS3 MAC).
-3. Initialize the RGB driver, set the initial `IDLE` color `[0,0,0]`.
-4. Initialize the IR worker and RMT channel.
-5. Start the ADB reconnect task.
-6. Start the PS3 remote host and connection task.
-7. Start the script command server.
+1. Initialize logging, serial console, and configuration from `config.hpp`/build flags.
+2. Initialize the RGB driver, set the initial `IDLE` color `[0,0,0]`. Absence of the LED must not fail boot.
+3. Initialize the IR worker and RMT channel. Absence of the IR transmitter must not fail boot.
+4. Start the ADB reconnect task.
+5. Start the PS3 remote host and connection task.
+6. Start the script command server.
+7. Start the sequence worker pool.
 8. Start the control task and its queue.
 9. Optionally enable the task watchdog; feed it from long-running tasks.
 
-The Python program starts `pigpiod` before the threads; on ESP32 the equivalent is successful RMT/SPI initialization before any IR or LED request is accepted.
+The Python program starts `pigpiod` before the threads; on ESP32 the equivalent is successful RMT/SPI initialization before any IR or LED request is accepted. The bare board does not prove the peripherals work, only that the drivers initialize and the firmware remains responsive.
 
 Implementation phases
 ---------------------
 
-### Phase 0: Hardware and behavior capture
+### Phase 0: Bare-board bring-up and deferred hardware capture
+
+Available now:
+
+- Bare ESP32 dev board, USB serial, Wi-Fi/Bluetooth radios, Arduino core, host test toolchain.
+- The existing Raspberry Pi program remains the behavioral reference.
+- No IR transmitter, IR diode stage, or RGB LED attached to the ESP32.
+
+Do now:
+
+- Establish the Arduino build, flash, serial console, and host-test workflow on the bare board.
+- Record which files and logs prove the firmware is running without peripherals.
+- Capture PS3 BD remote reports and Fire TV/radio-socket addresses whenever that equipment is available; these do not require the IR/RGB hardware.
+- Keep hardware questions visible in the risk/open-question sections.
+
+Deferred until IR/RGB hardware is added:
 
 - Identify the RGB LED: confirm WS2801 versus WS2812 by inspecting the LED/driver and measuring the existing SPI signals.
 - Confirm the IR output driver polarity, transistor stage, supply, and whether all four diodes are wired in parallel.
@@ -877,13 +987,12 @@ Implementation phases
   - One TV `POWER` waveform.
   - One soundbar `VOL+` waveform (RC6).
   - One LED `POWERON` waveform (long trailing gap).
-  - The first 16 bytes of a PS3 BD remote report for several buttons.
-- Confirm the Fire TV ADB key already authorized and whether a freshly generated key can be authorized.
-- Record the radio socket hostname/IP and the Fire TV IP/hostname.
+- Verify real-device IR responses and RGB colors.
+- Confirm the Fire TV ADB key authorization and the radio socket hostname/IP when those services are reachable.
 
-Exit criterion: hardware and protocol facts are known, and the expected waveforms are stored as test fixtures.
+Exit criterion for the initial phase: the bare board boots, accepts injected commands, runs the task/queue architecture, and passes host tests; hardware facts and real-device acceptance remain explicitly deferred.
 
-### Phase 1: Arduino skeleton and RGB (complete)
+### Phase 1: Arduino skeleton and RGB driver (complete on bare board)
 
 - Create `esp32/arduino/ir_hub/` with the ESP32 Arduino core targeting `esp32`.
 - Add configuration for pins, Wi-Fi, Fire TV, radio socket, and optional PS3 MAC.
@@ -892,9 +1001,11 @@ Exit criterion: hardware and protocol facts are known, and the expected waveform
 - Verify `POWER`, `1`-`5`, and `LIGHT` command strings can be injected without a remote.
 - Add a serial command console so state/color behavior can be tested before Wi-Fi is configured.
 
-Exit criterion: the RGB LED shows the six state colors, white in select mode, and the script socket can drive a fake state machine.
+Exit criterion for the bare board: the scaffold compiles, boots, accepts serial-injected state commands, and emits the expected RGB writes in code/logs. The script socket path is exercised once Wi-Fi is configured.
 
-Status: the scaffold compiles, flashes, boots, listens on TCP port 3333, and processes serial-injected button names. Wi-Fi credentials are not configured, so the TCP path is not yet exercised end to end. The RGB LED has not been physically verified.
+Deferred exit criterion: the physical RGB LED shows the six state colors and white in select mode. This is verified only after the LED is connected.
+
+Status: the scaffold compiles, flashes, boots, listens on TCP port 3333, and processes serial-injected button names. Wi-Fi credentials are not configured, so the TCP path is not yet exercised end to end. The RGB LED is not connected; physical verification is deferred.
 
 ### Phase 2: Standard IR protocols over RMT
 
@@ -903,60 +1014,78 @@ Status: the scaffold compiles, flashes, boots, listens on TCP port 3333, and pro
 - Implement `ir_submit_name()` and the IR worker.
 - Add a debug command to transmit a selected key with a selected repeat count.
 - Compare generated symbol durations against a Python host fixture derived from `ir_sling()`.
-- Test on the real TV first, then projector, LED strip, and DVD player.
+- On the bare board, verify RMT submission, duration splitting, and no crashes or watchdog resets.
+- Defer testing on the real TV, projector, LED strip, and DVD player until the IR transmitter hardware is installed.
 
-Exit criterion: TV power and input selection work reliably; the projector and LED strip respond; no watchdog resets or RMT transfer errors.
+Exit criterion for the bare board: host waveform tests pass, all code tables are complete, RMT submission succeeds, long gaps are split, and repeated transmissions do not block input or the control queue.
 
-Status: waveform encoding, the IR code tables, the RMT worker, and serial `IR DEVICE COMMAND` injection are implemented. Host tests cover TV, BEAM, LED, DVD, and RC6/bar waveforms. The sketch compiles, flashes, and transmits without RMT errors. Real-device IR verification and script/state-machine integration are still pending.
+Deferred exit criterion: TV power and input selection work reliably; the projector and LED strip respond on real hardware.
+
+Status: waveform encoding, the IR code tables, the RMT worker, and serial `IR DEVICE COMMAND` injection are implemented. Host tests cover TV, BEAM, LED, DVD, and RC6/bar waveforms. The sketch compiles, flashes, and transmits without RMT errors. Real-device IR verification and script/state-machine integration are still pending because the IR transmitter hardware is not attached.
 
 ### Phase 3: RC6 soundbar
 
 - Implement the RC6 encoder and toggle-bit state.
 - Port the complete `BAR` key table.
 - Verify repeated commands and the 6T signal-free time.
-- Compare a captured `VOL+` waveform with the Pi capture.
+- Compare a captured `VOL+` waveform with the Pi capture when the hardware is available.
+- On the bare board, verify toggle-bit sequencing and 36 kHz carrier configuration through logs and host tests.
 
-Exit criterion: soundbar power, input select, volume, mute, surround, tone, and sync keys work, including repeated volume presses.
+Exit criterion for the bare board: RC6 waveform construction, toggle behavior, and 36 kHz carrier selection are correct in host tests and RMT submission does not fail.
 
-Status: the RC6 encoder, toggle bit, 36 kHz carrier selection, and BAR key table are implemented and host-tested. Real soundbar verification is pending.
+Deferred exit criterion: soundbar power, input select, volume, mute, surround, tone, and sync keys work on the real soundbar, including repeated volume presses.
+
+Status: the RC6 encoder, toggle bit, 36 kHz carrier selection, and BAR key table are implemented and host-tested. Real soundbar verification is deferred until the IR transmitter is connected.
 
 ### Phase 4: Button routing and state machine
 
 - Port all lookup tables and the exact processing order.
 - Implement the cold-start battery indication and radio timer.
-- Implement the long-running sequences with live state checks.
-- Port LED brightness and toggle behavior.
+- Implement the serialized press handler and the detached sequence worker pool with live state checks.
+- Preserve the Python concurrency behavior: one press at a time, detached helpers that overlap, independent input tasks, and serialized IR.
+- Port LED brightness and toggle behavior; the LED output itself is unverified until hardware is attached.
 - Add host tests for every transition from every old state, including the same-state retry.
+- Add concurrency tests for overlapping helpers, serialized IR, queued presses during the 6 s cold start, and timer cancellation.
 
-Exit criterion: script-injected button sequences reproduce the Pi behavior, including timing, radio socket calls, and state colors.
+Exit criterion for the bare board: script-injected button sequences reproduce the Pi behavior in logs and host tests, including request order, repeat counts, delay scheduling, radio socket calls, and state updates. Physical RGB/IR effects are deferred.
+
+Deferred exit criterion: the same sequence is verified with the real IR/RGB hardware and real devices.
 
 ### Phase 5: PS3 BD remote
 
 - Implement the HID host connection and report decoding.
 - Port the scancode map, conversions, repeat logic, battery tracking, and inactivity disconnect.
 - Add raw-report logging behind a debug flag.
+- Keep the remote-input task independent from control, ADB, script input, and IR, as in Python.
 - Test with a real remote from a cold boot, after 30 minutes idle, after Wi-Fi traffic, and after reconnect.
+- Battery-level indication can be validated through logs on the bare board; its RGB colors are deferred until the LED is attached.
 
-Exit criterion: all remote buttons map correctly, autorepeat works for the required keys, battery indication is correct, and the remote reconnects after the deliberate sleep disconnect.
+Exit criterion: all remote buttons map correctly, autorepeat works for the required keys, battery values are tracked correctly, and the remote reconnects after the deliberate sleep disconnect. Physical battery-color display is deferred.
 
 ### Phase 6: Fire TV ADB
 
 - Implement ADB framing, key authentication, `shell:`, and reconnect.
 - Provision the RSA key and authorize it once on the Fire TV.
 - Port all keyevent and app-launch commands.
+- Keep the ADB reconnect/command task independent from the control task and input tasks, matching the Python thread.
 - Test navigation, HOME, app shortcuts, and recovery after the Fire TV reboots or changes network state.
 
 Exit criterion: projector-mode Fire TV navigation works with the same latency as the Pi, and the ESP32 reconnects automatically after a Fire TV reboot.
 
-### Phase 7: Integration and hardening
+### Phase 7: Peripheral hardware bring-up, integration, and hardening
 
+- Attach the RGB LED and IR transmitter stage only after the bare-board firmware is stable.
+- Identify the LED type and IR driver polarity, then run the deferred hardware checks from Phase 0.
+- Verify the six state colors, select-mode white, cold-start indication, and battery colors.
+- Verify real-device IR for TV, soundbar, LED strip, and DVD; confirm repeat keys and long gaps.
 - Enable Wi-Fi/Bluetooth coexistence testing with the remote connected and ADB active.
-- Add task watchdog coverage, bounded queues, and failure logging.
+- Add task watchdog coverage, bounded queues, and failure logging. Ensure the serialized control delays and sequence jobs feed or are covered by the watchdog.
 - Add OTA update support if desired; the original Pi uses `systemd` restart, not OTA.
 - Add a documented provisioning procedure for Wi-Fi, Fire TV address, radio socket, and ADB key.
-- Run a soak test for at least 24 hours with periodic remote presses and ADB commands.
+- Run a soak test for at least 24 hours with periodic remote presses and ADB commands; repeat with IR/RGB hardware attached.
+- Re-run the concurrency tests under load: multiple overlapping sequence jobs, IR queue saturation, slow ADB, and Wi-Fi/BT traffic.
 
-Exit criterion: no memory leaks, no stuck IR queue, no missed remote presses, and stable reconnect behavior.
+Exit criterion: no memory leaks, no stuck IR queue, no missed remote presses, stable reconnect behavior, and the real IR/RGB hardware passes the deferred acceptance checks.
 
 Build and test commands
 -----------------------
@@ -992,18 +1121,13 @@ ctest --test-dir /tmp/ir_hub_host_build --output-on-failure
 
 ESP-IDF is not required for the current build. If the project later needs APIs that the Arduino core does not expose, an ESP-IDF component can be added without discarding the Arduino sketch.
 
-Recommended `sdkconfig.defaults` starting points:
+Bare-board notes:
 
-```text
-CONFIG_BT_ENABLED=y
-CONFIG_BT_CLASSIC_ENABLED=y
-CONFIG_BT_BLUEDROID_ENABLED=y
-CONFIG_BT_HID_HOST_ENABLED=y
-CONFIG_SW_COEXIST_ENABLE=y
-CONFIG_FREERTOS_HZ=1000
-CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
-CONFIG_PTHREAD_TASK_STACK_SIZE_DEFAULT=4096
-```
+- `--board-options DebugLevel=info` is required for the serial logs used during bare-board testing; the default `CORE_DEBUG_LEVEL=0` compiles `ESP_LOG*` calls out.
+- Any file that includes `esp_log.h` directly must include `Arduino.h` first so `LOG_LOCAL_LEVEL` is set consistently.
+- No IR or RGB hardware is needed for compile, flash, boot, host tests, serial command injection, or queue/task verification.
+- The Arduino core ships a prebuilt `sdkconfig`. If custom Bluetooth/coexistence/FreeRTOS settings become necessary, use an Arduino board/variant build with a custom sdkconfig or add an ESP-IDF component; do not assume editing a project `sdkconfig.defaults` affects the Arduino build.
+- The sequence worker count and queue depths are compile-time configuration in the project, not `menuconfig` options. Start with 4-6 sequence workers, a control queue that holds at least several presses, and an IR queue that holds a realistic burst.
 
 Host-side logic tests should not require ESP-IDF. Build them with plain CMake or a small test harness. If no framework exists in the repository, use a minimal assertion-based test binary first; do not add a large test dependency merely for this project.
 
@@ -1015,22 +1139,31 @@ Minimum test matrix:
 - Key maps: all referenced keys resolve; no accidental removal of the `AUIDO` typo.
 - State machine: every button in every old state, including `SELECT`, `LIGHT`, same-state retry, and `alt_func`.
 - Timing sequences: `switch_tv_on`, `switch_projector_off`, `switch_bar_on`, and `led_max_brightness` submit the expected ordered requests.
+- Concurrency: a long helper job does not block a later press; overlapping helpers run concurrently; IR remains serialized; queued presses wait during the 6 s cold-start indication; timers cancel/re-arm; sequence-pool saturation is bounded.
 - PS3 report decoding: known raw reports from the hardware capture, button-up, and battery values.
 - ADB packet framing and command generation, including the exact shell strings.
 - Radio socket URL encoding and timer cancellation.
 
+Tests that require connected peripherals are explicitly deferred: real IR device response, RGB color/latch behavior, IR driver current/polarity, and LED identification.
+
 Verification against the Pi
 ---------------------------
 
-For parity, compare:
+Bare-board and host-test parity, compare now:
 
-- The first 10 s after each state transition.
-- The order and repeat count of every IR request.
-- The 3 s, 5 s, 6 s, 10 s, 15 s, and 0.3 s delays.
-- The radio socket on/off timing.
-- The LED state after every press.
+- The order and repeat count of every submitted IR request, through IR worker logs.
+- The 3 s, 5 s, 6 s, 10 s, 15 s, and 0.3 s delay schedule, including which delays hold press serialization and which run in detached helpers.
+- The radio socket on/off requests and timer cancellation.
+- The requested LED color after every press, through driver/log output. Physical color is deferred.
 - Repeated volume/CH/arrow presses and their 700 ms/200 ms cadence.
-- Battery indication at levels 0-2, 3, and 4-5.
+- Battery indication values at levels 0-2, 3, and 4-5 in logs; physical colors are deferred.
+- Concurrency traces: one handler at a time, helpers overlapping, input tasks independent, IR serialized, and queued presses during cold start.
+
+Hardware-dependent parity, compare after IR/RGB hardware is attached:
+
+- Real IR device responses for every TV, soundbar, LED-strip, and DVD function.
+- Actual RGB colors, brightness, and select-mode white.
+- The first 10 s after each state transition as observed on the devices.
 
 The IR waveform comparison should allow RMT's 1 us resolution; the protocol tolerances are much wider. Do not require the ESP32 waveform to be byte-for-byte identical to `pigpio`; require correct decoder behavior on the real devices.
 
@@ -1039,30 +1172,36 @@ Risks and mitigations
 
 | Risk | Mitigation |
 |---|---|
+| IR and RGB hardware is not available during initial development, so real-device behavior is unknown. | Build and test on the bare board with host tests, logs, and injected commands; keep hardware acceptance as explicit deferred criteria; do not infer real-device success from RMT/SPI submission. |
+| Porting the Python threads as a single loop loses responsiveness or the intended sequence overlap. | Map press serialization, detached helpers, independent input tasks, IR serialization, and timers explicitly; add concurrency tests; keep sleeps for serialized press behavior in the control path and helper sleeps in the worker pool. |
+| Unbounded Python-style helper threads become unbounded FreeRTOS tasks. | Use a fixed sequence worker pool with a bounded job queue; log saturation instead of dropping work silently; never call `xTaskCreate()` per button press. |
+| A full sequence pool stalls expected helper actions. | Size the pool for realistic overlap (4-6), keep jobs short enough by doing only delays/request submission, and test saturation; the IR and input paths remain independent. |
 | Bluetooth Classic HID host does not expose the PS3 BD remote reports. | Keep the raw L2CAP fallback and validate early in Phase 5. Capture raw reports before building the state machine around them. |
 | Wi-Fi/Bluetooth coexistence drops remote presses or ADB packets. | Enable software coexistence, keep ADB traffic small, test both active simultaneously, and use separate priority/task design. |
 | The PS3 remote does not reconnect after the 30-minute HID disconnect. | Test the exact disconnect/reconnect behavior early. If wake-by-button does not work, retain the connection or disconnect only when the user requests standby. |
 | ADB authentication fails or the key is lost. | Implement the exact AOSP signing/key format, persist the key in encrypted NVS, and test first-time authorization and reboot. Keep a recovery path to re-authorize. |
 | Long IR gaps are truncated by the RMT encoder. | Split all durations >32767 us and unit-test the 110000 us LED gap and 107636 us BAR gap. |
 | RC6 toggle bit causes intermittent soundbar failures. | Centralize toggle handling in the IR worker and test repeated presses and repeated waveforms. |
-| RGB LED is WS2812, not WS2801. | Verify before wiring; keep the `set_rgb()` API and swap only the driver implementation. |
-| IR diode drive is insufficient or overheats. | Reuse the existing transistor/driver stage; verify current and duty cycle; do not drive diodes directly from GPIO. |
+| RGB LED is WS2812, not WS2801. | Verify before wiring when the hardware is added; keep the `set_rgb()` API and swap only the driver implementation. |
+| IR diode drive is insufficient or overheats. | Reuse the existing transistor/driver stage; verify current and duty cycle when the hardware is added; do not drive diodes directly from GPIO. |
+| Serialized cold-start or transition delays trigger the task watchdog. | Feed or suspend the watchdog appropriately around the known 3 s/6 s control delays, keep input queues receiving, and test the exact timing on the bare board. |
 | NVS contains Wi-Fi/ADB secrets in plaintext. | Use NVS encryption and/or flash encryption for production; never commit credentials or private keys. |
 | 24/7 operation leaks memory or queues. | Use fixed-size queues, avoid per-event heap allocation, and run a 24-hour soak test. |
 
 Open questions
 --------------
 
-1. Is the RGB LED definitely WS2801-compatible, and does it require an explicit latch interval?
-2. What is the actual IR driver polarity and current capability with four diodes?
+1. When the RGB LED is added: is it definitely WS2801-compatible, and does it require an explicit latch interval?
+2. When the IR transmitter is added: what is the actual driver polarity and current capability with four diodes?
 3. Should the script socket be TCP only, or is UART/serial preferred for the replacement Pi-to-ESP32 workflow?
 4. Should the ESP32 use a device-generated ADB key, or must it reuse the existing Pi key for a seamless first migration?
 5. Is OTA update required, or is USB flashing acceptable?
 6. Should the 30-minute PS3 remote disconnect be retained exactly, or can the remote stay connected when powered?
-7. What Wi-Fi provisioning method is preferred: compile-time `menuconfig`, a provisioning AP, or a file in NVS?
+7. What Wi-Fi provisioning method is preferred: compile-time `config.hpp`/build flags, a provisioning AP, or a file in NVS?
 8. Does the Fire TV accept `sendevent /dev/input/event1` on the current firmware, or is the event device number different?
+9. Is a fixed sequence pool of 4-6 workers enough for the actual press patterns, or should the queue/pool be sized differently after observing overlap?
 
-Answer these before implementation reaches the affected phase; none block the IR/RGB skeleton.
+Answer these before implementation reaches the affected phase. Hardware questions 1 and 2 are explicitly deferred until the peripherals are added; none block bare-board development.
 
 Sources and tools consulted
 ---------------------------
