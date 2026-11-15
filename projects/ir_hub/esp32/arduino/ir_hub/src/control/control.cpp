@@ -22,8 +22,8 @@ namespace {
 constexpr char TAG[] = "control";
 constexpr size_t kQueueLength = 16;
 constexpr size_t kSequenceQueueLength = 16;
-constexpr size_t kTaskStack = 6144;
-constexpr size_t kSequenceTaskStack = 4096;
+constexpr size_t kTaskStack = 4096;
+constexpr size_t kSequenceTaskStack = 3072;
 constexpr UBaseType_t kTaskPriority = 8;
 constexpr UBaseType_t kSequencePriority = 6;
 constexpr size_t kSequenceWorkers = 4;
@@ -40,7 +40,7 @@ MachineState s_machine = initial_machine_state();
 std::atomic<State> s_shared_state{State::Idle};
 std::atomic<bool> s_radio_timer_active{false};
 esp_timer_handle_t s_radio_timer = nullptr;
-uint8_t s_battery_level = 5;
+std::atomic<uint8_t> s_battery_level{5};
 
 const char* source_name(ButtonSource source) {
     switch (source) {
@@ -94,8 +94,9 @@ void cold_start_check() {
         return;
     }
 
-    ESP_LOGI(TAG, "cold start; battery level %u", static_cast<unsigned>(s_battery_level));
-    if (s_battery_level < 3) {
+    ESP_LOGI(TAG, "cold start; battery level %u",
+             static_cast<unsigned>(s_battery_level.load()));
+    if (s_battery_level.load() < 3) {
         for (int i = 0; i < 6; ++i) {
             rgb_led::set(255, 0, 0);
             vTaskDelay(pdMS_TO_TICKS(500));
@@ -103,7 +104,7 @@ void cold_start_check() {
             vTaskDelay(pdMS_TO_TICKS(500));
         }
     } else {
-        if (s_battery_level < 4) {
+        if (s_battery_level.load() < 4) {
             rgb_led::set(255, 0, 255);
         } else {
             rgb_led::set(0, 0, 255);

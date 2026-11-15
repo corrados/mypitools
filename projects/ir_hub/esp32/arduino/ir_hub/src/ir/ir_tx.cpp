@@ -20,7 +20,7 @@ namespace {
 
 constexpr char TAG[] = "ir";
 constexpr size_t kQueueLength = 16;
-constexpr size_t kTaskStack = 4096;
+constexpr size_t kTaskStack = 3072;
 constexpr UBaseType_t kTaskPriority = 10;
 constexpr uint32_t kRmtResolutionHz = 1000000;
 constexpr size_t kRmtMemBlockSymbols = 64;

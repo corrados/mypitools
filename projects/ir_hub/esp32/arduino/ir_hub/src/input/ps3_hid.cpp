@@ -13,6 +13,7 @@
 #include "esp_bt_main.h"
 #include "esp_gap_bt_api.h"
 #include "esp_log.h"
+#include "esp_system.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "input/ps3_hid_compat.hpp"
@@ -83,7 +84,7 @@ void repeat_timer_cb(void*) {
         return;
     }
     if (!due) {
-        esp_timer_start_once(s_repeat_timer, kRepeatFirstUs);
+        esp_timer_start_once(s_repeat_timer, 10000);
         return;
     }
     if (!control::post(button, control::ButtonSource::Bluetooth)) {
@@ -262,8 +263,28 @@ UINT16 register_l2cap_service(const char* name, UINT16 psm, UINT8 service_id) {
 }
 
 esp_err_t start_bluetooth() {
-    if (!btStarted() && !btStartMode(BT_MODE_CLASSIC_BT)) {
-        return ESP_FAIL;
+    if (!btStarted()) {
+        if (!btMemRelease(BT_MODE_BLE)) {
+            return ESP_FAIL;
+        }
+        esp_bt_controller_config_t cfg = BT_CONTROLLER_INIT_CONFIG_DEFAULT();
+        cfg.mode = ESP_BT_MODE_CLASSIC_BT;
+        cfg.bt_max_acl_conn = 1;
+        cfg.ble_max_conn = 0;
+        cfg.normal_adv_size = 10;
+        cfg.mesh_adv_size = 10;
+        ESP_LOGI(TAG, "free heap before controller: %u",
+                 static_cast<unsigned>(esp_get_free_heap_size()));
+        esp_err_t controller_err = esp_bt_controller_init(&cfg);
+        if (controller_err != ESP_OK) {
+            return controller_err;
+        }
+        controller_err = esp_bt_controller_enable(ESP_BT_MODE_CLASSIC_BT);
+        if (controller_err != ESP_OK) {
+            return controller_err;
+        }
+        ESP_LOGI(TAG, "free heap after controller: %u",
+                 static_cast<unsigned>(esp_get_free_heap_size()));
     }
 
     esp_err_t err = ESP_OK;
@@ -318,12 +339,6 @@ esp_err_t start_bluetooth() {
 }  // namespace
 
 esp_err_t init() {
-    const esp_err_t err = start_bluetooth();
-    if (err != ESP_OK) {
-        ESP_LOGE(TAG, "Bluetooth start failed: %s", esp_err_to_name(err));
-        return err;
-    }
-
     esp_timer_create_args_t repeat_args = {};
     repeat_args.callback = repeat_timer_cb;
     repeat_args.name = "ps3_repeat";
@@ -338,6 +353,12 @@ esp_err_t init() {
     timer_err = esp_timer_create(&sleep_args, &s_sleep_timer);
     if (timer_err != ESP_OK) {
         return timer_err;
+    }
+
+    const esp_err_t err = start_bluetooth();
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Bluetooth start failed: %s", esp_err_to_name(err));
+        return err;
     }
 
     ESP_LOGI(TAG, "HID host ready; hold Start+Enter on the remote to pair");

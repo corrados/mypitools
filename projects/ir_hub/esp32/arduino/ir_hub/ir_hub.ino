@@ -17,6 +17,16 @@ constexpr char TAG[] = "app";
 char command[64];
 size_t command_length = 0;
 
+void print_tasks() {
+    TaskStatus_t status[24] = {};
+    const UBaseType_t count = uxTaskGetSystemState(status, 24, nullptr);
+    for (UBaseType_t i = 0; i < count; ++i) {
+        Serial.printf("%-12s prio=%u free=%u\n", status[i].pcTaskName,
+                      static_cast<unsigned>(status[i].uxCurrentPriority),
+                      static_cast<unsigned>(status[i].usStackHighWaterMark));
+    }
+}
+
 void require_ok(esp_err_t err, const char* operation) {
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "%s failed: %s", operation, esp_err_to_name(err));
@@ -42,7 +52,11 @@ void handle_serial_command() {
                     Serial.printf("ps3=%s\n",
                                   irhub::input::connected() ? "connected" : "disconnected");
                 } else if (std::strcmp(command, "HEAP") == 0) {
-                    Serial.printf("heap=%u min=%u\n", ESP.getFreeHeap(), ESP.getMinFreeHeap());
+                    Serial.printf("heap=%u min=%u\n",
+                                  static_cast<unsigned>(ESP.getFreeHeap()),
+                                  static_cast<unsigned>(ESP.getMinFreeHeap()));
+                } else if (std::strcmp(command, "TASKS") == 0) {
+                    print_tasks();
                 } else if (!irhub::control::post(command, irhub::control::ButtonSource::Internal)) {
                     Serial.println("control queue full");
                 }
@@ -55,6 +69,10 @@ void handle_serial_command() {
 }
 
 }  // namespace
+
+size_t getArduinoLoopTaskStackSize(void) {
+    return 6144;
+}
 
 void setup() {
     Serial.begin(115200);
@@ -72,13 +90,13 @@ void setup() {
     require_ok(irhub::control::start(), "control::start");
     require_ok(irhub::ir::start(), "ir::start");
     require_ok(irhub::radio_socket::start(), "radio_socket::start");
-    ESP_LOGI(TAG, "free heap before PS3 init: %u", ESP.getFreeHeap());
+    ESP_LOGI(TAG, "free heap before PS3 init: %u", static_cast<unsigned>(ESP.getFreeHeap()));
     const esp_err_t ps3_err = irhub::input::init();
     if (ps3_err != ESP_OK) {
         ESP_LOGW(TAG, "PS3 remote init failed: %s", esp_err_to_name(ps3_err));
         Serial.printf("PS3 remote init failed: %s\n", esp_err_to_name(ps3_err));
     }
-    ESP_LOGI(TAG, "free heap after init: %u", ESP.getFreeHeap());
+    ESP_LOGI(TAG, "free heap after init: %u", static_cast<unsigned>(ESP.getFreeHeap()));
     require_ok(irhub::script_server::start(), "script_server::start");
     Serial.println("IR hub started");
     Serial.println("Send a button name or 'IR DEVICE COMMAND' followed by newline");
