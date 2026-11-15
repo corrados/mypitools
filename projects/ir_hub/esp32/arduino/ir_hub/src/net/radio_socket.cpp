@@ -1,5 +1,7 @@
 #include "net/radio_socket.hpp"
 
+#include <Arduino.h>
+
 #include <cstdio>
 
 #include "config.hpp"

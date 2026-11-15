@@ -1005,7 +1005,7 @@ Exit criterion for the bare board: the scaffold compiles, boots, accepts serial-
 
 Deferred exit criterion: the physical RGB LED shows the six state colors and white in select mode. This is verified only after the LED is connected.
 
-Status: the scaffold compiles, flashes, boots, listens on TCP port 3333, and processes serial-injected button names. Wi-Fi credentials are not configured, so the TCP path is not yet exercised end to end. The RGB LED is not connected; physical verification is deferred.
+Status: the scaffold compiles, flashes, boots, listens on TCP port 3333, and processes both serial-injected and TCP-socket button names. Wi-Fi credentials are provided through a non-repo build-include secret header; the board connects as `ir-hub` at `192.168.178.171`. The RGB LED is not connected; physical verification is deferred.
 
 ### Phase 2: Standard IR protocols over RMT
 
@@ -1051,7 +1051,7 @@ Exit criterion for the bare board: script-injected button sequences reproduce th
 
 Deferred exit criterion: the same sequence is verified with the real IR/RGB hardware and real devices.
 
-Status: the state maps, serialized control task, fixed four-worker sequence pool, cold/warm-start handling, radio HTTP worker, 30-minute radio timer, and serial `STATE` command are implemented. Host tests cover all state transitions and action ordering. On-target serial tests verified IDLE→TV, IDLE→PROJECTOR, TV→LIGHT, LIGHT→IDLE, SELECT/help behavior, LIGHT toggle behavior, overlapping sequence jobs, warm-start timer cancellation, and the 6 s cold-start delay. Radio DNS failures are logged by the independent HTTP worker without blocking control. Real IR/RGB effects remain unverified.
+Status: the state maps, serialized control task, fixed four-worker sequence pool, cold/warm-start handling, radio HTTP worker, 30-minute radio timer, and serial `STATE` command are implemented. Host tests cover all state transitions and action ordering. On-target serial tests verified IDLE→TV, IDLE→PROJECTOR, TV→LIGHT, LIGHT→IDLE, SELECT/help behavior, LIGHT toggle behavior, overlapping sequence jobs, warm-start timer cancellation, and the 6 s cold-start delay. With Wi-Fi and Classic BT active, the radio worker succeeds against `http://radiosocket/cm?cmnd=Power%20On` with HTTP 200 without blocking control. Real IR/RGB effects remain unverified.
 
 ### Phase 5: PS3 BD remote
 
@@ -1064,7 +1064,7 @@ Status: the state maps, serialized control task, fixed four-worker sequence pool
 
 Exit criterion: all remote buttons map correctly, autorepeat works for the required keys, battery values are tracked correctly, and the remote reconnects after the deliberate sleep disconnect. Physical battery-color display is deferred.
 
-Status: the scancode map, conversions, 700/200 ms repeat tracker, report parser, raw receive-only L2CAP HID host, battery forwarding, and 30-minute L2CAP disconnect timer are implemented. Host tests cover the map, repeat tracker, and report parser. Firmware builds and boots with Classic BT enabled; the device appears in a host scan as `IR Hub`. Real pairing, report offsets, autorepeat, battery values, and reconnect behavior remain blocked on a physical PS3 BD remote. Raw HID reports are currently logged at info level for bring-up and should move behind a debug switch after validation. The Classic BT stack initially left only about 20 KB of free heap, so application task stacks were trimmed using measured high-water marks: control 4 KB, sequence workers 3 KB, IR 3 KB, loop 6 KB. Idle free heap is now about 30 KB, with a minimum around 27 KB after cold start, TV→LIGHT, HTTP failure, and IR bursts. Wi-Fi connection, successful HTTP, remote pairing, and ADB remain memory-untested; the controller is configured for one ACL connection and BLE memory is released before Classic init. Serial `HEAP` and `TASKS` commands report free/minimum heap and per-task stack headroom.
+Status: the scancode map, conversions, 700/200 ms repeat tracker, report parser, raw receive-only L2CAP HID host, battery forwarding, and 30-minute L2CAP disconnect timer are implemented. Host tests cover the map, repeat tracker, and report parser. Firmware builds and boots with Classic BT enabled; the device appears in a host scan as `IR Hub`. Wi-Fi connects with the remote host active, and radio HTTP completes with HTTP 200. Real pairing, report offsets, autorepeat, battery values, and reconnect behavior remain blocked on a physical PS3 BD remote. Raw HID reports are currently logged at info level for bring-up and should move behind a debug switch after validation. The Classic BT stack initially left only about 20 KB of free heap, so application task stacks were trimmed using measured high-water marks: control 4 KB, sequence workers 3 KB, IR 3 KB, loop 6 KB. Idle free heap after Wi-Fi/PS3 init is about 28.5 KB; the current minimum is about 22.9 KB after cold start, successful HTTP, and IR bursts. Remote pairing and ADB remain memory-untested; the controller is configured for one ACL connection and BLE memory is released before Classic init. Serial `HEAP` and `TASKS` commands report free/minimum heap and per-task stack headroom.
 
 ### Phase 6: Fire TV ADB
 
@@ -1122,6 +1122,8 @@ PROJECT=/home/corrados/mypitools/projects/ir_hub
 ```
 
 The `huge_app` partition scheme is required on the 4 MB board because enabling the Classic Bluetooth stack raises the firmware to about 1.79 MB, exceeding the default 1.31 MB application partition. With `huge_app`, the application uses about 56% of the 3 MB app partition.
+
+Logging note: source files that call `ESP_LOG*` must include `Arduino.h` (or define `LOG_LOCAL_LEVEL`). The prebuilt Arduino sdkconfig sets `CONFIG_LOG_MAXIMUM_LEVEL=1`, so `ESP_LOGI`/`ESP_LOGW` are compiled out of translation units that do not raise the local level. `radio_socket.cpp` initially produced only ESP-IDF error logs for this reason; it now includes `Arduino.h`.
 
 The host tests are independent of the Arduino toolchain:
 
@@ -1190,7 +1192,7 @@ Risks and mitigations
 | A full sequence pool stalls expected helper actions. | Size the pool for realistic overlap (4-6), keep jobs short enough by doing only delays/request submission, and test saturation; the IR and input paths remain independent. |
 | Bluetooth Classic HID host does not expose the PS3 BD remote reports. | Keep the raw L2CAP fallback and validate early in Phase 5. Capture raw reports before building the state machine around them. |
 | Wi-Fi/Bluetooth coexistence drops remote presses or ADB packets. | Enable software coexistence, keep ADB traffic small, test both active simultaneously, and use separate priority/task design. |
-| Classic Bluetooth leaves about 30 KB of free heap, risking Wi-Fi/HTTP/ADB allocation failures or remote-connect crashes. | Task stacks were trimmed after measuring high-water marks, leaving roughly 27 KB minimum in current tests. Validate free heap and minimum heap with Wi-Fi connected, a paired remote, successful HTTP, and ADB; keep allocations bounded and trim further only if measured headroom allows. |
+| Classic Bluetooth plus Wi-Fi leaves about 28 KB idle heap, risking HTTP/ADB allocation failures or remote-connect crashes. | Task stacks were trimmed after measuring high-water marks, leaving roughly 23 KB minimum with Wi-Fi connected and HTTP active. Validate free heap and minimum heap with a paired remote and ADB; keep allocations bounded and trim further only if measured headroom allows. |
 | The PS3 remote does not reconnect after the 30-minute HID disconnect. | Test the exact disconnect/reconnect behavior early. If wake-by-button does not work, retain the connection or disconnect only when the user requests standby. |
 | ADB authentication fails or the key is lost. | Implement the exact AOSP signing/key format, persist the key in encrypted NVS, and test first-time authorization and reboot. Keep a recovery path to re-authorize. |
 | Long IR gaps are truncated by the RMT encoder. | Split all durations >32767 us and unit-test the 110000 us LED gap and 107636 us BAR gap. |

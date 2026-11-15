@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <WiFi.h>
 
 #include <cstring>
 
@@ -57,6 +58,9 @@ void handle_serial_command() {
                                   static_cast<unsigned>(ESP.getMinFreeHeap()));
                 } else if (std::strcmp(command, "TASKS") == 0) {
                     print_tasks();
+                } else if (std::strcmp(command, "IP") == 0) {
+                    Serial.printf("wifi=%d ip=%s rssi=%d\n", static_cast<int>(WiFi.status()),
+                                  WiFi.localIP().toString().c_str(), WiFi.RSSI());
                 } else if (!irhub::control::post(command, irhub::control::ButtonSource::Internal)) {
                     Serial.println("control queue full");
                 }
