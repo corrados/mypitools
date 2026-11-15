@@ -1,6 +1,7 @@
 #include "input/ps3_hid.hpp"
 
 #include <atomic>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 
@@ -27,16 +28,28 @@ constexpr char TAG[] = "ps3";
 constexpr uint64_t kRepeatFirstUs = 700000;
 constexpr uint64_t kRepeatNextUs = 200000;
 constexpr uint64_t kSleepUs = 1800000ULL * 1000ULL * 1000ULL;
+constexpr uint64_t kDiscoveryRetryUs = 2000000;
+constexpr uint64_t kConnectTimeoutUs = 10000000;
+constexpr uint64_t kNameTimeoutUs = 5000000;
+constexpr uint8_t kInquiryLength = 0x08;
+constexpr uint32_t kRemoteCod = 0x0000250C;
 constexpr size_t kButtonLength = 32;
 
 portMUX_TYPE s_mux = portMUX_INITIALIZER_UNLOCKED;
+portMUX_TYPE s_bda_mux = portMUX_INITIALIZER_UNLOCKED;
 Ps3RepeatTracker s_repeat_tracker;
 char s_repeat_button[kButtonLength] = {};
 esp_timer_handle_t s_repeat_timer = nullptr;
 esp_timer_handle_t s_sleep_timer = nullptr;
+esp_timer_handle_t s_discovery_timer = nullptr;
 std::atomic<bool> s_connected{false};
+std::atomic<bool> s_discovering{false};
+std::atomic<bool> s_connecting{false};
+std::atomic<bool> s_resolving{false};
+std::atomic<bool> s_sleeping{false};
 std::atomic<uint16_t> s_control_cid{0};
 std::atomic<uint16_t> s_interrupt_cid{0};
+uint8_t s_remote_bda[6] = {};
 uint8_t s_last_battery = 0;
 
 tL2CAP_CFG_INFO s_config = {};
@@ -44,6 +57,179 @@ tL2CAP_APPL_INFO s_callbacks = {};
 
 uint32_t now_ms() {
     return static_cast<uint32_t>(esp_timer_get_time() / 1000ULL);
+}
+
+void format_bda(const uint8_t* bda, char* out, size_t length) {
+    std::snprintf(out, length, "%02X:%02X:%02X:%02X:%02X:%02X", bda[0], bda[1],
+                  bda[2], bda[3], bda[4], bda[5]);
+}
+
+bool is_remote_name(const char* name) {
+    return name != nullptr && std::strstr(name, "BD Remote") != nullptr;
+}
+
+void extract_eir_name(const uint8_t* eir, int length, char* name, size_t capacity) {
+    if (eir == nullptr || length <= 0 || name[0] != '\0') {
+        return;
+    }
+    int offset = 0;
+    while (offset + 1 < length) {
+        const uint8_t field_length = eir[offset];
+        if (field_length == 0 || offset + 1 + field_length > length) {
+            break;
+        }
+        const uint8_t type = eir[offset + 1];
+        if (type == ESP_BT_EIR_TYPE_CMPL_LOCAL_NAME ||
+            type == ESP_BT_EIR_TYPE_SHORT_LOCAL_NAME) {
+            size_t copy_length = field_length - 1;
+            if (copy_length >= capacity) {
+                copy_length = capacity - 1;
+            }
+            std::memcpy(name, eir + offset + 2, copy_length);
+            name[copy_length] = '\0';
+            return;
+        }
+        offset += field_length + 1;
+    }
+}
+
+void schedule_discovery(uint64_t delay_us) {
+    if (s_discovery_timer == nullptr) {
+        return;
+    }
+    esp_timer_stop(s_discovery_timer);
+    const esp_err_t err = esp_timer_start_once(s_discovery_timer, delay_us);
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "discovery timer start failed: %s", esp_err_to_name(err));
+    }
+}
+
+void start_discovery() {
+    if (s_connected.load() || s_connecting.load() || s_resolving.load() ||
+        s_discovering.load()) {
+        return;
+    }
+    const esp_err_t err = esp_bt_gap_start_discovery(ESP_BT_INQ_MODE_GENERAL_INQUIRY,
+                                                     kInquiryLength, 0);
+    if (err == ESP_OK) {
+        s_discovering.store(true);
+        ESP_LOGI(TAG, "inquiry started; hold Start+Enter for 5s on the BD remote");
+    } else {
+        ESP_LOGW(TAG, "inquiry start failed: %s", esp_err_to_name(err));
+        schedule_discovery(kDiscoveryRetryUs);
+    }
+}
+
+void connect_remote(const uint8_t* bda);
+
+void discovery_timer_cb(void*) {
+    if (s_connected.load()) {
+        return;
+    }
+    if (s_resolving.load()) {
+        ESP_LOGW(TAG, "remote name request timed out; connecting anyway");
+        s_resolving.store(false);
+        uint8_t bda[6] = {};
+        taskENTER_CRITICAL(&s_bda_mux);
+        std::memcpy(bda, s_remote_bda, sizeof(bda));
+        taskEXIT_CRITICAL(&s_bda_mux);
+        connect_remote(bda);
+        return;
+    }
+    if (s_connecting.load()) {
+        ESP_LOGW(TAG, "connection attempt timed out");
+        s_connecting.store(false);
+        s_control_cid.store(0);
+        s_interrupt_cid.store(0);
+    }
+    start_discovery();
+}
+
+void connect_remote(const uint8_t* bda) {
+    if (s_connected.load() || s_connecting.exchange(true)) {
+        return;
+    }
+
+    taskENTER_CRITICAL(&s_bda_mux);
+    std::memcpy(s_remote_bda, bda, sizeof(s_remote_bda));
+    taskEXIT_CRITICAL(&s_bda_mux);
+
+    char address[18] = {};
+    format_bda(s_remote_bda, address, sizeof(address));
+    const UINT16 cid = L2CA_ConnectReq(kL2capPsmsHidInterrupt, s_remote_bda);
+    if (cid == 0) {
+        ESP_LOGW(TAG, "HID interrupt connect request to %s failed", address);
+        s_connecting.store(false);
+        schedule_discovery(kDiscoveryRetryUs);
+        return;
+    }
+    s_interrupt_cid.store(cid);
+    ESP_LOGI(TAG, "connecting to %s; HID interrupt cid=0x%04x", address, cid);
+    schedule_discovery(kConnectTimeoutUs);
+}
+
+void start_name_request(const uint8_t* bda) {
+    if (s_connected.load() || s_connecting.load() || s_resolving.exchange(true)) {
+        return;
+    }
+
+    taskENTER_CRITICAL(&s_bda_mux);
+    std::memcpy(s_remote_bda, bda, sizeof(s_remote_bda));
+    taskEXIT_CRITICAL(&s_bda_mux);
+
+    char address[18] = {};
+    format_bda(s_remote_bda, address, sizeof(address));
+    esp_bt_gap_cancel_discovery();
+    const esp_err_t err = esp_bt_gap_read_remote_name(s_remote_bda);
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "name request to %s failed: %s", address, esp_err_to_name(err));
+        s_resolving.store(false);
+        connect_remote(s_remote_bda);
+        return;
+    }
+    ESP_LOGI(TAG, "reading remote name at %s", address);
+    schedule_discovery(kNameTimeoutUs);
+}
+
+void handle_discovery_result(const esp_bt_gap_cb_param_t::disc_res_param& result) {
+    char name[ESP_BT_GAP_MAX_BDNAME_LEN + 1] = {};
+    uint32_t cod = 0;
+
+    for (int i = 0; i < result.num_prop; ++i) {
+        const esp_bt_gap_dev_prop_t& prop = result.prop[i];
+        if (prop.val == nullptr || prop.len <= 0) {
+            continue;
+        }
+        if (prop.type == ESP_BT_GAP_DEV_PROP_BDNAME) {
+            size_t copy_length = static_cast<size_t>(prop.len);
+            if (copy_length >= sizeof(name)) {
+                copy_length = sizeof(name) - 1;
+            }
+            std::memcpy(name, prop.val, copy_length);
+            name[copy_length] = '\0';
+        } else if (prop.type == ESP_BT_GAP_DEV_PROP_COD &&
+                   prop.len >= static_cast<int>(sizeof(cod))) {
+            std::memcpy(&cod, prop.val, sizeof(cod));
+        } else if (prop.type == ESP_BT_GAP_DEV_PROP_EIR) {
+            extract_eir_name(static_cast<const uint8_t*>(prop.val), prop.len, name,
+                             sizeof(name));
+        }
+    }
+
+    char address[18] = {};
+    format_bda(result.bda, address, sizeof(address));
+    if (name[0] != '\0' || cod != 0) {
+        ESP_LOGI(TAG, "found %s [%s] cod=0x%06X", name[0] != '\0' ? name : "?",
+                 address, static_cast<unsigned>(cod));
+    }
+
+    if (s_connected.load() || s_connecting.load() || s_resolving.load()) {
+        return;
+    }
+    if (is_remote_name(name) || cod == kRemoteCod) {
+        ESP_LOGI(TAG, "BD remote found at %s", address);
+        start_name_request(result.bda);
+    }
 }
 
 void stop_repeat() {
@@ -60,6 +246,7 @@ void reset_sleep_timer() {
     if (s_sleep_timer == nullptr) {
         return;
     }
+    s_sleeping.store(false);
     esp_timer_stop(s_sleep_timer);
     const esp_err_t err = esp_timer_start_once(s_sleep_timer, kSleepUs);
     if (err != ESP_OK) {
@@ -98,6 +285,7 @@ void sleep_timer_cb(void*) {
         return;
     }
     ESP_LOGI(TAG, "inactivity timeout; disconnecting remote");
+    s_sleeping.store(true);
     const uint16_t control_cid = s_control_cid.load();
     const uint16_t interrupt_cid = s_interrupt_cid.load();
     if (control_cid != 0) {
@@ -173,6 +361,42 @@ void gap_callback(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t* param) {
         case ESP_BT_GAP_MODE_CHG_EVT:
             ESP_LOGI(TAG, "link mode changed: %d", param->mode_chg.mode);
             break;
+        case ESP_BT_GAP_DISC_RES_EVT:
+            handle_discovery_result(param->disc_res);
+            break;
+        case ESP_BT_GAP_DISC_STATE_CHANGED_EVT: {
+            const bool started =
+                param->disc_st_chg.state == ESP_BT_GAP_DISCOVERY_STARTED;
+            s_discovering.store(started);
+            ESP_LOGI(TAG, "inquiry %s", started ? "started" : "stopped");
+            if (!started && !s_connected.load() && !s_connecting.load() &&
+                !s_resolving.load()) {
+                schedule_discovery(kDiscoveryRetryUs);
+            }
+            break;
+        }
+        case ESP_BT_GAP_READ_REMOTE_NAME_EVT:
+            ESP_LOGI(TAG, "remote name '%s' status=%d",
+                     param->read_rmt_name.rmt_name,
+                     static_cast<int>(param->read_rmt_name.stat));
+            if (s_resolving.exchange(false)) {
+                uint8_t bda[6] = {};
+                taskENTER_CRITICAL(&s_bda_mux);
+                std::memcpy(bda, s_remote_bda, sizeof(bda));
+                taskEXIT_CRITICAL(&s_bda_mux);
+                connect_remote(bda);
+            }
+            break;
+        case ESP_BT_GAP_ACL_CONN_CMPL_STAT_EVT:
+            ESP_LOGI(TAG, "ACL connected handle=%u status=%d",
+                     static_cast<unsigned>(param->acl_conn_cmpl_stat.handle),
+                     static_cast<int>(param->acl_conn_cmpl_stat.stat));
+            break;
+        case ESP_BT_GAP_ACL_DISCONN_CMPL_STAT_EVT:
+            ESP_LOGI(TAG, "ACL disconnected handle=%u reason=%d",
+                     static_cast<unsigned>(param->acl_disconn_cmpl_stat.handle),
+                     static_cast<int>(param->acl_disconn_cmpl_stat.reason));
+            break;
         default:
             break;
     }
@@ -180,6 +404,11 @@ void gap_callback(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t* param) {
 
 void l2cap_connect_ind(BD_ADDR bd_addr, UINT16 l2cap_cid, UINT16 psm, UINT8 id) {
     ESP_LOGI(TAG, "L2CAP connect psm=0x%04x cid=0x%04x", psm, l2cap_cid);
+    if (psm == kL2capPsmsHidControl) {
+        s_control_cid.store(l2cap_cid);
+    } else if (psm == kL2capPsmsHidInterrupt) {
+        s_interrupt_cid.store(l2cap_cid);
+    }
     L2CA_ErtmConnectRsp(bd_addr, id, l2cap_cid, kL2capConnectPending,
                         kL2capConnectPendingStatus, nullptr);
     L2CA_ErtmConnectRsp(bd_addr, id, l2cap_cid, kL2capConnectOk,
@@ -189,6 +418,19 @@ void l2cap_connect_ind(BD_ADDR bd_addr, UINT16 l2cap_cid, UINT16 psm, UINT8 id) 
 
 void l2cap_connect_cfm(UINT16 l2cap_cid, UINT16 result) {
     ESP_LOGI(TAG, "L2CAP connected cid=0x%04x result=%u", l2cap_cid, result);
+    if (result != kL2capConnectOk) {
+        if (s_connecting.load()) {
+            s_connecting.store(false);
+            s_resolving.store(false);
+            s_control_cid.store(0);
+            s_interrupt_cid.store(0);
+            schedule_discovery(kDiscoveryRetryUs);
+        }
+        return;
+    }
+    if (s_connecting.load()) {
+        L2CA_ConfigReq(l2cap_cid, &s_config);
+    }
 }
 
 void l2cap_config_ind(UINT16 l2cap_cid, tL2CAP_CFG_INFO* config) {
@@ -199,8 +441,19 @@ void l2cap_config_ind(UINT16 l2cap_cid, tL2CAP_CFG_INFO* config) {
 
 void l2cap_config_cfm(UINT16 l2cap_cid, tL2CAP_CFG_INFO* config) {
     ESP_LOGI(TAG, "L2CAP configured cid=0x%04x result=%u", l2cap_cid, config->result);
-    if (config->result == kL2capConfigOk) {
-        s_connected.store(true);
+    if (config->result != kL2capConfigOk) {
+        return;
+    }
+    const uint16_t interrupt_cid = s_interrupt_cid.load();
+    if (interrupt_cid != 0 && l2cap_cid == interrupt_cid && !s_connected.exchange(true)) {
+        s_connecting.store(false);
+        s_discovering.store(false);
+        s_sleeping.store(false);
+        if (s_discovery_timer != nullptr) {
+            esp_timer_stop(s_discovery_timer);
+        }
+        reset_sleep_timer();
+        ESP_LOGI(TAG, "BD remote ready");
     }
 }
 
@@ -216,9 +469,15 @@ void l2cap_disconnect_ind(UINT16 l2cap_cid, BOOLEAN ack_needed) {
         s_interrupt_cid.store(0);
     }
     s_connected.store(false);
+    s_connecting.store(false);
+    s_resolving.store(false);
     stop_repeat();
     if (s_sleep_timer != nullptr) {
         esp_timer_stop(s_sleep_timer);
+    }
+    const bool was_sleeping = s_sleeping.exchange(false);
+    if (!was_sleeping) {
+        schedule_discovery(kDiscoveryRetryUs);
     }
 }
 
@@ -230,18 +489,14 @@ void l2cap_data_ind(UINT16 l2cap_cid, BT_HDR* packet) {
     if (packet == nullptr) {
         return;
     }
-    const uint8_t* base = packet->data;
+    const uint8_t* payload = packet->data + packet->offset;
     const size_t length = packet->len;
     ESP_LOGI(TAG, "HID data cid=0x%04x len=%u offset=%u first=%02X %02X %02X %02X",
              l2cap_cid, static_cast<unsigned>(length), packet->offset,
-             length > 0 ? base[0] : 0, length > 1 ? base[1] : 0,
-             length > 2 ? base[2] : 0, length > 3 ? base[3] : 0);
+             length > 0 ? payload[0] : 0, length > 1 ? payload[1] : 0,
+             length > 2 ? payload[2] : 0, length > 3 ? payload[3] : 0);
 
-    Ps3Report report = parse_ps3_bd_report(base, length);
-    if (!report.valid && packet->offset > 0 && packet->offset < length) {
-        report = parse_ps3_bd_report(base + packet->offset, length - packet->offset);
-    }
-    handle_report(report);
+    handle_report(parse_ps3_bd_report(payload, length));
     std::free(packet);
 }
 
@@ -324,6 +579,10 @@ esp_err_t start_bluetooth() {
     s_callbacks.pL2CA_CongestionStatus_Cb = l2cap_congest;
     s_callbacks.pL2CA_TxComplete_Cb = nullptr;
 
+    std::memset(&s_config, 0, sizeof(s_config));
+    s_config.mtu_present = true;
+    s_config.mtu = 64;
+
     s_control_cid.store(register_l2cap_service("PS3-HIDC", kL2capPsmsHidControl,
                                                kSecServiceFirstEmpty));
     s_interrupt_cid.store(register_l2cap_service("PS3-HIDI", kL2capPsmsHidInterrupt,
@@ -355,13 +614,22 @@ esp_err_t init() {
         return timer_err;
     }
 
+    esp_timer_create_args_t discovery_args = {};
+    discovery_args.callback = discovery_timer_cb;
+    discovery_args.name = "ps3_scan";
+    timer_err = esp_timer_create(&discovery_args, &s_discovery_timer);
+    if (timer_err != ESP_OK) {
+        return timer_err;
+    }
+
     const esp_err_t err = start_bluetooth();
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "Bluetooth start failed: %s", esp_err_to_name(err));
         return err;
     }
 
-    ESP_LOGI(TAG, "HID host ready; hold Start+Enter on the remote to pair");
+    ESP_LOGI(TAG, "HID host ready; hold Start+Enter for 5s on the BD remote to pair");
+    start_discovery();
     return ESP_OK;
 }
 

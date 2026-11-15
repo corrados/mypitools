@@ -114,6 +114,7 @@ extern "C" {
 
 UINT16 L2CA_Register(UINT16 psm, tL2CAP_APPL_INFO* callbacks);
 void L2CA_Deregister(UINT16 psm);
+UINT16 L2CA_ConnectReq(UINT16 psm, BD_ADDR bd_addr);
 BOOLEAN L2CA_ErtmConnectRsp(BD_ADDR bd_addr, UINT8 id, UINT16 lcid,
                             UINT16 result, UINT16 status,
                             tL2CAP_ERTM_INFO* ertm_info);
