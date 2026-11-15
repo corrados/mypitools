@@ -4,6 +4,7 @@
 
 #include "control/control.hpp"
 #include "esp_log.h"
+#include "input/ps3_hid.hpp"
 #include "input/script_server.hpp"
 #include "ir/ir_tx.hpp"
 #include "net/radio_socket.hpp"
@@ -37,6 +38,11 @@ void handle_serial_command() {
                 } else if (std::strcmp(command, "STATE") == 0) {
                     Serial.printf("state=%s\n",
                                   irhub::control::state_name(irhub::control::current_state()));
+                } else if (std::strcmp(command, "BT") == 0) {
+                    Serial.printf("ps3=%s\n",
+                                  irhub::input::connected() ? "connected" : "disconnected");
+                } else if (std::strcmp(command, "HEAP") == 0) {
+                    Serial.printf("heap=%u min=%u\n", ESP.getFreeHeap(), ESP.getMinFreeHeap());
                 } else if (!irhub::control::post(command, irhub::control::ButtonSource::Internal)) {
                     Serial.println("control queue full");
                 }
@@ -66,6 +72,13 @@ void setup() {
     require_ok(irhub::control::start(), "control::start");
     require_ok(irhub::ir::start(), "ir::start");
     require_ok(irhub::radio_socket::start(), "radio_socket::start");
+    ESP_LOGI(TAG, "free heap before PS3 init: %u", ESP.getFreeHeap());
+    const esp_err_t ps3_err = irhub::input::init();
+    if (ps3_err != ESP_OK) {
+        ESP_LOGW(TAG, "PS3 remote init failed: %s", esp_err_to_name(ps3_err));
+        Serial.printf("PS3 remote init failed: %s\n", esp_err_to_name(ps3_err));
+    }
+    ESP_LOGI(TAG, "free heap after init: %u", ESP.getFreeHeap());
     require_ok(irhub::script_server::start(), "script_server::start");
     Serial.println("IR hub started");
     Serial.println("Send a button name or 'IR DEVICE COMMAND' followed by newline");

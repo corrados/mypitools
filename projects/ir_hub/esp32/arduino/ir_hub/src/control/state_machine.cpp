@@ -202,6 +202,7 @@ Outcome process(const MachineState& current, const char* raw_button) {
     out.next = current;
     out.action_count = 0;
     out.transitioned = false;
+    out.help_action = false;
 
     const char* button = raw_button == nullptr ? "" : raw_button;
 
@@ -238,6 +239,7 @@ Outcome process(const MachineState& current, const char* raw_button) {
         State old_state = current.state;
         if (old_state == target) {
             old_state = current.prev_state;
+            out.help_action = true;
         }
 
         out.next.alt_func = false;

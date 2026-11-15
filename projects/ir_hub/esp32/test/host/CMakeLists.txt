@@ -37,3 +37,21 @@ target_include_directories(test_state_machine PRIVATE ../../arduino/ir_hub/src)
 target_compile_options(test_state_machine PRIVATE -Wall -Wextra -Werror)
 
 add_test(NAME state_machine COMMAND test_state_machine)
+
+add_executable(test_ps3_remote
+    test_ps3_remote.cpp
+    ../../arduino/ir_hub/src/input/ps3_remote.cpp
+)
+target_include_directories(test_ps3_remote PRIVATE ../../arduino/ir_hub/src)
+target_compile_options(test_ps3_remote PRIVATE -Wall -Wextra -Werror)
+
+add_test(NAME ps3_remote COMMAND test_ps3_remote)
+
+add_executable(test_ps3_protocol
+    test_ps3_protocol.cpp
+    ../../arduino/ir_hub/src/input/ps3_protocol.cpp
+)
+target_include_directories(test_ps3_protocol PRIVATE ../../arduino/ir_hub/src)
+target_compile_options(test_ps3_protocol PRIVATE -Wall -Wextra -Werror)
+
+add_test(NAME ps3_protocol COMMAND test_ps3_protocol)

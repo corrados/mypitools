@@ -90,9 +90,11 @@ void cold_start_check() {
         if (s_radio_timer != nullptr) {
             esp_timer_stop(s_radio_timer);
         }
+        ESP_LOGI(TAG, "warm start; radio timer cancelled");
         return;
     }
 
+    ESP_LOGI(TAG, "cold start; battery level %u", static_cast<unsigned>(s_battery_level));
     if (s_battery_level < 3) {
         for (int i = 0; i < 6; ++i) {
             rgb_led::set(255, 0, 0);
@@ -123,6 +125,8 @@ bool enqueue_sequence(const Action& action) {
 }
 
 void run_sequence(const SequenceJob& job) {
+    ESP_LOGI(TAG, "sequence=%d state=%s arg=%s", static_cast<int>(job.id),
+             state_name(job.state), job.argument == nullptr ? "-" : job.argument);
     switch (job.id) {
         case SequenceId::TvOn:
             send_ir(ir::Device::Tv, "POWERON", 2);
@@ -203,10 +207,11 @@ void execute_action(const Action& action) {
 void handle_event(const ControlEvent& event) {
     const Outcome outcome = process(s_machine, event.button);
 
-    ESP_LOGI(TAG, "button=%s source=%s state=%s alt=%d led=%d transition=%d actions=%u",
+    ESP_LOGI(TAG, "button=%s source=%s state=%s alt=%d led=%d transition=%d help=%d actions=%u",
              event.button, source_name(event.source), state_name(s_machine.state),
              s_machine.alt_func ? 1 : 0, s_machine.led_is_on ? 1 : 0,
-             outcome.transitioned ? 1 : 0, static_cast<unsigned>(outcome.action_count));
+             outcome.transitioned ? 1 : 0, outcome.help_action ? 1 : 0,
+             static_cast<unsigned>(outcome.action_count));
 
     for (size_t i = 0; i < outcome.action_count; ++i) {
         execute_action(outcome.actions[i]);

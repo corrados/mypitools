@@ -50,6 +50,7 @@ struct MachineState {
 struct Outcome {
     MachineState next;
     bool transitioned;
+    bool help_action;
     size_t action_count;
     Action actions[kMaxActions];
 };

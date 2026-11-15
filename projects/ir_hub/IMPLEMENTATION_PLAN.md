@@ -1051,6 +1051,8 @@ Exit criterion for the bare board: script-injected button sequences reproduce th
 
 Deferred exit criterion: the same sequence is verified with the real IR/RGB hardware and real devices.
 
+Status: the state maps, serialized control task, fixed four-worker sequence pool, cold/warm-start handling, radio HTTP worker, 30-minute radio timer, and serial `STATE` command are implemented. Host tests cover all state transitions and action ordering. On-target serial tests verified IDLE→TV, IDLE→PROJECTOR, TV→LIGHT, LIGHT→IDLE, SELECT/help behavior, LIGHT toggle behavior, overlapping sequence jobs, warm-start timer cancellation, and the 6 s cold-start delay. Radio DNS failures are logged by the independent HTTP worker without blocking control. Real IR/RGB effects remain unverified.
+
 ### Phase 5: PS3 BD remote
 
 - Implement the HID host connection and report decoding.
@@ -1061,6 +1063,8 @@ Deferred exit criterion: the same sequence is verified with the real IR/RGB hard
 - Battery-level indication can be validated through logs on the bare board; its RGB colors are deferred until the LED is attached.
 
 Exit criterion: all remote buttons map correctly, autorepeat works for the required keys, battery values are tracked correctly, and the remote reconnects after the deliberate sleep disconnect. Physical battery-color display is deferred.
+
+Status: the scancode map, conversions, 700/200 ms repeat tracker, report parser, raw receive-only L2CAP HID host, battery forwarding, and 30-minute L2CAP disconnect timer are implemented. Host tests cover the map, repeat tracker, and report parser. Firmware builds and boots with Classic BT enabled; the device appears in a host scan as `IR Hub`. Real pairing, report offsets, autorepeat, battery values, and reconnect behavior remain blocked on a physical PS3 BD remote. Raw HID reports are currently logged at info level for bring-up and should move behind a debug switch after validation.
 
 ### Phase 6: Fire TV ADB
 
@@ -1090,15 +1094,20 @@ Exit criterion: no memory leaks, no stuck IR queue, no missed remote presses, st
 Build and test commands
 -----------------------
 
-The Arduino CLI 1.6.0 binary is currently extracted from the Arduino IDE AppImage:
+The Arduino CLI 1.6.0 binary is extracted from the Arduino IDE AppImage:
 
 ```bash
-ARDUINO_CLI=/tmp/arduino-cli-extract/arduino-cli
+rm -rf /tmp/arduino_ide_extract
+mkdir -p /tmp/arduino_ide_extract
+cd /tmp/arduino_ide_extract
+/home/corrados/Arduino/arduino-ide_2.3.11_Linux_64bit.AppImage --appimage-extract >/dev/null
+
+ARDUINO_CLI=/tmp/arduino_ide_extract/squashfs-root/resources/app/lib/backend/resources/arduino-cli
 PROJECT=/home/corrados/mypitools/projects/ir_hub
 
 "$ARDUINO_CLI" compile \
   --fqbn esp32:esp32:esp32 \
-  --board-options DebugLevel=info \
+  --board-options PartitionScheme=huge_app,DebugLevel=info \
   --warnings all \
   --build-property "compiler.cpp.extra_flags=-I$PROJECT/esp32/arduino/ir_hub/src" \
   --output-dir /tmp/ir_hub_arduino_build \
@@ -1107,9 +1116,12 @@ PROJECT=/home/corrados/mypitools/projects/ir_hub
 "$ARDUINO_CLI" upload \
   -p /dev/ttyUSB0 \
   --fqbn esp32:esp32:esp32 \
+  --board-options PartitionScheme=huge_app,DebugLevel=info \
   --input-dir /tmp/ir_hub_arduino_build \
   "$PROJECT/esp32/arduino/ir_hub"
 ```
+
+The `huge_app` partition scheme is required on the 4 MB board because enabling the Classic Bluetooth stack raises the firmware to about 1.79 MB, exceeding the default 1.31 MB application partition. With `huge_app`, the application uses about 56% of the 3 MB app partition.
 
 The host tests are independent of the Arduino toolchain:
 
