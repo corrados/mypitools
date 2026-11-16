@@ -30,7 +30,6 @@ constexpr uint64_t kRepeatNextUs = 200000;
 constexpr uint64_t kSleepUs = 1800000ULL * 1000ULL * 1000ULL;
 constexpr uint64_t kDiscoveryRetryUs = 2000000;
 constexpr uint64_t kConnectTimeoutUs = 10000000;
-constexpr uint64_t kNameTimeoutUs = 5000000;
 constexpr uint8_t kInquiryLength = 0x08;
 constexpr uint32_t kRemoteCod = 0x0000250C;
 constexpr size_t kButtonLength = 32;
@@ -45,7 +44,7 @@ esp_timer_handle_t s_discovery_timer = nullptr;
 std::atomic<bool> s_connected{false};
 std::atomic<bool> s_discovering{false};
 std::atomic<bool> s_connecting{false};
-std::atomic<bool> s_resolving{false};
+std::atomic<bool> s_connect_pending{false};
 std::atomic<bool> s_sleeping{false};
 std::atomic<uint16_t> s_control_cid{0};
 std::atomic<uint16_t> s_interrupt_cid{0};
@@ -105,7 +104,7 @@ void schedule_discovery(uint64_t delay_us) {
 }
 
 void start_discovery() {
-    if (s_connected.load() || s_connecting.load() || s_resolving.load() ||
+    if (s_connected.load() || s_connecting.load() || s_connect_pending.load() ||
         s_discovering.load()) {
         return;
     }
@@ -124,16 +123,6 @@ void connect_remote(const uint8_t* bda);
 
 void discovery_timer_cb(void*) {
     if (s_connected.load()) {
-        return;
-    }
-    if (s_resolving.load()) {
-        ESP_LOGW(TAG, "remote name request timed out; connecting anyway");
-        s_resolving.store(false);
-        uint8_t bda[6] = {};
-        taskENTER_CRITICAL(&s_bda_mux);
-        std::memcpy(bda, s_remote_bda, sizeof(bda));
-        taskEXIT_CRITICAL(&s_bda_mux);
-        connect_remote(bda);
         return;
     }
     if (s_connecting.load()) {
@@ -168,29 +157,6 @@ void connect_remote(const uint8_t* bda) {
     schedule_discovery(kConnectTimeoutUs);
 }
 
-void start_name_request(const uint8_t* bda) {
-    if (s_connected.load() || s_connecting.load() || s_resolving.exchange(true)) {
-        return;
-    }
-
-    taskENTER_CRITICAL(&s_bda_mux);
-    std::memcpy(s_remote_bda, bda, sizeof(s_remote_bda));
-    taskEXIT_CRITICAL(&s_bda_mux);
-
-    char address[18] = {};
-    format_bda(s_remote_bda, address, sizeof(address));
-    esp_bt_gap_cancel_discovery();
-    const esp_err_t err = esp_bt_gap_read_remote_name(s_remote_bda);
-    if (err != ESP_OK) {
-        ESP_LOGW(TAG, "name request to %s failed: %s", address, esp_err_to_name(err));
-        s_resolving.store(false);
-        connect_remote(s_remote_bda);
-        return;
-    }
-    ESP_LOGI(TAG, "reading remote name at %s", address);
-    schedule_discovery(kNameTimeoutUs);
-}
-
 void handle_discovery_result(const esp_bt_gap_cb_param_t::disc_res_param& result) {
     char name[ESP_BT_GAP_MAX_BDNAME_LEN + 1] = {};
     uint32_t cod = 0;
@@ -223,12 +189,19 @@ void handle_discovery_result(const esp_bt_gap_cb_param_t::disc_res_param& result
                  address, static_cast<unsigned>(cod));
     }
 
-    if (s_connected.load() || s_connecting.load() || s_resolving.load()) {
+    if (s_connected.load() || s_connecting.load() || s_connect_pending.load()) {
         return;
     }
     if (is_remote_name(name) || cod == kRemoteCod) {
         ESP_LOGI(TAG, "BD remote found at %s", address);
-        start_name_request(result.bda);
+        taskENTER_CRITICAL(&s_bda_mux);
+        std::memcpy(s_remote_bda, result.bda, sizeof(s_remote_bda));
+        taskEXIT_CRITICAL(&s_bda_mux);
+        s_connect_pending.store(true);
+        if (esp_bt_gap_cancel_discovery() != ESP_OK) {
+            s_connect_pending.store(false);
+            connect_remote(result.bda);
+        }
     }
 }
 
@@ -369,9 +342,16 @@ void gap_callback(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t* param) {
                 param->disc_st_chg.state == ESP_BT_GAP_DISCOVERY_STARTED;
             s_discovering.store(started);
             ESP_LOGI(TAG, "inquiry %s", started ? "started" : "stopped");
-            if (!started && !s_connected.load() && !s_connecting.load() &&
-                !s_resolving.load()) {
-                schedule_discovery(kDiscoveryRetryUs);
+            if (!started) {
+                if (s_connect_pending.exchange(false)) {
+                    uint8_t bda[6] = {};
+                    taskENTER_CRITICAL(&s_bda_mux);
+                    std::memcpy(bda, s_remote_bda, sizeof(bda));
+                    taskEXIT_CRITICAL(&s_bda_mux);
+                    connect_remote(bda);
+                } else if (!s_connected.load() && !s_connecting.load()) {
+                    schedule_discovery(kDiscoveryRetryUs);
+                }
             }
             break;
         }
@@ -379,13 +359,6 @@ void gap_callback(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t* param) {
             ESP_LOGI(TAG, "remote name '%s' status=%d",
                      param->read_rmt_name.rmt_name,
                      static_cast<int>(param->read_rmt_name.stat));
-            if (s_resolving.exchange(false)) {
-                uint8_t bda[6] = {};
-                taskENTER_CRITICAL(&s_bda_mux);
-                std::memcpy(bda, s_remote_bda, sizeof(bda));
-                taskEXIT_CRITICAL(&s_bda_mux);
-                connect_remote(bda);
-            }
             break;
         case ESP_BT_GAP_ACL_CONN_CMPL_STAT_EVT:
             ESP_LOGI(TAG, "ACL connected handle=%u status=%d",
@@ -421,7 +394,6 @@ void l2cap_connect_cfm(UINT16 l2cap_cid, UINT16 result) {
     if (result != kL2capConnectOk) {
         if (s_connecting.load()) {
             s_connecting.store(false);
-            s_resolving.store(false);
             s_control_cid.store(0);
             s_interrupt_cid.store(0);
             schedule_discovery(kDiscoveryRetryUs);
@@ -470,7 +442,7 @@ void l2cap_disconnect_ind(UINT16 l2cap_cid, BOOLEAN ack_needed) {
     }
     s_connected.store(false);
     s_connecting.store(false);
-    s_resolving.store(false);
+    s_connect_pending.store(false);
     stop_repeat();
     if (s_sleep_timer != nullptr) {
         esp_timer_stop(s_sleep_timer);
@@ -524,7 +496,7 @@ esp_err_t start_bluetooth() {
         }
         esp_bt_controller_config_t cfg = BT_CONTROLLER_INIT_CONFIG_DEFAULT();
         cfg.mode = ESP_BT_MODE_CLASSIC_BT;
-        cfg.bt_max_acl_conn = 1;
+        cfg.bt_max_acl_conn = 4;
         cfg.ble_max_conn = 0;
         cfg.normal_adv_size = 10;
         cfg.mesh_adv_size = 10;
