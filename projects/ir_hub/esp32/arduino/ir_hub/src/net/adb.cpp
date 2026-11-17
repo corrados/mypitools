@@ -164,6 +164,10 @@ bool ensure_key() {
     int result = 0;
     if (stored_length > 0) {
         result = mbedtls_pk_parse_key(&s_key, der.data(), der.size(), nullptr, 0, rng, nullptr);
+        if (result == 0) {
+            ESP_LOGI(TAG, "ADB key loaded from NVS (%u bytes)",
+                     static_cast<unsigned>(stored_length));
+        }
     } else {
         const mbedtls_pk_info_t* info = mbedtls_pk_info_from_type(MBEDTLS_PK_RSA);
         if (info == nullptr || mbedtls_pk_setup(&s_key, info) != 0) {
@@ -185,6 +189,8 @@ bool ensure_key() {
                 preferences.end();
                 if (written != static_cast<size_t>(der_length)) {
                     result = -1;
+                } else {
+                    ESP_LOGI(TAG, "ADB key generated and stored (%d bytes)", der_length);
                 }
             }
         }
