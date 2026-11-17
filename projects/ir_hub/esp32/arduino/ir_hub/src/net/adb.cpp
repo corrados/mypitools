@@ -16,6 +16,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
 #include "freertos/task.h"
+#include "mbedtls/base64.h"
 #include "mbedtls/bignum.h"
 #include "mbedtls/md.h"
 #include "mbedtls/md5.h"
@@ -393,7 +394,7 @@ void adb_task(void*) {
     while (true) {
         if (s_client.connected()) {
             if (s_last_packet_ms != 0 &&
-                static_cast<int32_t>(millis() - s_last_packet_ms) > 60000) {
+                static_cast<int32_t>(millis() - s_last_packet_ms) > 300000) {
                 disconnect("auth timeout");
                 continue;
             }
@@ -507,8 +508,15 @@ std::string public_key_fingerprint() {
     }
     const size_t split = key.find(' ');
     const std::string encoded = key.substr(0, split);
+    std::vector<uint8_t> decoded(encoded.size());
+    size_t decoded_length = 0;
+    if (mbedtls_base64_decode(decoded.data(), decoded.size(), &decoded_length,
+                              reinterpret_cast<const unsigned char*>(encoded.data()),
+                              encoded.size()) != 0) {
+        return {};
+    }
     unsigned char digest[16] = {};
-    mbedtls_md5(reinterpret_cast<const unsigned char*>(encoded.data()), encoded.size(), digest);
+    mbedtls_md5(decoded.data(), decoded_length, digest);
     char text[48] = {};
     for (size_t i = 0; i < sizeof(digest); ++i) {
         std::snprintf(text + i * 3, i + 1 == sizeof(digest) ? 3 : 4, "%02X%s", digest[i],
