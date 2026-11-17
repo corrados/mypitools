@@ -63,6 +63,8 @@ Implementation decisions
 Target hardware and pin plan
 ----------------------------
 
+The IR transmitter LED shall be connected through its driver stage to GPIO 22 (IO22/D22) on the ESP32 dev board. This is `IR_HUB_IR_GPIO` in `config.hpp`; do not drive the LED directly from the GPIO.
+
 | Function | ESP32 pin | Availability | Notes |
 |---|---:|---|---|
 | Bare ESP32 dev board | — | Available now | Initial implementation and test target. No IR or RGB hardware attached. |
