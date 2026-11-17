@@ -27,6 +27,7 @@ Port the complete behavior of `ir_hub.py` to C++ on the original ESP32, includin
 - Precise 36/38 kHz IR transmission for the soundbar, projector, LED strip, TV, and DVD player.
 - Fire TV control over ADB.
 - Radio socket control over HTTP.
+- Browser control over a small LAN web server.
 - The six-state control model and the RGB status LED.
 - The existing user-facing button behavior, including long-press/repeat behavior and timed startup sequences.
 
@@ -83,7 +84,7 @@ System architecture
 PS3 BD remote --Bluetooth Classic--> ps3_remote task --+
                                                        |
 TCP/UART command socket -------------------------------+--> control queue (press events)
-                                                       |
+HTTP web server ----------------------------------------+
                                                        +--> control task (serialized press handler)
                                                               |
                           +-----------------------------------+------------------+
@@ -1102,6 +1103,16 @@ Exit criterion: projector-mode Fire TV navigation works with the same latency as
 - Re-run the concurrency tests under load: multiple overlapping sequence jobs, IR queue saturation, slow ADB, and Wi-Fi/BT traffic.
 
 Exit criterion: no memory leaks, no stuck IR queue, no missed remote presses, stable reconnect behavior, and the real IR/RGB hardware passes the deferred acceptance checks.
+
+### Phase 8: Browser control
+
+- Serve a minimal button page from the ESP32 on `IR_HUB_WEB_PORT` (default 80).
+- Post button names into the same control queue used by the PS3 remote and script socket.
+- Keep the HTML in flash, accept one client at a time, and avoid large framework/heap overhead.
+
+Status: implemented in `net/web_server.cpp` / `net/web_server.hpp` and started from `ir_hub.ino`. It is a raw lwIP socket server with a 512-byte request buffer, a 3 KB task, a 3 s receive timeout, and `Connection: close`. `GET /` returns a compact button page; `GET /press?button=NAME` normalizes to uppercase and calls `control::post(..., ButtonSource::Internal)`; `GET /state` and `GET /heap` expose diagnostics; `GET /favicon.ico` returns 204. Verified with `curl` against the ESP32's DHCP address: the page, heap/state endpoints, and all tested button commands (`HOME`, `1` through `6`, `OK`, `UP`) returned successfully. With the web server active, free heap is about 17-20 KB at rest and the observed minimum is about 8 KB after repeated requests; flash use is about 1.82 MB (57%). Do not replace this with a full `WebServer` library without rechecking heap headroom.
+
+Exit criterion: the button page controls the same device states as the PS3 remote without destabilizing Bluetooth, IR, ADB, or radio control.
 
 Build and test commands
 -----------------------

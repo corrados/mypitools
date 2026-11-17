@@ -12,6 +12,7 @@
 #include "net/adb.hpp"
 #include "net/radio_socket.hpp"
 #include "net/wifi.hpp"
+#include "net/web_server.hpp"
 #include "output/rgb_led.hpp"
 
 namespace {
@@ -122,6 +123,7 @@ void setup() {
     }
     ESP_LOGI(TAG, "free heap after init: %u", static_cast<unsigned>(ESP.getFreeHeap()));
     require_ok(irhub::script_server::start(), "script_server::start");
+    require_ok(irhub::web_server::start(), "web_server::start");
     Serial.println("IR hub started");
     Serial.println("Send a button name or 'IR DEVICE COMMAND' followed by newline");
 }
