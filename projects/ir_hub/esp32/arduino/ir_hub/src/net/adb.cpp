@@ -11,7 +11,6 @@
 #include <vector>
 
 #include "config.hpp"
-#include "esp_heap_caps.h"
 #include "esp_log.h"
 #include "esp_system.h"
 #include "freertos/FreeRTOS.h"
@@ -207,9 +206,6 @@ bool sign_token(const uint8_t* token, size_t length, std::vector<uint8_t>& signa
     mbedtls_sha1(token, length, hash);
     signature.resize(256);
     size_t signature_length = 0;
-    ESP_LOGI(TAG, "heap before sign: free=%u largest=%u",
-             static_cast<unsigned>(heap_caps_get_free_size(MALLOC_CAP_8BIT)),
-             static_cast<unsigned>(heap_caps_get_largest_free_block(MALLOC_CAP_8BIT)));
     const int result = mbedtls_pk_sign(&s_key, MBEDTLS_MD_SHA1, hash, sizeof(hash),
                                        signature.data(), signature.size(), &signature_length, rng,
                                        nullptr);
@@ -264,7 +260,9 @@ bool public_key(std::string& out) {
              mbedtls_mpi_sub_mpi(&n0inv_value, &r32, &inverse) == 0 &&
              mbedtls_mpi_write_binary_le(&n0inv_value, blob + 4, 4) == 0 &&
              mbedtls_mpi_write_binary_le(&n, blob + 8, 256) == 0 &&
-             mbedtls_mpi_set_bit(&rr, 2048, 1) == 0 && mbedtls_mpi_mod_mpi(&rr, &rr, &n) == 0 &&
+             mbedtls_mpi_set_bit(&rr, 2048, 1) == 0 &&
+             mbedtls_mpi_mul_mpi(&rr, &rr, &rr) == 0 &&
+             mbedtls_mpi_mod_mpi(&rr, &rr, &n) == 0 &&
              mbedtls_mpi_write_binary_le(&rr, blob + 264, 256) == 0 &&
              mbedtls_mpi_write_binary_le(&e, blob + 520, 4) == 0;
     }
@@ -329,7 +327,7 @@ bool connect_and_handshake() {
 }
 
 bool handle_auth(const Packet& packet) {
-    ESP_LOGI(TAG, "AUTH packet type=%u bytes=%u", static_cast<unsigned>(packet.arg0),
+    ESP_LOGD(TAG, "AUTH packet type=%u bytes=%u", static_cast<unsigned>(packet.arg0),
              static_cast<unsigned>(packet.data.size()));
     if (packet.arg0 != kAuthToken || packet.data.size() < 16) {
         return true;
@@ -342,7 +340,7 @@ bool handle_auth(const Packet& packet) {
         s_signature_sent = true;
         const bool sent = send_packet(kCmdAuth, kAuthSignature, 0, signature.data(),
                                       signature.size());
-        ESP_LOGI(TAG, "signature sent=%d bytes=%u", sent ? 1 : 0,
+        ESP_LOGD(TAG, "signature sent=%d bytes=%u", sent ? 1 : 0,
                  static_cast<unsigned>(signature.size()));
         return sent;
     }
@@ -354,7 +352,7 @@ bool handle_auth(const Packet& packet) {
     key.push_back('\0');
     const bool sent = send_packet(kCmdAuth, kAuthPublicKey, 0,
                                   reinterpret_cast<const uint8_t*>(key.data()), key.size());
-    ESP_LOGI(TAG, "public key sent=%d bytes=%u", sent ? 1 : 0,
+    ESP_LOGD(TAG, "public key sent=%d bytes=%u", sent ? 1 : 0,
              static_cast<unsigned>(key.size()));
     return sent;
 }
@@ -387,6 +385,11 @@ void adb_task(void*) {
     uint32_t next_attempt_ms = 0;
     while (true) {
         if (s_client.connected()) {
+            if (s_last_packet_ms != 0 &&
+                static_cast<int32_t>(millis() - s_last_packet_ms) > 60000) {
+                disconnect("auth timeout");
+                continue;
+            }
             Packet packet;
             if (!read_packet(packet)) {
                 if (!s_client.connected()) {
@@ -395,6 +398,7 @@ void adb_task(void*) {
                 vTaskDelay(pdMS_TO_TICKS(10));
                 continue;
             }
+            s_last_packet_ms = millis();
 
             switch (packet.command) {
                 case kCmdAuth:

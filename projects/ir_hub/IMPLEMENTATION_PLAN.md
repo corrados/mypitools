@@ -15,7 +15,7 @@ Immediate next steps
 
 - Verify the PS3 inactivity sleep disconnect and wake/reconnect using a temporarily shortened timeout, then restore 1800 s.
 - Stress PS3 input while Wi-Fi/HTTP is active and measure heap headroom.
-- Implement Fire TV ADB transport and key commands.
+- Finish Fire TV ADB authorization on the real device and verify `FIRETVBEAM` commands end-to-end.
 - Move raw HID report logs behind a debug flag and finalize the PS3 documentation.
 
 Goal
@@ -1084,6 +1084,8 @@ Status: the scancode map, conversions, 700/200 ms repeat tracker, report parser,
 - Keep the ADB reconnect/command task independent from the control task and input tasks, matching the Python thread.
 - Test navigation, HOME, app shortcuts, and recovery after the Fire TV reboots or changes network state.
 
+Status: the ADB transport, RSA key generation/storage, signature/public-key authentication, `shell:` open, key-command mapping, queue, command injection, and reconnect are implemented in `net/adb.cpp` / `net/adb_keys.cpp` and wired into `control.cpp` and `ir_hub.ino`. Host tests cover all Python-compatible key commands. RSA signing and the Android public-key blob (including `n0inv` and `rr`) were verified offline as valid. The firmware builds and flashes; real-device connection is still pending Fire TV authorization of the ESP32 key (`ir-hub@esp32`), so navigation/app shortcuts are not yet accepted end-to-end. ADB memory headroom required reducing application task stacks and the Arduino loop stack to 4 KB; watch heap when PS3 and ADB are active together.
+
 Exit criterion: projector-mode Fire TV navigation works with the same latency as the Pi, and the ESP32 reconnects automatically after a Fire TV reboot.
 
 ### Phase 7: Peripheral hardware bring-up, integration, and hardening
@@ -1119,7 +1121,7 @@ PROJECT=/home/corrados/mypitools/projects/ir_hub
   --fqbn esp32:esp32:esp32 \
   --board-options PartitionScheme=huge_app,DebugLevel=info \
   --warnings all \
-  --build-property "compiler.cpp.extra_flags=-I$PROJECT/esp32/arduino/ir_hub/src" \
+  --build-property "compiler.cpp.extra_flags=-DARDUINO_LOOP_STACK_SIZE=4096 -I$PROJECT/esp32/arduino/ir_hub/src -include /home/corrados/.local/share/ir_hub/ir_hub_wifi_secret.hpp" \
   --output-dir /tmp/ir_hub_arduino_build \
   "$PROJECT/esp32/arduino/ir_hub"
 
