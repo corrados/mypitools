@@ -18,6 +18,7 @@
 #include "freertos/task.h"
 #include "mbedtls/bignum.h"
 #include "mbedtls/md.h"
+#include "mbedtls/md5.h"
 #include "mbedtls/pk.h"
 #include "mbedtls/rsa.h"
 #include "mbedtls/sha1.h"
@@ -490,6 +491,30 @@ bool submit(const char* command) {
 
 bool connected() {
     return s_connected.load();
+}
+
+bool public_key_line(std::string& out) {
+    if (!ensure_key()) {
+        return false;
+    }
+    return public_key(out);
+}
+
+std::string public_key_fingerprint() {
+    std::string key;
+    if (!public_key_line(key)) {
+        return {};
+    }
+    const size_t split = key.find(' ');
+    const std::string encoded = key.substr(0, split);
+    unsigned char digest[16] = {};
+    mbedtls_md5(reinterpret_cast<const unsigned char*>(encoded.data()), encoded.size(), digest);
+    char text[48] = {};
+    for (size_t i = 0; i < sizeof(digest); ++i) {
+        std::snprintf(text + i * 3, i + 1 == sizeof(digest) ? 3 : 4, "%02X%s", digest[i],
+                      i + 1 == sizeof(digest) ? "" : ":");
+    }
+    return text;
 }
 
 }  // namespace irhub::adb

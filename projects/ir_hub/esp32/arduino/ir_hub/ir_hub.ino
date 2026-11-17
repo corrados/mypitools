@@ -2,6 +2,7 @@
 #include <WiFi.h>
 
 #include <cstring>
+#include <string>
 
 #include "control/control.hpp"
 #include "esp_log.h"
@@ -56,6 +57,15 @@ void handle_serial_command() {
                 } else if (std::strcmp(command, "ADB") == 0) {
                     Serial.printf("adb=%s\n",
                                   irhub::adb::connected() ? "connected" : "disconnected");
+                } else if (std::strcmp(command, "ADBKEY") == 0) {
+                    std::string key;
+                    if (irhub::adb::public_key_line(key)) {
+                        Serial.printf("adbkey=%s\n", key.c_str());
+                        Serial.printf("fingerprint=%s\n",
+                                      irhub::adb::public_key_fingerprint().c_str());
+                    } else {
+                        Serial.println("ADB key unavailable");
+                    }
                 } else if (std::strncmp(command, "ADB ", 4) == 0) {
                     if (!irhub::adb::submit(command + 4)) {
                         Serial.println("ADB command rejected");
