@@ -11,6 +11,7 @@
 
 #include "config.hpp"
 #include "control/control.hpp"
+#include "input/ps3_remote.hpp"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -25,7 +26,7 @@ constexpr size_t kTaskStack = 3072;
 constexpr UBaseType_t kTaskPriority = 3;
 constexpr size_t kRequestBuffer = 512;
 
-constexpr char kIndexPage[] = R"HTML(<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>IR Hub</title><style>body{font:16px system-ui;background:#111;color:#eee;margin:16px}button{font-size:18px;margin:3px;padding:12px 16px;border-radius:8px;border:0;background:#333;color:#fff}button:active{background:#08f}#status{margin:12px 0;color:#8f8}</style></head><body><h1>IR Hub</h1><div id="status">ready</div><script>async function press(b){const r=await fetch('/press?button='+encodeURIComponent(b));document.getElementById('status').textContent=b+': '+await r.text();}</script><div><button onclick="press('HOME')">HOME</button><button onclick="press('RETURN')">RETURN</button><button onclick="press('MENU')">MENU</button></div><div><button onclick="press('UP')">UP</button><button onclick="press('DOWN')">DOWN</button><button onclick="press('LEFT')">LEFT</button><button onclick="press('RIGHT')">RIGHT</button><button onclick="press('OK')">OK</button></div><div><button onclick="press('REWIND')">REWIND</button><button onclick="press('PLAY')">PLAY</button><button onclick="press('FORWARD')">FORWARD</button><button onclick="press('START')">START</button></div><div><button onclick="press('1')">1 SWR</button><button onclick="press('2')">2 KODI</button><button onclick="press('3')">3 YT</button><button onclick="press('4')">4 YT KIDS</button><button onclick="press('5')">5</button><button onclick="press('6')">6</button></div><div><button onclick="press('STOP')">STOP</button><button onclick="press('PAUSE')">PAUSE</button><button onclick="press('PREVIOUS')">PREVIOUS</button><button onclick="press('NEXT')">NEXT</button></div></body></html>)HTML";
+constexpr char kIndexPage[] = R"HTML(<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>IR Hub</title><style>body{font:16px system-ui;background:#111;color:#eee;margin:16px}button{font-size:15px;margin:3px;padding:10px 12px;border-radius:8px;border:0;background:#333;color:#fff}button:active{background:#08f}h2{font-size:15px;color:#aaa;margin:14px 0 4px}#status{margin:12px 0;color:#8f8}</style></head><body><h1>IR Hub</h1><div id="status">ready</div><div id="buttons"></div><script>const groups=[["System",["EJECT","PLAYSTATION","SELECT","START","RETURN","BACK","OPTIONS","DISPLAY","TOPMENU","POPUP"]],["Numbers",["1","2","3","4","5","6","7","8","9","0"]],["Navigation",["UP","DOWN","LEFT","RIGHT","OK","AUIDO","ANGLE","SUBTITLE","CLEAR","TIME"]],["Colors",["RED","GREEN","BLUE","YELLOW"]],["Transport",["REWIND","PLAY","FORWARD","PREVIOUS","STOP","NEXT","SLOWREWIND","PAUSE","SLOWFORWARD"]],["Shoulder",["L1","L2","L3","R1","R2","R3","VIEW","X"]]];async function press(b){const r=await fetch('/press?button='+encodeURIComponent(b));document.getElementById('status').textContent=b+': '+await r.text();}const root=document.getElementById('buttons');for(const [name,keys] of groups){const h=document.createElement('h2');h.textContent=name;root.appendChild(h);const row=document.createElement('div');for(const key of keys){const b=document.createElement('button');b.textContent=key;b.onclick=()=>press(key);row.appendChild(b);}root.appendChild(row);}</script></body></html>)HTML";
 
 int hex_value(char c) {
     if (c >= '0' && c <= '9') {
@@ -166,12 +167,13 @@ void handle_request(int client, const char* request) {
         }
         std::transform(button, button + std::strlen(button), button,
                        [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
-        if (!control::post(button, control::ButtonSource::Internal)) {
-            ESP_LOGW(TAG, "control queue full, dropped %s", button);
+        const char* command = input::ps3_convert(button);
+        if (!control::post(command, control::ButtonSource::Internal)) {
+            ESP_LOGW(TAG, "control queue full, dropped %s -> %s", button, command);
             send_text(client, "error");
             return;
         }
-        ESP_LOGI(TAG, "received %s", button);
+        ESP_LOGI(TAG, "received %s -> %s", button, command);
         send_text(client, "ok");
         return;
     }
