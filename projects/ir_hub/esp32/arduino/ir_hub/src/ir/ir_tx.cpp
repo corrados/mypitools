@@ -297,7 +297,7 @@ bool submit_name(const char* full_name, uint8_t repeat) {
         return false;
     }
     if (device == Device::FireTvBeam) {
-        ESP_LOGW(TAG, "FIRETVBEAM requires ADB, which is not implemented yet");
+        ESP_LOGW(TAG, "FIRETVBEAM is handled by ADB, not IR");
         return false;
     }
 

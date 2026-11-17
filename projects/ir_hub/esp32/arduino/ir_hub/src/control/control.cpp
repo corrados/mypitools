@@ -13,6 +13,7 @@
 #include "freertos/queue.h"
 #include "freertos/task.h"
 #include "ir/ir_tx.hpp"
+#include "net/adb.hpp"
 #include "net/radio_socket.hpp"
 #include "output/rgb_led.hpp"
 
@@ -56,7 +57,9 @@ const char* source_name(ButtonSource source) {
 
 void send_ir(ir::Device device, const char* command, uint8_t repeat) {
     if (device == ir::Device::FireTvBeam) {
-        ESP_LOGW(TAG, "ADB not implemented yet: FIRETVBEAM %s", command);
+        if (!adb::submit(command)) {
+            ESP_LOGW(TAG, "ADB unavailable: FIRETVBEAM %s", command);
+        }
         return;
     }
     if (!ir::submit(device, command, repeat)) {

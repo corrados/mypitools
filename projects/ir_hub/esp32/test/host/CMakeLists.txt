@@ -55,3 +55,12 @@ target_include_directories(test_ps3_protocol PRIVATE ../../arduino/ir_hub/src)
 target_compile_options(test_ps3_protocol PRIVATE -Wall -Wextra -Werror)
 
 add_test(NAME ps3_protocol COMMAND test_ps3_protocol)
+
+add_executable(test_adb_keys
+    test_adb_keys.cpp
+    ../../arduino/ir_hub/src/net/adb_keys.cpp
+)
+target_include_directories(test_adb_keys PRIVATE ../../arduino/ir_hub/src)
+target_compile_options(test_adb_keys PRIVATE -Wall -Wextra -Werror)
+
+add_test(NAME adb_keys COMMAND test_adb_keys)

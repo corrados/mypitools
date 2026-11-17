@@ -1,0 +1,465 @@
+#include "net/adb.hpp"
+
+#include <Arduino.h>
+#include <WiFi.h>
+
+#include <Preferences.h>
+#include <atomic>
+#include <cstdio>
+#include <cstring>
+#include <string>
+#include <vector>
+
+#include "config.hpp"
+#include "esp_log.h"
+#include "esp_system.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/queue.h"
+#include "freertos/task.h"
+#include "mbedtls/bignum.h"
+#include "mbedtls/md.h"
+#include "mbedtls/pk.h"
+#include "mbedtls/rsa.h"
+#include "mbedtls/sha1.h"
+#include "net/adb_keys.hpp"
+
+namespace irhub::adb {
+namespace {
+
+constexpr char TAG[] = "adb";
+constexpr uint16_t kAdbPort = 5555;
+constexpr uint32_t kProtocolVersion = 0x01000000U;
+constexpr uint32_t kMaxPayload = 4096U;
+constexpr uint32_t kReconnectMs = 5000U;
+constexpr uint32_t kConnectTimeoutMs = 2000U;
+constexpr uint32_t kPacketTimeoutMs = 1000U;
+constexpr uint32_t kLocalId = 1U;
+constexpr uint32_t kAuthToken = 1U;
+constexpr uint32_t kAuthSignature = 2U;
+constexpr uint32_t kAuthPublicKey = 3U;
+constexpr uint32_t kCmdCnxn = 0x4e584e43U;
+constexpr uint32_t kCmdAuth = 0x48545541U;
+constexpr uint32_t kCmdOpen = 0x4e45504fU;
+constexpr uint32_t kCmdOkay = 0x59414b4fU;
+constexpr uint32_t kCmdWrte = 0x45545257U;
+constexpr uint32_t kCmdClse = 0x45534c43U;
+constexpr size_t kQueueLength = 16;
+constexpr size_t kTaskStack = 8192;
+constexpr UBaseType_t kTaskPriority = 3;
+constexpr char kAdbUser[] = " ir-hub@esp32";
+
+struct Packet {
+    uint32_t command = 0;
+    uint32_t arg0 = 0;
+    uint32_t arg1 = 0;
+    std::vector<uint8_t> data;
+};
+
+QueueHandle_t s_queue = nullptr;
+WiFiClient s_client;
+mbedtls_pk_context s_key = {};
+bool s_key_ready = false;
+bool s_signature_sent = false;
+bool s_shell_ready = false;
+uint32_t s_remote_id = 0;
+std::atomic<bool> s_connected{false};
+
+int rng(void*, unsigned char* buffer, size_t length) {
+    for (size_t i = 0; i < length; ++i) {
+        buffer[i] = static_cast<unsigned char>(esp_random());
+    }
+    return 0;
+}
+
+void write_le32(uint8_t* out, uint32_t value) {
+    out[0] = static_cast<uint8_t>(value);
+    out[1] = static_cast<uint8_t>(value >> 8);
+    out[2] = static_cast<uint8_t>(value >> 16);
+    out[3] = static_cast<uint8_t>(value >> 24);
+}
+
+uint32_t read_le32(const uint8_t* in) {
+    return static_cast<uint32_t>(in[0]) | (static_cast<uint32_t>(in[1]) << 8) |
+           (static_cast<uint32_t>(in[2]) << 16) | (static_cast<uint32_t>(in[3]) << 24);
+}
+
+uint32_t checksum(const uint8_t* data, size_t length) {
+    uint32_t sum = 0;
+    for (size_t i = 0; i < length; ++i) {
+        sum += data[i];
+    }
+    return sum;
+}
+
+bool write_all(const uint8_t* data, size_t length) {
+    size_t offset = 0;
+    while (offset < length) {
+        if (!s_client.connected()) {
+            return false;
+        }
+        const size_t written = s_client.write(data + offset, length - offset);
+        if (written == 0) {
+            return false;
+        }
+        offset += written;
+    }
+    return true;
+}
+
+bool send_packet(uint32_t command, uint32_t arg0, uint32_t arg1, const uint8_t* data,
+                 size_t length) {
+    uint8_t header[24] = {};
+    write_le32(header, command);
+    write_le32(header + 4, arg0);
+    write_le32(header + 8, arg1);
+    write_le32(header + 12, static_cast<uint32_t>(length));
+    write_le32(header + 16, checksum(data, length));
+    write_le32(header + 20, command ^ 0xffffffffU);
+    if (!write_all(header, sizeof(header))) {
+        return false;
+    }
+    return length == 0 || write_all(data, length);
+}
+
+bool read_packet(Packet& packet) {
+    uint8_t header[24] = {};
+    s_client.setTimeout(kPacketTimeoutMs);
+    if (s_client.readBytes(header, sizeof(header)) != sizeof(header)) {
+        return false;
+    }
+
+    packet.command = read_le32(header);
+    packet.arg0 = read_le32(header + 4);
+    packet.arg1 = read_le32(header + 8);
+    const uint32_t length = read_le32(header + 12);
+    const uint32_t expected_checksum = read_le32(header + 16);
+    const uint32_t magic = read_le32(header + 20);
+    if (magic != (packet.command ^ 0xffffffffU) || length > kMaxPayload) {
+        return false;
+    }
+
+    packet.data.resize(length);
+    if (length > 0 && s_client.readBytes(packet.data.data(), length) != length) {
+        return false;
+    }
+    return checksum(packet.data.data(), length) == expected_checksum;
+}
+
+bool ensure_key() {
+    if (s_key_ready) {
+        return true;
+    }
+
+    mbedtls_pk_init(&s_key);
+    Preferences preferences;
+    preferences.begin("adb", false);
+    const size_t stored_length = preferences.getBytesLength("rsa_der");
+    std::vector<uint8_t> der(stored_length);
+    if (stored_length > 0) {
+        preferences.getBytes("rsa_der", der.data(), der.size());
+    }
+    preferences.end();
+
+    int result = 0;
+    if (stored_length > 0) {
+        result = mbedtls_pk_parse_key(&s_key, der.data(), der.size(), nullptr, 0, rng, nullptr);
+    } else {
+        const mbedtls_pk_info_t* info = mbedtls_pk_info_from_type(MBEDTLS_PK_RSA);
+        if (info == nullptr || mbedtls_pk_setup(&s_key, info) != 0) {
+            ESP_LOGE(TAG, "cannot set up RSA key");
+            mbedtls_pk_free(&s_key);
+            return false;
+        }
+        result = mbedtls_rsa_gen_key(mbedtls_pk_rsa(s_key), rng, nullptr, 2048, 65537);
+        if (result == 0) {
+            uint8_t buffer[2048] = {};
+            const int der_length = mbedtls_pk_write_key_der(&s_key, buffer, sizeof(buffer));
+            if (der_length <= 0) {
+                result = -1;
+            } else {
+                preferences.begin("adb", false);
+                const size_t written =
+                    preferences.putBytes("rsa_der", buffer + sizeof(buffer) - der_length,
+                                         static_cast<size_t>(der_length));
+                preferences.end();
+                if (written != static_cast<size_t>(der_length)) {
+                    result = -1;
+                }
+            }
+        }
+    }
+
+    if (result != 0) {
+        ESP_LOGE(TAG, "ADB key failure: -0x%04x", static_cast<unsigned>(-result));
+        mbedtls_pk_free(&s_key);
+        return false;
+    }
+
+    s_key_ready = true;
+    ESP_LOGI(TAG, "RSA key ready");
+    return true;
+}
+
+bool sign_token(const uint8_t* token, size_t length, std::vector<uint8_t>& signature) {
+    uint8_t hash[20] = {};
+    mbedtls_sha1(token, length, hash);
+    signature.resize(256);
+    size_t signature_length = 0;
+    const int result = mbedtls_pk_sign(&s_key, MBEDTLS_MD_SHA1, hash, sizeof(hash),
+                                       signature.data(), signature.size(), &signature_length, rng,
+                                       nullptr);
+    if (result != 0) {
+        ESP_LOGE(TAG, "token signing failed: -0x%04x", static_cast<unsigned>(-result));
+        return false;
+    }
+    signature.resize(signature_length);
+    return true;
+}
+
+std::string base64(const uint8_t* data, size_t length) {
+    static constexpr char kAlphabet[] =
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    std::string out;
+    out.reserve(((length + 2) / 3) * 4);
+    for (size_t i = 0; i < length; i += 3) {
+        const uint32_t chunk = (static_cast<uint32_t>(data[i]) << 16) |
+                               ((i + 1 < length ? static_cast<uint32_t>(data[i + 1]) : 0) << 8) |
+                               (i + 2 < length ? static_cast<uint32_t>(data[i + 2]) : 0);
+        out.push_back(kAlphabet[(chunk >> 18) & 0x3f]);
+        out.push_back(kAlphabet[(chunk >> 12) & 0x3f]);
+        out.push_back(i + 1 < length ? kAlphabet[(chunk >> 6) & 0x3f] : '=');
+        out.push_back(i + 2 < length ? kAlphabet[chunk & 0x3f] : '=');
+    }
+    return out;
+}
+
+bool public_key(std::string& out) {
+    mbedtls_mpi n = {};
+    mbedtls_mpi e = {};
+    mbedtls_mpi r32 = {};
+    mbedtls_mpi n_mod = {};
+    mbedtls_mpi inverse = {};
+    mbedtls_mpi n0inv_value = {};
+    mbedtls_mpi rr = {};
+    mbedtls_mpi_init(&n);
+    mbedtls_mpi_init(&e);
+    mbedtls_mpi_init(&r32);
+    mbedtls_mpi_init(&n_mod);
+    mbedtls_mpi_init(&inverse);
+    mbedtls_mpi_init(&n0inv_value);
+    mbedtls_mpi_init(&rr);
+
+    bool ok = mbedtls_rsa_export(mbedtls_pk_rsa(s_key), &n, nullptr, nullptr, nullptr, &e) == 0;
+    uint8_t blob[524] = {};
+    if (ok) {
+        write_le32(blob, 64);
+        ok = mbedtls_mpi_set_bit(&r32, 32, 1) == 0 &&
+             mbedtls_mpi_mod_mpi(&n_mod, &n, &r32) == 0 &&
+             mbedtls_mpi_inv_mod(&inverse, &n_mod, &r32) == 0 &&
+             mbedtls_mpi_sub_mpi(&n0inv_value, &r32, &inverse) == 0 &&
+             mbedtls_mpi_write_binary_le(&n0inv_value, blob + 4, 4) == 0 &&
+             mbedtls_mpi_write_binary_le(&n, blob + 8, 256) == 0 &&
+             mbedtls_mpi_set_bit(&rr, 2048, 1) == 0 && mbedtls_mpi_mod_mpi(&rr, &rr, &n) == 0 &&
+             mbedtls_mpi_write_binary_le(&rr, blob + 264, 256) == 0 &&
+             mbedtls_mpi_write_binary_le(&e, blob + 520, 4) == 0;
+    }
+    if (ok) {
+        out = base64(blob, sizeof(blob));
+        out += kAdbUser;
+    }
+
+    mbedtls_mpi_free(&n);
+    mbedtls_mpi_free(&e);
+    mbedtls_mpi_free(&r32);
+    mbedtls_mpi_free(&n_mod);
+    mbedtls_mpi_free(&inverse);
+    mbedtls_mpi_free(&n0inv_value);
+    mbedtls_mpi_free(&rr);
+    return ok;
+}
+
+void disconnect(const char* reason) {
+    ESP_LOGI(TAG, "disconnected: %s", reason);
+    s_connected.store(false);
+    s_shell_ready = false;
+    s_signature_sent = false;
+    s_remote_id = 0;
+    s_client.stop();
+
+    char key[32] = {};
+    while (xQueueReceive(s_queue, key, 0) == pdTRUE) {
+    }
+}
+
+bool connect_and_handshake() {
+    if (!ensure_key()) {
+        return false;
+    }
+
+    IPAddress address;
+    if (!WiFi.hostByName(config::kFireTvHost, address)) {
+        ESP_LOGW(TAG, "cannot resolve %s", config::kFireTvHost);
+        return false;
+    }
+
+    ESP_LOGI(TAG, "connecting to %s:%u", config::kFireTvHost, kAdbPort);
+    s_client.setTimeout(kConnectTimeoutMs);
+    s_client.setNoDelay(true);
+    if (!s_client.connect(address, kAdbPort, kConnectTimeoutMs)) {
+        return false;
+    }
+
+    static constexpr char kHost[] = "host::";
+    if (!send_packet(kCmdCnxn, kProtocolVersion, kMaxPayload,
+                     reinterpret_cast<const uint8_t*>(kHost), sizeof(kHost))) {
+        return false;
+    }
+
+    s_signature_sent = false;
+    s_shell_ready = false;
+    s_remote_id = 0;
+    return true;
+}
+
+bool handle_auth(const Packet& packet) {
+    if (packet.arg0 != kAuthToken || packet.data.size() < 16) {
+        return true;
+    }
+    if (!s_signature_sent) {
+        std::vector<uint8_t> signature;
+        if (!sign_token(packet.data.data(), packet.data.size(), signature)) {
+            return false;
+        }
+        s_signature_sent = true;
+        return send_packet(kCmdAuth, kAuthSignature, 0, signature.data(), signature.size());
+    }
+
+    std::string key;
+    if (!public_key(key)) {
+        return false;
+    }
+    return send_packet(kCmdAuth, kAuthPublicKey, 0,
+                       reinterpret_cast<const uint8_t*>(key.data()), key.size());
+}
+
+bool open_shell() {
+    static constexpr char kService[] = "shell:";
+    return send_packet(kCmdOpen, kLocalId, 0, reinterpret_cast<const uint8_t*>(kService),
+                       sizeof(kService));
+}
+
+void send_queued_commands() {
+    char key[32] = {};
+    while (s_shell_ready && xQueueReceive(s_queue, key, 0) == pdTRUE) {
+        char command[192] = {};
+        if (!build_shell_command(key, command, sizeof(command))) {
+            ESP_LOGW(TAG, "invalid command '%s'", key);
+            continue;
+        }
+        const size_t length = std::strlen(command);
+        if (!send_packet(kCmdWrte, kLocalId, s_remote_id,
+                         reinterpret_cast<const uint8_t*>(command), length)) {
+            disconnect("write failed");
+            return;
+        }
+        ESP_LOGI(TAG, "shell: %s", command);
+    }
+}
+
+void adb_task(void*) {
+    uint32_t next_attempt_ms = 0;
+    while (true) {
+        if (s_client.connected()) {
+            Packet packet;
+            if (!read_packet(packet)) {
+                if (!s_client.connected()) {
+                    disconnect("connection closed");
+                }
+                vTaskDelay(pdMS_TO_TICKS(10));
+                continue;
+            }
+
+            switch (packet.command) {
+                case kCmdAuth:
+                    if (!handle_auth(packet)) {
+                        disconnect("authentication failed");
+                    }
+                    break;
+                case kCmdCnxn:
+                    ESP_LOGI(TAG, "ADB connected");
+                    if (!open_shell()) {
+                        disconnect("shell open failed");
+                    }
+                    break;
+                case kCmdOkay:
+                    if (!s_shell_ready && packet.arg1 == kLocalId) {
+                        s_remote_id = packet.arg0;
+                        s_shell_ready = true;
+                        s_connected.store(true);
+                        ESP_LOGI(TAG, "shell ready");
+                    }
+                    break;
+                case kCmdWrte:
+                    if (!packet.data.empty()) {
+                        const size_t shown = packet.data.size() < 128 ? packet.data.size() : 128;
+                        ESP_LOGI(TAG, "shell output: %.*s", static_cast<int>(shown),
+                                 packet.data.data());
+                    }
+                    send_packet(kCmdOkay, kLocalId, s_remote_id, nullptr, 0);
+                    break;
+                case kCmdClse:
+                    disconnect("shell closed");
+                    break;
+                default:
+                    ESP_LOGW(TAG, "unexpected packet 0x%08x", static_cast<unsigned>(packet.command));
+                    break;
+            }
+            send_queued_commands();
+            continue;
+        }
+
+        if (s_connected.load() || s_shell_ready) {
+            disconnect("link lost");
+        }
+        if (static_cast<int32_t>(millis() - next_attempt_ms) >= 0) {
+            next_attempt_ms = millis() + kReconnectMs;
+            if (!connect_and_handshake()) {
+                s_client.stop();
+            }
+        }
+        vTaskDelay(pdMS_TO_TICKS(50));
+    }
+}
+
+}  // namespace
+
+esp_err_t init() {
+    if (s_queue != nullptr) {
+        return ESP_OK;
+    }
+    s_queue = xQueueCreate(kQueueLength, sizeof(char[32]));
+    return s_queue == nullptr ? ESP_ERR_NO_MEM : ESP_OK;
+}
+
+esp_err_t start() {
+    if (s_queue == nullptr) {
+        return ESP_ERR_INVALID_STATE;
+    }
+    const BaseType_t result = xTaskCreate(adb_task, "adb", kTaskStack, nullptr, kTaskPriority, nullptr);
+    return result == pdPASS ? ESP_OK : ESP_ERR_NO_MEM;
+}
+
+bool submit(const char* command) {
+    if (s_queue == nullptr || command == nullptr || !s_connected.load()) {
+        return false;
+    }
+    char item[32] = {};
+    std::strncpy(item, command, sizeof(item) - 1);
+    return xQueueSend(s_queue, item, pdMS_TO_TICKS(10)) == pdTRUE;
+}
+
+bool connected() {
+    return s_connected.load();
+}
+
+}  // namespace irhub::adb

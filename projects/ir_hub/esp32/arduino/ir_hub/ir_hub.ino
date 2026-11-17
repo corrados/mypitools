@@ -8,6 +8,7 @@
 #include "input/ps3_hid.hpp"
 #include "input/script_server.hpp"
 #include "ir/ir_tx.hpp"
+#include "net/adb.hpp"
 #include "net/radio_socket.hpp"
 #include "net/wifi.hpp"
 #include "output/rgb_led.hpp"
@@ -52,6 +53,13 @@ void handle_serial_command() {
                 } else if (std::strcmp(command, "BT") == 0) {
                     Serial.printf("ps3=%s\n",
                                   irhub::input::connected() ? "connected" : "disconnected");
+                } else if (std::strcmp(command, "ADB") == 0) {
+                    Serial.printf("adb=%s\n",
+                                  irhub::adb::connected() ? "connected" : "disconnected");
+                } else if (std::strncmp(command, "ADB ", 4) == 0) {
+                    if (!irhub::adb::submit(command + 4)) {
+                        Serial.println("ADB command rejected");
+                    }
                 } else if (std::strcmp(command, "HEAP") == 0) {
                     Serial.printf("heap=%u min=%u\n",
                                   static_cast<unsigned>(ESP.getFreeHeap()),
@@ -90,10 +98,12 @@ void setup() {
     require_ok(irhub::control::init(), "control::init");
     require_ok(irhub::ir::init(), "ir::init");
     require_ok(irhub::radio_socket::init(), "radio_socket::init");
+    require_ok(irhub::adb::init(), "adb::init");
     require_ok(irhub::wifi::start(), "wifi::start");
     require_ok(irhub::control::start(), "control::start");
     require_ok(irhub::ir::start(), "ir::start");
     require_ok(irhub::radio_socket::start(), "radio_socket::start");
+    require_ok(irhub::adb::start(), "adb::start");
     ESP_LOGI(TAG, "free heap before PS3 init: %u", static_cast<unsigned>(ESP.getFreeHeap()));
     const esp_err_t ps3_err = irhub::input::init();
     if (ps3_err != ESP_OK) {
