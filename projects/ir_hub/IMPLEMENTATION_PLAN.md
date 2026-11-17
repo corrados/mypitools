@@ -1027,7 +1027,7 @@ Exit criterion for the bare board: host waveform tests pass, all code tables are
 
 Deferred exit criterion: TV power and input selection work reliably.
 
-Status: waveform encoding, the IR code tables, the RMT worker, and serial `IR DEVICE COMMAND` injection are implemented. Host tests cover TV, BEAM, LED, DVD, and RC6/bar waveforms. The sketch compiles, flashes, and transmits without RMT errors. The IR transmitter diode is now connected through a resistor to GPIO 22. Dedicated toggle test firmware verified that the OSRAM LED strip switches ON and OFF every 2 s using `LED POWERON` / `LED POWEROFF` with repeat=2, and that the projector switches ON with one `BEAM POWER` and OFF with the 7-pulse `BEAM POWER` sequence, with 10 s waits; the Philips soundbar power test failed, and an RC6 trailing-padding fix in `ir_tx.cpp` is pending retest. Real-device verification for the TV, DVD player, soundbar, and script/state-machine integration remain pending.
+Status: waveform encoding, the IR code tables, the RMT worker, and serial `IR DEVICE COMMAND` injection are implemented. Host tests cover TV, BEAM, LED, DVD, and RC6/bar waveforms. The sketch compiles, flashes, and transmits without RMT errors. The IR transmitter diode is now connected through a resistor to GPIO 22. Dedicated toggle test firmware verified that the OSRAM LED strip switches ON and OFF every 2 s using `LED POWERON` / `LED POWEROFF` with repeat=2, and that the projector switches ON with one `BEAM POWER` and OFF with the 7-pulse `BEAM POWER` sequence, with 10 s waits. Philips soundbar power ON/OFF was verified with a software-generated RC6 carrier using 36 kHz, 33% duty (9 us on / 19 us off), and an 83 ms footer; the equivalent ESP32 RMT hardware-carrier version is flashed and pending final confirmation. Real-device verification for the TV, DVD player, remaining soundbar functions, and script/state-machine integration remain pending.
 
 ### Phase 3: RC6 soundbar
 
@@ -1041,7 +1041,7 @@ Exit criterion for the bare board: RC6 waveform construction, toggle behavior, a
 
 Deferred exit criterion: soundbar power, input select, volume, mute, surround, tone, and sync keys work on the real soundbar, including repeated volume presses.
 
-Status: the RC6 encoder, toggle bit, 36 kHz carrier selection, and BAR key table are implemented and host-tested. A dedicated power-toggle test did not make the Philips soundbar respond. Investigation found that odd-length waveforms were padded with a 1 us edge of the opposite level, adding a spurious carrier blip after the RC6 signal-free time; `ir_tx.cpp` now extends the final level instead. Retest pending. Input select, volume, mute, surround, tone, sync keys, and repeated volume presses also remain to be verified on the real soundbar.
+Status: the RC6 encoder, toggle bit, 36 kHz carrier selection, and BAR key table are implemented and host-tested. The original 50% duty and 2.7 ms footer did not work. Matching `IRremoteESP8266` timing (36 kHz, 33% duty, 187T / 83 ms footer) with software-generated carrier pulses made the soundbar power ON/OFF successfully. The production path now keeps those timings but generates the carrier with the ESP32 RMT hardware (`build_bar_long_gap_waveform` plus 33% carrier duty); hardware confirmation is pending. Input select, volume, mute, surround, tone, sync keys, and repeated volume presses also remain to be verified on the real soundbar.
 
 ### Phase 4: Button routing and state machine
 

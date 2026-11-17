@@ -23,10 +23,10 @@ constexpr size_t kQueueLength = 16;
 constexpr size_t kTaskStack = 3072;
 constexpr UBaseType_t kTaskPriority = 10;
 constexpr uint32_t kRmtResolutionHz = 1000000;
-constexpr size_t kRmtMemBlockSymbols = 512;
+constexpr size_t kRmtMemBlockSymbols = 64;
 constexpr size_t kRmtQueueDepth = 8;
-constexpr size_t kMaxSymbols = 512;
-constexpr size_t kMaxEntries = 1024;
+constexpr size_t kMaxSymbols = 192;
+constexpr size_t kMaxEntries = 320;
 constexpr uint32_t kMaxPulseUs = 32767;
 
 struct Request {
@@ -106,10 +106,10 @@ size_t to_symbols(const Waveform& waveform) {
     return symbol_count;
 }
 
-bool apply_carrier(uint32_t frequency_hz) {
+bool apply_carrier(uint32_t frequency_hz, float duty_cycle = 0.5f) {
     rmt_carrier_config_t carrier = {};
     carrier.frequency_hz = frequency_hz;
-    carrier.duty_cycle = 0.5f;
+    carrier.duty_cycle = duty_cycle;
     carrier.flags.polarity_active_low = false;
     carrier.flags.always_on = false;
 
@@ -140,7 +140,7 @@ void ir_task(void*) {
         }
 
         const bool bar = request.device == Device::Bar;
-        const bool built = bar ? build_bar_irremote_waveform(code, s_toggle, s_waveform)
+        const bool built = bar ? build_bar_long_gap_waveform(code, s_toggle, s_waveform)
                                : build_waveform(request.device, code, s_toggle, s_waveform);
         if (!built) {
             ESP_LOGW(TAG, "cannot build waveform for %s %s", device_name(request.device),
@@ -148,8 +148,9 @@ void ir_task(void*) {
             continue;
         }
 
-        const uint32_t frequency_hz = bar ? 0 : carrier_frequency_hz(request.device);
-        if (!apply_carrier(frequency_hz)) {
+        const uint32_t frequency_hz = carrier_frequency_hz(request.device);
+        const float duty_cycle = bar ? 0.33f : 0.5f;
+        if (!apply_carrier(frequency_hz, duty_cycle)) {
             continue;
         }
 
@@ -219,7 +220,7 @@ esp_err_t init() {
         return err;
     }
 
-    s_waveform.reserve(1024);
+    s_waveform.reserve(128);
     s_toggle = false;
     return ESP_OK;
 }

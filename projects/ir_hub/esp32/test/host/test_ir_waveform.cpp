@@ -98,34 +98,17 @@ void test_rc6_toggle() {
     assert(toggle_one[11].duration_us == 888);
 }
 
-void test_rc6_software_carrier() {
+void test_rc6_long_gap() {
     const char* code = code_for(Device::Bar, "POWER");
     Waveform waveform;
-    assert(irhub::ir::build_bar_carrier_waveform(code, false, waveform));
+    assert(irhub::ir::build_bar_long_gap_waveform(code, false, waveform));
 
-    assert(waveform.size() == 919);
-    for (size_t i = 0; i < 192; i += 2) {
-        assert(waveform[i].mark);
-        assert(waveform[i].duration_us == 14);
-        assert(!waveform[i + 1].mark);
-        assert(waveform[i + 1].duration_us == 14);
-    }
-    assert(!waveform.back().mark);
-    assert(waveform.back().duration_us == 2664);
-}
-
-void test_rc6_irremote_waveform() {
-    const char* code = code_for(Device::Bar, "POWER");
-    Waveform waveform;
-    assert(irhub::ir::build_bar_irremote_waveform(code, false, waveform));
-
-    assert(waveform.size() == 919);
+    assert(waveform.size() == 45);
     assert(waveform[0].mark);
-    assert(waveform[0].duration_us == 9);
-    assert(!waveform[1].mark);
-    assert(waveform[1].duration_us == 19);
+    assert(waveform[0].duration_us == 2664);
     assert(!waveform.back().mark);
     assert(waveform.back().duration_us == 187 * 444);
+    assert(irhub::ir::carrier_frequency_hz(Device::Bar) == 36000);
 }
 
 void test_unknown_entries() {
@@ -147,8 +130,7 @@ int main() {
     test_beam_trailing_gap();
     test_dvd_no_trailing_mark();
     test_rc6_toggle();
-    test_rc6_software_carrier();
-    test_rc6_irremote_waveform();
+    test_rc6_long_gap();
     test_unknown_entries();
     return 0;
 }
