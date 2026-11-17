@@ -672,6 +672,8 @@ Implement with `esp_http_client`:
 - Discard the response body.
 - Never fail the control task if the socket is offline; log and continue.
 
+Status: a dedicated test firmware sent `Power Off` every 10 s and the real socket switched OFF at each request; the ESP32 received HTTP 200 from `http://radiosocket/cm?cmnd=Power%20Off`. `Power On` through the full control flow remains to be verified.
+
 Timers:
 
 - After `POWER` handling, arm a 1800 s one-shot timer to send `Power Off`.
@@ -994,7 +996,7 @@ Deferred until IR/RGB hardware is added:
   - One soundbar `VOL+` waveform (RC6).
   - One LED `POWERON` waveform (long trailing gap).
 - Verify real-device IR responses for the remaining devices and RGB colors.
-- Confirm the Fire TV ADB key authorization and the radio socket hostname/IP when those services are reachable.
+- Confirm the Fire TV ADB key authorization. The radio socket hostname and `Power Off` URL were verified on hardware.
 
 Exit criterion for the initial phase: the bare board boots, accepts injected commands, runs the task/queue architecture, and passes host tests; hardware facts and real-device acceptance remain explicitly deferred.
 
