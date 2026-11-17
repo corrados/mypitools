@@ -1025,9 +1025,9 @@ Status: the scaffold compiles, flashes, boots, listens on TCP port 3333, and pro
 
 Exit criterion for the bare board: host waveform tests pass, all code tables are complete, RMT submission succeeds, long gaps are split, and repeated transmissions do not block input or the control queue.
 
-Deferred exit criterion: TV power and input selection work reliably; the projector responds on real hardware.
+Deferred exit criterion: TV power and input selection work reliably.
 
-Status: waveform encoding, the IR code tables, the RMT worker, and serial `IR DEVICE COMMAND` injection are implemented. Host tests cover TV, BEAM, LED, DVD, and RC6/bar waveforms. The sketch compiles, flashes, and transmits without RMT errors. The IR transmitter diode is now connected through a resistor to GPIO 22, and a dedicated toggle test firmware verified that the OSRAM LED strip switches ON and OFF every 2 s using `LED POWERON` / `LED POWEROFF` with repeat=2. Real-device verification for the projector, TV, soundbar, and DVD player and script/state-machine integration remain pending.
+Status: waveform encoding, the IR code tables, the RMT worker, and serial `IR DEVICE COMMAND` injection are implemented. Host tests cover TV, BEAM, LED, DVD, and RC6/bar waveforms. The sketch compiles, flashes, and transmits without RMT errors. The IR transmitter diode is now connected through a resistor to GPIO 22. Dedicated toggle test firmware verified that the OSRAM LED strip switches ON and OFF every 2 s using `LED POWERON` / `LED POWEROFF` with repeat=2, and that the projector switches ON with one `BEAM POWER` and OFF with the 7-pulse `BEAM POWER` sequence, with 10 s waits. Real-device verification for the TV, soundbar, and DVD player and script/state-machine integration remain pending.
 
 ### Phase 3: RC6 soundbar
 
@@ -1089,7 +1089,7 @@ Exit criterion: projector-mode Fire TV navigation works with the same latency as
 - Attach the RGB LED and IR transmitter stage only after the bare-board firmware is stable.
 - Confirm the IR driver polarity, then run the deferred hardware checks from Phase 0.
 - Verify the six state colors, select-mode white, cold-start indication, and battery colors.
-- Verify real-device IR for TV, soundbar, projector, and DVD; confirm repeat keys and long gaps.
+- Verify real-device IR for TV, soundbar, and DVD; confirm repeat keys and long gaps.
 - Enable Wi-Fi/Bluetooth coexistence testing with the remote connected and ADB active.
 - Add task watchdog coverage, bounded queues, and failure logging. Ensure the serialized control delays and sequence jobs feed or are covered by the watchdog.
 - Add OTA update support if desired; the original Pi uses `systemd` restart, not OTA.
