@@ -1,5 +1,6 @@
 #include "ir/ir_waveform.hpp"
 
+#include <cmath>
 #include <cstring>
 
 namespace irhub::ir {
@@ -128,6 +129,60 @@ bool build_waveform(Device device, const char* code, bool toggle, Waveform& out)
     }
 
     append_standard(timing, code, out);
+    return true;
+}
+
+bool build_bar_carrier_waveform(const char* code, bool toggle, Waveform& out) {
+    Waveform logical;
+    if (!build_waveform(Device::Bar, code, toggle, logical)) {
+        return false;
+    }
+
+    out.clear();
+    out.reserve(1024);
+    constexpr uint32_t kCarrierHalfUs = 14;
+    constexpr double kCarrierHz = 36000.0;
+    for (const Pulse& pulse : logical) {
+        if (!pulse.mark) {
+            out.push_back(pulse);
+            continue;
+        }
+        const uint32_t cycles = static_cast<uint32_t>(
+            std::lround(static_cast<double>(pulse.duration_us) * kCarrierHz / 1000000.0));
+        for (uint32_t i = 0; i < cycles; ++i) {
+            out.push_back({true, kCarrierHalfUs});
+            out.push_back({false, kCarrierHalfUs});
+        }
+    }
+    return true;
+}
+
+bool build_bar_irremote_waveform(const char* code, bool toggle, Waveform& out) {
+    Waveform logical;
+    if (!build_waveform(Device::Bar, code, toggle, logical)) {
+        return false;
+    }
+    if (!logical.empty() && !logical.back().mark) {
+        logical.back().duration_us = 187 * kRc6UnitUs;
+    }
+
+    out.clear();
+    out.reserve(1024);
+    constexpr uint32_t kCarrierOnUs = 9;
+    constexpr uint32_t kCarrierOffUs = 19;
+    constexpr double kCarrierHz = 36000.0;
+    for (const Pulse& pulse : logical) {
+        if (!pulse.mark) {
+            out.push_back(pulse);
+            continue;
+        }
+        const uint32_t cycles = static_cast<uint32_t>(
+            std::lround(static_cast<double>(pulse.duration_us) * kCarrierHz / 1000000.0));
+        for (uint32_t i = 0; i < cycles; ++i) {
+            out.push_back({true, kCarrierOnUs});
+            out.push_back({false, kCarrierOffUs});
+        }
+    }
     return true;
 }
 

@@ -23,10 +23,10 @@ constexpr size_t kQueueLength = 16;
 constexpr size_t kTaskStack = 3072;
 constexpr UBaseType_t kTaskPriority = 10;
 constexpr uint32_t kRmtResolutionHz = 1000000;
-constexpr size_t kRmtMemBlockSymbols = 64;
+constexpr size_t kRmtMemBlockSymbols = 512;
 constexpr size_t kRmtQueueDepth = 8;
-constexpr size_t kMaxSymbols = 192;
-constexpr size_t kMaxEntries = 320;
+constexpr size_t kMaxSymbols = 512;
+constexpr size_t kMaxEntries = 1024;
 constexpr uint32_t kMaxPulseUs = 32767;
 
 struct Request {
@@ -89,7 +89,7 @@ size_t to_symbols(const Waveform& waveform) {
         if (count >= kMaxEntries) {
             --count;
         } else {
-            s_entries[count] = {!s_entries[count - 1].level, 1};
+            s_entries[count] = {s_entries[count - 1].level, 1};
             ++count;
         }
     }
@@ -138,14 +138,18 @@ void ir_task(void*) {
             ESP_LOGW(TAG, "unknown code %s %s", device_name(request.device), request.command);
             continue;
         }
-        if (!build_waveform(request.device, code, s_toggle, s_waveform)) {
+
+        const bool bar = request.device == Device::Bar;
+        const bool built = bar ? build_bar_irremote_waveform(code, s_toggle, s_waveform)
+                               : build_waveform(request.device, code, s_toggle, s_waveform);
+        if (!built) {
             ESP_LOGW(TAG, "cannot build waveform for %s %s", device_name(request.device),
                      request.command);
             continue;
         }
 
-        const uint32_t frequency_hz = carrier_frequency_hz(request.device);
-        if (frequency_hz == 0 || !apply_carrier(frequency_hz)) {
+        const uint32_t frequency_hz = bar ? 0 : carrier_frequency_hz(request.device);
+        if (!apply_carrier(frequency_hz)) {
             continue;
         }
 
@@ -215,7 +219,7 @@ esp_err_t init() {
         return err;
     }
 
-    s_waveform.reserve(128);
+    s_waveform.reserve(1024);
     s_toggle = false;
     return ESP_OK;
 }

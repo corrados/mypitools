@@ -4,9 +4,9 @@ Port ../../ir_hub.py to ESP32
 Current status
 --------------
 
-`ir_hub.py` currently runs stable on a Raspberry Pi 3B+. An RGB LED and four IR transmitter diodes are connected to the Pi.
+`ir_hub.py` currently runs stable on a Raspberry Pi 3B+. An RGB LED and four IR transmitter diodes are connected to the Pi. All functionality in the Python script has been exercised and tested on the Pi; it is the known-good reference for the ESP32 port.
 
-The ESP32 port is being developed on a bare ESP32 dev board. The IR transmitter stage, the four IR diodes, and the RGB LED are **not connected yet** and will be added later. Initial implementation and testing must therefore work without those peripherals; physical IR/RGB acceptance is deferred until the hardware is installed.
+The ESP32 port started on a bare ESP32 dev board, but the IR transmitter stage (via resistor to GPIO 22) and the WS2801 RGB LED are now connected. Physical IR acceptance is being performed against the real devices; the PS3 BD remote, OSRAM LED strip, projector, and Philips soundbar have been checked on real hardware.
 
 Note that I do not use a standard PS3 controller but the PS3 BD remote, which is like a normal TV remote but with Bluetooth instead of IR.
 
@@ -35,7 +35,7 @@ The ESP32 is the original 2x Xtensa LX6 version (240 MHz dual core). It has Blue
 Bare-board bring-up strategy
 -----------------------------
 
-The first implementation and test target is the bare ESP32 dev board, with no IR transmitter, IR diodes, or RGB LED attached.
+Initial implementation targeted the bare ESP32 dev board with no IR transmitter, IR diodes, or RGB LED attached. This is historical bring-up guidance; the IR transmitter and RGB LED are now connected and real-device testing is underway.
 
 - Implement and compile the IR and RGB drivers now, but treat their hardware output as unverified until the peripherals are connected.
 - Boot must succeed when the IR pin is unconnected and when no RGB LED responds. A missing peripheral must not crash or block control, Bluetooth, Wi-Fi, or ADB work.
@@ -1027,7 +1027,7 @@ Exit criterion for the bare board: host waveform tests pass, all code tables are
 
 Deferred exit criterion: TV power and input selection work reliably.
 
-Status: waveform encoding, the IR code tables, the RMT worker, and serial `IR DEVICE COMMAND` injection are implemented. Host tests cover TV, BEAM, LED, DVD, and RC6/bar waveforms. The sketch compiles, flashes, and transmits without RMT errors. The IR transmitter diode is now connected through a resistor to GPIO 22. Dedicated toggle test firmware verified that the OSRAM LED strip switches ON and OFF every 2 s using `LED POWERON` / `LED POWEROFF` with repeat=2, and that the projector switches ON with one `BEAM POWER` and OFF with the 7-pulse `BEAM POWER` sequence, with 10 s waits; the Philips soundbar power toggles ON/OFF with `BAR POWER` repeat=2 and 10 s waits. Real-device verification for the TV and DVD player, remaining soundbar functions, and script/state-machine integration remain pending.
+Status: waveform encoding, the IR code tables, the RMT worker, and serial `IR DEVICE COMMAND` injection are implemented. Host tests cover TV, BEAM, LED, DVD, and RC6/bar waveforms. The sketch compiles, flashes, and transmits without RMT errors. The IR transmitter diode is now connected through a resistor to GPIO 22. Dedicated toggle test firmware verified that the OSRAM LED strip switches ON and OFF every 2 s using `LED POWERON` / `LED POWEROFF` with repeat=2, and that the projector switches ON with one `BEAM POWER` and OFF with the 7-pulse `BEAM POWER` sequence, with 10 s waits; the Philips soundbar power test failed, and an RC6 trailing-padding fix in `ir_tx.cpp` is pending retest. Real-device verification for the TV, DVD player, soundbar, and script/state-machine integration remain pending.
 
 ### Phase 3: RC6 soundbar
 
@@ -1041,7 +1041,7 @@ Exit criterion for the bare board: RC6 waveform construction, toggle behavior, a
 
 Deferred exit criterion: soundbar power, input select, volume, mute, surround, tone, and sync keys work on the real soundbar, including repeated volume presses.
 
-Status: the RC6 encoder, toggle bit, 36 kHz carrier selection, and BAR key table are implemented and host-tested. A dedicated toggle test firmware verified the Philips soundbar power ON/OFF on real hardware using `BAR POWER` with repeat=2 and 10 s waits. Input select, volume, mute, surround, tone, sync keys, and repeated volume presses remain to be verified on the real soundbar.
+Status: the RC6 encoder, toggle bit, 36 kHz carrier selection, and BAR key table are implemented and host-tested. A dedicated power-toggle test did not make the Philips soundbar respond. Investigation found that odd-length waveforms were padded with a 1 us edge of the opposite level, adding a spurious carrier blip after the RC6 signal-free time; `ir_tx.cpp` now extends the final level instead. Retest pending. Input select, volume, mute, surround, tone, sync keys, and repeated volume presses also remain to be verified on the real soundbar.
 
 ### Phase 4: Button routing and state machine
 
