@@ -993,7 +993,7 @@ Deferred until IR/RGB hardware is added:
   - One TV `POWER` waveform.
   - One soundbar `VOL+` waveform (RC6).
   - One LED `POWERON` waveform (long trailing gap).
-- Verify real-device IR responses and RGB colors.
+- Verify real-device IR responses for the remaining devices and RGB colors.
 - Confirm the Fire TV ADB key authorization and the radio socket hostname/IP when those services are reachable.
 
 Exit criterion for the initial phase: the bare board boots, accepts injected commands, runs the task/queue architecture, and passes host tests; hardware facts and real-device acceptance remain explicitly deferred.
@@ -1021,13 +1021,13 @@ Status: the scaffold compiles, flashes, boots, listens on TCP port 3333, and pro
 - Add a debug command to transmit a selected key with a selected repeat count.
 - Compare generated symbol durations against a Python host fixture derived from `ir_sling()`.
 - On the bare board, verify RMT submission, duration splitting, and no crashes or watchdog resets.
-- Defer testing on the real TV, projector, LED strip, and DVD player until the IR transmitter hardware is installed.
+- The IR transmitter is attached and verified against the OSRAM LED strip; real TV, projector, and DVD testing remains.
 
 Exit criterion for the bare board: host waveform tests pass, all code tables are complete, RMT submission succeeds, long gaps are split, and repeated transmissions do not block input or the control queue.
 
-Deferred exit criterion: TV power and input selection work reliably; the projector and LED strip respond on real hardware.
+Deferred exit criterion: TV power and input selection work reliably; the projector responds on real hardware.
 
-Status: waveform encoding, the IR code tables, the RMT worker, and serial `IR DEVICE COMMAND` injection are implemented. Host tests cover TV, BEAM, LED, DVD, and RC6/bar waveforms. The sketch compiles, flashes, and transmits without RMT errors. Real-device IR verification and script/state-machine integration are still pending because the IR transmitter hardware is not attached.
+Status: waveform encoding, the IR code tables, the RMT worker, and serial `IR DEVICE COMMAND` injection are implemented. Host tests cover TV, BEAM, LED, DVD, and RC6/bar waveforms. The sketch compiles, flashes, and transmits without RMT errors. The IR transmitter diode is now connected through a resistor to GPIO 22, and a dedicated toggle test firmware verified that the OSRAM LED strip switches ON and OFF every 2 s using `LED POWERON` / `LED POWEROFF` with repeat=2. Real-device verification for the projector, TV, soundbar, and DVD player and script/state-machine integration remain pending.
 
 ### Phase 3: RC6 soundbar
 
@@ -1089,7 +1089,7 @@ Exit criterion: projector-mode Fire TV navigation works with the same latency as
 - Attach the RGB LED and IR transmitter stage only after the bare-board firmware is stable.
 - Confirm the IR driver polarity, then run the deferred hardware checks from Phase 0.
 - Verify the six state colors, select-mode white, cold-start indication, and battery colors.
-- Verify real-device IR for TV, soundbar, LED strip, and DVD; confirm repeat keys and long gaps.
+- Verify real-device IR for TV, soundbar, projector, and DVD; confirm repeat keys and long gaps.
 - Enable Wi-Fi/Bluetooth coexistence testing with the remote connected and ADB active.
 - Add task watchdog coverage, bounded queues, and failure logging. Ensure the serialized control delays and sequence jobs feed or are covered by the watchdog.
 - Add OTA update support if desired; the original Pi uses `systemd` restart, not OTA.
