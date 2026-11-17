@@ -10,6 +10,14 @@ The ESP32 port is being developed on a bare ESP32 dev board. The IR transmitter 
 
 Note that I do not use a standard PS3 controller but the PS3 BD remote, which is like a normal TV remote but with Bluetooth instead of IR.
 
+Immediate next steps
+--------------------
+
+- Verify the PS3 inactivity sleep disconnect and wake/reconnect using a temporarily shortened timeout, then restore 1800 s.
+- Stress PS3 input while Wi-Fi/HTTP is active and measure heap headroom.
+- Implement Fire TV ADB transport and key commands.
+- Move raw HID report logs behind a debug flag and finalize the PS3 documentation.
+
 Goal
 ----
 
@@ -34,7 +42,7 @@ The first implementation and test target is the bare ESP32 dev board, with no IR
 - Validate pure behavior with host tests: code tables, waveform construction, RC6 toggle, state transitions, key maps, report decoding, and timer logic.
 - Validate firmware behavior with serial logs, queue/backpressure metrics, and injected button/IR commands. Do not claim that a device responded until it has actually been tested.
 - Optional early bench checks that do not require the final hardware: RMT TX-to-RX loopback on a spare GPIO, logic-analyzer capture of GPIO 22, SPI decoder capture of GPIO 18/23, or a single IR receiver LED/photodiode.
-- Defer all physical acceptance tests, LED identification, IR driver-polarity checks, and real-device response tests until the hardware is added.
+- Defer all physical acceptance tests, IR driver-polarity checks, and real-device response tests until the hardware is added.
 - Keep the hardware-dependent questions and risks visible in this plan rather than silently assuming answers.
 
 Implementation decisions
@@ -47,7 +55,7 @@ Implementation decisions
 3. **IR:** Generate mark/space envelopes in software and let the RMT peripheral generate the carrier. Do not bit-bang the carrier and do not use `IRremoteESP8266` as the runtime encoder.
    - RMT handles 36/38 kHz carrier timing in hardware.
    - Software only needs to emit durations in microseconds.
-4. **RGB LED:** Treat it as a WS2801-compatible SPI LED until the hardware is verified. The Python code writes exactly three bytes over SPI mode 0 at 1 MHz, which matches WS2801-style wiring. WS2812 is only a fallback and requires a different driver.
+4. **RGB LED:** The LED is a WS2801 SPI LED. The Python code writes exactly three bytes over SPI mode 0 at 1 MHz, matching the WS2801 protocol.
 5. **ADB:** Implement a small ADB-over-TCP client instead of spawning an `adb` binary. Prefer a device-generated RSA key stored persistently; reusing the Pi's `~/.android/adbkey` is acceptable only for temporary bring-up.
 6. **Input socket:** Replace the Raspberry Pi Unix socket with a small TCP line-oriented command server, or optionally support both TCP and UART. A Unix socket is not a natural ESP32 interface.
 7. **Concurrency:** Preserve the Python threading model deliberately, not just functionally. Run button handling in one serialized control task, but start long-running sequences as detached jobs so they can continue after the button handler returns. Run IR transmissions through one queue-backed IR worker so waveforms never overlap. Keep Bluetooth, script socket, ADB, HTTP/timers, and LED work independent. See "Python concurrency model to preserve" below for the exact mapping and the reasons behind it.
@@ -61,7 +69,6 @@ Target hardware and pin plan
 | IR transmitter | GPIO 22 | Deferred | Same logical output as the Python `out_pin`. Four IR diodes may be driven through the existing transistor/driver stage. |
 | RGB LED SPI SCLK | GPIO 18 | Deferred | SPI clock, mode 0, 1 MHz. |
 | RGB LED SPI MOSI | GPIO 23 | Deferred | Three bytes per update for one WS2801 LED. |
-| Optional WS2812 data | GPIO 16 | Deferred | Only if the LED is later identified as WS2812. |
 | Optional IR receiver | GPIO 27 | Deferred | Useful for RMT/IR bench verification; not required by the current Python program. |
 | Power/ground | — | Deferred | Use a proper 5 V/3.3 V supply; do not power IR diodes directly from a GPIO. |
 
@@ -546,15 +553,13 @@ spi.max_speed_hz = 1000000
 spi.writebytes(rgb_leds)   # [R, G, B]
 ```
 
-That is consistent with a WS2801-style LED. Implement:
+This is the WS2801 protocol. Implement:
 
 - SPI host `SPI2_HOST` (or `SPI3_HOST` depending on the board).
 - SCLK GPIO 18, MOSI GPIO 23, no MISO, CS unused (`SPI_CS0` can be left unconnected).
 - Mode 0, 1 MHz, MSB-first, 8-bit words.
 - A three-byte transaction for `{R, G, B}`.
-- A WS2801 latch interval: hold the data line low for at least 500 us after the transaction. Verify whether the existing LED needs this; the Python code relies on the SPI device close/CS behavior and may already provide enough delay.
-
-If the LED is actually WS2812/NeoPixel, three raw SPI bytes will not work. In that case add a WS2812 RMT encoder and change only `rgb_led.cpp`; keep the `set_rgb(Rgb)` API unchanged.
+- A WS2801 latch interval: hold the data line low for at least 500 us after the transaction.
 
 `set_rgb()` in Python intentionally swallows all errors. On ESP32, log at debug level but do not crash the control task if the LED is absent. The LED state update must not delay IR or Bluetooth processing.
 
@@ -981,7 +986,6 @@ Do now:
 
 Deferred until IR/RGB hardware is added:
 
-- Identify the RGB LED: confirm WS2801 versus WS2812 by inspecting the LED/driver and measuring the existing SPI signals.
 - Confirm the IR output driver polarity, transistor stage, supply, and whether all four diodes are wired in parallel.
 - Capture the existing Pi behavior with a logic analyzer or IR receiver:
   - One TV `POWER` waveform.
@@ -1057,9 +1061,11 @@ Status: the state maps, serialized control task, fixed four-worker sequence pool
 
 - Implement the HID host connection and report decoding.
 - Port the scancode map, conversions, repeat logic, battery tracking, and inactivity disconnect.
-- Add raw-report logging behind a debug flag.
+- Move raw HID report logs behind a debug flag after validation.
 - Keep the remote-input task independent from control, ADB, script input, and IR, as in Python.
 - Test with a real remote from a cold boot, after 30 minutes idle, after Wi-Fi traffic, and after reconnect.
+- Verify the inactivity sleep disconnect and wake/reconnect with a temporarily shortened timeout, then restore 1800 s.
+- Stress PS3 input while Wi-Fi/HTTP is active and measure heap headroom.
 - Battery-level indication can be validated through logs on the bare board; its RGB colors are deferred until the LED is attached.
 
 Exit criterion: all remote buttons map correctly, autorepeat works for the required keys, battery values are tracked correctly, and the remote reconnects after the deliberate sleep disconnect. Physical battery-color display is deferred.
@@ -1079,7 +1085,7 @@ Exit criterion: projector-mode Fire TV navigation works with the same latency as
 ### Phase 7: Peripheral hardware bring-up, integration, and hardening
 
 - Attach the RGB LED and IR transmitter stage only after the bare-board firmware is stable.
-- Identify the LED type and IR driver polarity, then run the deferred hardware checks from Phase 0.
+- Confirm the IR driver polarity, then run the deferred hardware checks from Phase 0.
 - Verify the six state colors, select-mode white, cold-start indication, and battery colors.
 - Verify real-device IR for TV, soundbar, LED strip, and DVD; confirm repeat keys and long gaps.
 - Enable Wi-Fi/Bluetooth coexistence testing with the remote connected and ADB active.
@@ -1158,7 +1164,7 @@ Minimum test matrix:
 - ADB packet framing and command generation, including the exact shell strings.
 - Radio socket URL encoding and timer cancellation.
 
-Tests that require connected peripherals are explicitly deferred: real IR device response, RGB color/latch behavior, IR driver current/polarity, and LED identification.
+Tests that require connected peripherals are explicitly deferred: real IR device response, RGB color/latch behavior, and IR driver current/polarity.
 
 Verification against the Pi
 ---------------------------
@@ -1197,7 +1203,6 @@ Risks and mitigations
 | ADB authentication fails or the key is lost. | Implement the exact AOSP signing/key format, persist the key in encrypted NVS, and test first-time authorization and reboot. Keep a recovery path to re-authorize. |
 | Long IR gaps are truncated by the RMT encoder. | Split all durations >32767 us and unit-test the 110000 us LED gap and 107636 us BAR gap. |
 | RC6 toggle bit causes intermittent soundbar failures. | Centralize toggle handling in the IR worker and test repeated presses and repeated waveforms. |
-| RGB LED is WS2812, not WS2801. | Verify before wiring when the hardware is added; keep the `set_rgb()` API and swap only the driver implementation. |
 | IR diode drive is insufficient or overheats. | Reuse the existing transistor/driver stage; verify current and duty cycle when the hardware is added; do not drive diodes directly from GPIO. |
 | Serialized cold-start or transition delays trigger the task watchdog. | Feed or suspend the watchdog appropriately around the known 3 s/6 s control delays, keep input queues receiving, and test the exact timing on the bare board. |
 | NVS contains Wi-Fi/ADB secrets in plaintext. | Use NVS encryption and/or flash encryption for production; never commit credentials or private keys. |
@@ -1206,7 +1211,7 @@ Risks and mitigations
 Open questions
 --------------
 
-1. When the RGB LED is added: is it definitely WS2801-compatible, and does it require an explicit latch interval?
+1. When the RGB LED is added: does the WS2801 require an explicit latch interval?
 2. When the IR transmitter is added: what is the actual driver polarity and current capability with four diodes?
 3. Should the script socket be TCP only, or is UART/serial preferred for the replacement Pi-to-ESP32 workflow?
 4. Should the ESP32 use a device-generated ADB key, or must it reuse the existing Pi key for a seamless first migration?
@@ -1244,5 +1249,5 @@ Summary of research conclusions
 - RMT carrier modulation removes the need to generate 26-28 us carrier periods in software and gives much better timing than bit-banging.
 - The PS3 remote is the highest-risk subsystem. The generic HID host should be attempted first, but the raw L2CAP fallback is not optional until the remote is proven to work.
 - The Fire TV ADB path is self-contained but authentication and key persistence need explicit design; shelling out to `adb` is not available on the ESP32.
-- The RGB LED is very likely WS2801-style because the Python code sends exactly three raw bytes over SPI. This must be confirmed before finalizing the driver.
+- The RGB LED is a WS2801 LED; the Python code sends exactly three raw bytes over SPI.
 - Most of the application complexity is not IR transmission; it is preserving the state machine, sequencing, timers, and multi-source input behavior of `ir_hub.py`.
