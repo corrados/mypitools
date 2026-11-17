@@ -1027,7 +1027,7 @@ Exit criterion for the bare board: host waveform tests pass, all code tables are
 
 Deferred exit criterion: TV power and input selection work reliably.
 
-Status: waveform encoding, the IR code tables, the RMT worker, and serial `IR DEVICE COMMAND` injection are implemented. Host tests cover TV, BEAM, LED, DVD, and RC6/bar waveforms. The sketch compiles, flashes, and transmits without RMT errors. The IR transmitter diode is now connected through a resistor to GPIO 22. Dedicated toggle test firmware verified that the OSRAM LED strip switches ON and OFF every 2 s using `LED POWERON` / `LED POWEROFF` with repeat=2, and that the projector switches ON with one `BEAM POWER` and OFF with the 7-pulse `BEAM POWER` sequence, with 10 s waits. Philips soundbar power ON/OFF was verified with software-generated carrier pulses, then confirmed with the production ESP32 RMT hardware carrier using 36 kHz, 33% duty, and an 83 ms footer. Real-device verification also confirmed `TV POWERON` / `TV POWEROFF` with repeat=2 and 5 s waits. DVD player, remaining soundbar functions, and script/state-machine integration remain pending.
+Status: waveform encoding, the IR code tables, the RMT worker, and serial `IR DEVICE COMMAND` injection are implemented. Host tests cover TV, BEAM, LED, DVD, and RC6/bar waveforms. The sketch compiles, flashes, and transmits without RMT errors. The IR transmitter diode is now connected through a resistor to GPIO 22. Dedicated toggle test firmware verified that the OSRAM LED strip switches ON and OFF every 2 s using `LED POWERON` / `LED POWEROFF` with repeat=2, and that the projector switches ON with one `BEAM POWER` and OFF with the 7-pulse `BEAM POWER` sequence, with 10 s waits. Philips soundbar power ON/OFF was verified with software-generated carrier pulses, then confirmed with the production ESP32 RMT hardware carrier using 36 kHz, 33% duty, and an 83 ms footer. Real-device verification also confirmed `TV POWERON` / `TV POWEROFF` and `DVD POWERON` / `DVD POWEROFF` with repeat=2 and 5 s waits. All five IR device families (LED strip, projector, soundbar, TV, DVD) now switch power correctly. Remaining soundbar/TV functions, RGB LED behavior, and script/state-machine integration remain pending.
 
 ### Phase 3: RC6 soundbar
 
@@ -1089,7 +1089,7 @@ Exit criterion: projector-mode Fire TV navigation works with the same latency as
 - Attach the RGB LED and IR transmitter stage only after the bare-board firmware is stable.
 - Confirm the IR driver polarity, then run the deferred hardware checks from Phase 0.
 - Verify the six state colors, select-mode white, cold-start indication, and battery colors.
-- Verify real-device IR for TV, soundbar, and DVD; confirm repeat keys and long gaps.
+- Real-device power switching is confirmed for all five IR devices. Verify the remaining TV/soundbar/DVD/LED functions on real hardware, including input selection, volume/CH/arrow repeats, and long gaps.
 - Enable Wi-Fi/Bluetooth coexistence testing with the remote connected and ADB active.
 - Add task watchdog coverage, bounded queues, and failure logging. Ensure the serialized control delays and sequence jobs feed or are covered by the watchdog.
 - Add OTA update support if desired; the original Pi uses `systemd` restart, not OTA.
