@@ -465,7 +465,10 @@ esp_err_t init() {
         return ESP_OK;
     }
     s_queue = xQueueCreate(kQueueLength, sizeof(char[32]));
-    return s_queue == nullptr ? ESP_ERR_NO_MEM : ESP_OK;
+    if (s_queue == nullptr) {
+        return ESP_ERR_NO_MEM;
+    }
+    return ensure_key() ? ESP_OK : ESP_ERR_INVALID_STATE;
 }
 
 esp_err_t start() {

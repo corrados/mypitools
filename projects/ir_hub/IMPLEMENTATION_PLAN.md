@@ -1084,7 +1084,7 @@ Status: the scancode map, conversions, 700/200 ms repeat tracker, report parser,
 - Keep the ADB reconnect/command task independent from the control task and input tasks, matching the Python thread.
 - Test navigation, HOME, app shortcuts, and recovery after the Fire TV reboots or changes network state.
 
-Status: the ADB transport, RSA key generation/storage, signature/public-key authentication, `shell:` open, key-command mapping, queue, command injection, and reconnect are implemented in `net/adb.cpp` / `net/adb_keys.cpp` and wired into `control.cpp` and `ir_hub.ino`. Reboot tests confirm the RSA key is loaded from NVS (`ADB key loaded from NVS (1191 bytes)`) instead of regenerated, so one Fire TV authorization should persist across reboots and firmware updates that do not erase NVS. Host tests cover all Python-compatible key commands. RSA signing and the Android public-key blob (including `n0inv` and `rr`) were verified offline as valid. The firmware builds and flashes; real-device connection is still pending Fire TV authorization of the ESP32 key (`ir-hub@esp32`), so navigation/app shortcuts are not yet accepted end-to-end. ADB memory headroom required reducing application task stacks and the Arduino loop stack to 4 KB; watch heap when PS3 and ADB are active together.
+Status: the ADB transport, RSA key generation/storage, signature/public-key authentication, `shell:` open, key-command mapping, queue, command injection, and reconnect are implemented in `net/adb.cpp` / `net/adb_keys.cpp` and wired into `control.cpp` and `ir_hub.ino`. Reboot tests confirm the RSA key is loaded from NVS (`ADB key loaded from NVS (1191 bytes)`) instead of regenerated, so one Fire TV authorization should persist across reboots and firmware updates that do not erase NVS. Host tests cover all Python-compatible key commands. RSA signing and the Android public-key blob (including `n0inv` and `rr`) were verified offline as valid. The firmware builds and flashes; real-device connection is still pending Fire TV authorization of the ESP32 key (`ir-hub@esp32`), so navigation/app shortcuts are not yet accepted end-to-end. Memory tuning uses 4 KB ADB task stack plus 8 KB Arduino loop stack: the heavy key parse runs once from `adb::init()` on the loop stack, while signing stays on the 4 KB ADB task so RSA has enough contiguous heap. Do not raise the ADB task stack; that caused `mbedtls_pk_sign` to fail with `-0x4310`.
 
 Exit criterion: projector-mode Fire TV navigation works with the same latency as the Pi, and the ESP32 reconnects automatically after a Fire TV reboot.
 
@@ -1106,22 +1106,17 @@ Exit criterion: no memory leaks, no stuck IR queue, no missed remote presses, st
 Build and test commands
 -----------------------
 
-The Arduino CLI 1.6.0 binary is extracted from the Arduino IDE AppImage:
+The Arduino CLI 1.6.0 binary is installed at `/tmp/opencode/arduino-cli-bin/arduino-cli` (the older `/tmp/opencode/arduino-cli/arduino-cli` path disappeared):
 
 ```bash
-rm -rf /tmp/arduino_ide_extract
-mkdir -p /tmp/arduino_ide_extract
-cd /tmp/arduino_ide_extract
-/home/corrados/Arduino/arduino-ide_2.3.11_Linux_64bit.AppImage --appimage-extract >/dev/null
-
-ARDUINO_CLI=/tmp/arduino_ide_extract/squashfs-root/resources/app/lib/backend/resources/arduino-cli
+ARDUINO_CLI=/tmp/opencode/arduino-cli-bin/arduino-cli
 PROJECT=/home/corrados/mypitools/projects/ir_hub
 
 "$ARDUINO_CLI" compile \
   --fqbn esp32:esp32:esp32 \
   --board-options PartitionScheme=huge_app,DebugLevel=info \
   --warnings all \
-  --build-property "compiler.cpp.extra_flags=-DARDUINO_LOOP_STACK_SIZE=4096 -I$PROJECT/esp32/arduino/ir_hub/src -include /home/corrados/.local/share/ir_hub/ir_hub_wifi_secret.hpp" \
+  --build-property "compiler.cpp.extra_flags=-DARDUINO_LOOP_STACK_SIZE=8192 -I$PROJECT/esp32/arduino/ir_hub/src -include /home/corrados/.local/share/ir_hub/ir_hub_wifi_secret.hpp" \
   --output-dir /tmp/ir_hub_arduino_build \
   "$PROJECT/esp32/arduino/ir_hub"
 
