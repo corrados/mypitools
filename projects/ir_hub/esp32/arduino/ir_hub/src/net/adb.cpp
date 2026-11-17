@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "config.hpp"
+#include "esp_heap_caps.h"
 #include "esp_log.h"
 #include "esp_system.h"
 #include "freertos/FreeRTOS.h"
@@ -44,7 +45,7 @@ constexpr uint32_t kCmdOkay = 0x59414b4fU;
 constexpr uint32_t kCmdWrte = 0x45545257U;
 constexpr uint32_t kCmdClse = 0x45534c43U;
 constexpr size_t kQueueLength = 16;
-constexpr size_t kTaskStack = 8192;
+constexpr size_t kTaskStack = 4096;
 constexpr UBaseType_t kTaskPriority = 3;
 constexpr char kAdbUser[] = " ir-hub@esp32";
 
@@ -62,6 +63,7 @@ bool s_key_ready = false;
 bool s_signature_sent = false;
 bool s_shell_ready = false;
 uint32_t s_remote_id = 0;
+uint32_t s_last_packet_ms = 0;
 std::atomic<bool> s_connected{false};
 
 int rng(void*, unsigned char* buffer, size_t length) {
@@ -205,6 +207,9 @@ bool sign_token(const uint8_t* token, size_t length, std::vector<uint8_t>& signa
     mbedtls_sha1(token, length, hash);
     signature.resize(256);
     size_t signature_length = 0;
+    ESP_LOGI(TAG, "heap before sign: free=%u largest=%u",
+             static_cast<unsigned>(heap_caps_get_free_size(MALLOC_CAP_8BIT)),
+             static_cast<unsigned>(heap_caps_get_largest_free_block(MALLOC_CAP_8BIT)));
     const int result = mbedtls_pk_sign(&s_key, MBEDTLS_MD_SHA1, hash, sizeof(hash),
                                        signature.data(), signature.size(), &signature_length, rng,
                                        nullptr);
@@ -284,6 +289,7 @@ void disconnect(const char* reason) {
     s_shell_ready = false;
     s_signature_sent = false;
     s_remote_id = 0;
+    s_last_packet_ms = 0;
     s_client.stop();
 
     char key[32] = {};
@@ -318,10 +324,13 @@ bool connect_and_handshake() {
     s_signature_sent = false;
     s_shell_ready = false;
     s_remote_id = 0;
+    s_last_packet_ms = millis();
     return true;
 }
 
 bool handle_auth(const Packet& packet) {
+    ESP_LOGI(TAG, "AUTH packet type=%u bytes=%u", static_cast<unsigned>(packet.arg0),
+             static_cast<unsigned>(packet.data.size()));
     if (packet.arg0 != kAuthToken || packet.data.size() < 16) {
         return true;
     }
@@ -331,15 +340,23 @@ bool handle_auth(const Packet& packet) {
             return false;
         }
         s_signature_sent = true;
-        return send_packet(kCmdAuth, kAuthSignature, 0, signature.data(), signature.size());
+        const bool sent = send_packet(kCmdAuth, kAuthSignature, 0, signature.data(),
+                                      signature.size());
+        ESP_LOGI(TAG, "signature sent=%d bytes=%u", sent ? 1 : 0,
+                 static_cast<unsigned>(signature.size()));
+        return sent;
     }
 
     std::string key;
     if (!public_key(key)) {
         return false;
     }
-    return send_packet(kCmdAuth, kAuthPublicKey, 0,
-                       reinterpret_cast<const uint8_t*>(key.data()), key.size());
+    key.push_back('\0');
+    const bool sent = send_packet(kCmdAuth, kAuthPublicKey, 0,
+                                  reinterpret_cast<const uint8_t*>(key.data()), key.size());
+    ESP_LOGI(TAG, "public key sent=%d bytes=%u", sent ? 1 : 0,
+             static_cast<unsigned>(key.size()));
+    return sent;
 }
 
 bool open_shell() {
