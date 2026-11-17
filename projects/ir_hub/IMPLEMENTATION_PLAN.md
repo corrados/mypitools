@@ -1027,7 +1027,7 @@ Exit criterion for the bare board: host waveform tests pass, all code tables are
 
 Deferred exit criterion: TV power and input selection work reliably.
 
-Status: waveform encoding, the IR code tables, the RMT worker, and serial `IR DEVICE COMMAND` injection are implemented. Host tests cover TV, BEAM, LED, DVD, and RC6/bar waveforms. The sketch compiles, flashes, and transmits without RMT errors. The IR transmitter diode is now connected through a resistor to GPIO 22. Dedicated toggle test firmware verified that the OSRAM LED strip switches ON and OFF every 2 s using `LED POWERON` / `LED POWEROFF` with repeat=2, and that the projector switches ON with one `BEAM POWER` and OFF with the 7-pulse `BEAM POWER` sequence, with 10 s waits. Real-device verification for the TV, soundbar, and DVD player and script/state-machine integration remain pending.
+Status: waveform encoding, the IR code tables, the RMT worker, and serial `IR DEVICE COMMAND` injection are implemented. Host tests cover TV, BEAM, LED, DVD, and RC6/bar waveforms. The sketch compiles, flashes, and transmits without RMT errors. The IR transmitter diode is now connected through a resistor to GPIO 22. Dedicated toggle test firmware verified that the OSRAM LED strip switches ON and OFF every 2 s using `LED POWERON` / `LED POWEROFF` with repeat=2, and that the projector switches ON with one `BEAM POWER` and OFF with the 7-pulse `BEAM POWER` sequence, with 10 s waits; the Philips soundbar power toggles ON/OFF with `BAR POWER` repeat=2 and 10 s waits. Real-device verification for the TV and DVD player, remaining soundbar functions, and script/state-machine integration remain pending.
 
 ### Phase 3: RC6 soundbar
 
@@ -1041,7 +1041,7 @@ Exit criterion for the bare board: RC6 waveform construction, toggle behavior, a
 
 Deferred exit criterion: soundbar power, input select, volume, mute, surround, tone, and sync keys work on the real soundbar, including repeated volume presses.
 
-Status: the RC6 encoder, toggle bit, 36 kHz carrier selection, and BAR key table are implemented and host-tested. Real soundbar verification is deferred until the IR transmitter is connected.
+Status: the RC6 encoder, toggle bit, 36 kHz carrier selection, and BAR key table are implemented and host-tested. A dedicated toggle test firmware verified the Philips soundbar power ON/OFF on real hardware using `BAR POWER` with repeat=2 and 10 s waits. Input select, volume, mute, surround, tone, sync keys, and repeated volume presses remain to be verified on the real soundbar.
 
 ### Phase 4: Button routing and state machine
 
