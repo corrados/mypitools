@@ -21,7 +21,7 @@ namespace irhub::control {
 namespace {
 
 constexpr char TAG[] = "control";
-constexpr size_t kQueueLength = 16;
+constexpr size_t kQueueLength = 64;
 constexpr size_t kSequenceQueueLength = 16;
 constexpr size_t kTaskStack = 3072;
 constexpr size_t kSequenceTaskStack = 2048;
@@ -210,26 +210,24 @@ void execute_action(const Action& action) {
 
 void handle_event(const ControlEvent& event) {
     const Outcome outcome = process(s_machine, event.button);
+    s_machine = outcome.next;
+    s_shared_state.store(s_machine.state);
 
     ESP_LOGI(TAG, "button=%s source=%s state=%s alt=%d led=%d transition=%d help=%d actions=%u",
              event.button, source_name(event.source), state_name(s_machine.state),
              s_machine.alt_func ? 1 : 0, s_machine.led_is_on ? 1 : 0,
              outcome.transitioned ? 1 : 0, outcome.help_action ? 1 : 0,
              static_cast<unsigned>(outcome.action_count));
+    ESP_LOGI(TAG, "state=%s prev=%s mapping=%d alt=%d led=%d", state_name(s_machine.state),
+             state_name(s_machine.prev_state), static_cast<int>(s_machine.mapping),
+             s_machine.alt_func ? 1 : 0, s_machine.led_is_on ? 1 : 0);
 
     for (size_t i = 0; i < outcome.action_count; ++i) {
         execute_action(outcome.actions[i]);
     }
 
-    s_machine = outcome.next;
-    s_shared_state.store(s_machine.state);
-
     const Rgb color = display_color(s_machine.state, s_machine.alt_func, config::kRgbValue);
     rgb_led::set(color.r, color.g, color.b);
-
-    ESP_LOGI(TAG, "state=%s prev=%s mapping=%d alt=%d led=%d", state_name(s_machine.state),
-             state_name(s_machine.prev_state), static_cast<int>(s_machine.mapping),
-             s_machine.alt_func ? 1 : 0, s_machine.led_is_on ? 1 : 0);
 }
 
 void control_task(void*) {

@@ -46,7 +46,7 @@ constexpr uint32_t kCmdOpen = 0x4e45504fU;
 constexpr uint32_t kCmdOkay = 0x59414b4fU;
 constexpr uint32_t kCmdWrte = 0x45545257U;
 constexpr uint32_t kCmdClse = 0x45534c43U;
-constexpr size_t kQueueLength = 16;
+constexpr size_t kQueueLength = 32;
 constexpr size_t kTaskStack = 4096;
 constexpr UBaseType_t kTaskPriority = 3;
 #ifdef IR_HUB_HAS_ADB_KEY_SECRET
@@ -404,21 +404,50 @@ bool open_shell() {
                        sizeof(kService));
 }
 
+bool send_batch(const char* batch, size_t length) {
+    if (!send_packet(kCmdWrte, kLocalId, s_remote_id,
+                     reinterpret_cast<const uint8_t*>(batch), length)) {
+        disconnect("write failed");
+        return false;
+    }
+    const size_t shown = length < 160 ? length : 160;
+    ESP_LOGI(TAG, "shell batch %u: %.*s", static_cast<unsigned>(length),
+             static_cast<int>(shown), batch);
+    return true;
+}
+
 void send_queued_commands() {
-    char key[32] = {};
-    while (s_shell_ready && xQueueReceive(s_queue, key, 0) == pdTRUE) {
-        char command[192] = {};
+    static char batch[1024];
+    size_t used = 0;
+    size_t count = 0;
+    while (s_shell_ready && count < 4) {
+        char key[32] = {};
+        if (xQueueReceive(s_queue, key, 0) != pdTRUE) {
+            break;
+        }
+        char command[256] = {};
         if (!build_shell_command(key, command, sizeof(command))) {
             ESP_LOGW(TAG, "invalid command '%s'", key);
             continue;
         }
         const size_t length = std::strlen(command);
-        if (!send_packet(kCmdWrte, kLocalId, s_remote_id,
-                         reinterpret_cast<const uint8_t*>(command), length)) {
-            disconnect("write failed");
-            return;
+        if (used + length >= sizeof(batch)) {
+            if (used > 0) {
+                if (!send_batch(batch, used)) {
+                    return;
+                }
+                used = 0;
+            }
+            if (length >= sizeof(batch)) {
+                continue;
+            }
         }
-        ESP_LOGI(TAG, "shell: %s", command);
+        std::memcpy(batch + used, command, length);
+        used += length;
+        ++count;
+    }
+    if (used > 0) {
+        send_batch(batch, used);
     }
 }
 
@@ -436,13 +465,22 @@ void adb_task(void*) {
                 disconnect("auth timeout");
                 continue;
             }
+            send_queued_commands();
+            if (!s_client.connected()) {
+                disconnect("connection closed");
+                continue;
+            }
+            if (s_client.available() < 24) {
+                vTaskDelay(pdMS_TO_TICKS(5));
+                continue;
+            }
             Packet packet;
             if (!read_packet(packet)) {
                 if (!s_client.connected()) {
                     disconnect("connection closed");
                 }
                 send_queued_commands();
-                vTaskDelay(pdMS_TO_TICKS(10));
+                vTaskDelay(pdMS_TO_TICKS(5));
                 continue;
             }
             s_last_packet_ms = millis();
@@ -470,11 +508,6 @@ void adb_task(void*) {
                     }
                     break;
                 case kCmdWrte:
-                    if (!packet.data.empty()) {
-                        const size_t shown = packet.data.size() < 128 ? packet.data.size() : 128;
-                        ESP_LOGI(TAG, "shell output: %.*s", static_cast<int>(shown),
-                                 packet.data.data());
-                    }
                     send_packet(kCmdOkay, kLocalId, s_remote_id, nullptr, 0);
                     break;
                 case kCmdClse:

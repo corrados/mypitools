@@ -3,10 +3,12 @@
 #include <Arduino.h>
 
 #include <algorithm>
-#include <cctype>
 #include <cerrno>
+#include <cctype>
 #include <cstdio>
 #include <cstring>
+#include <fcntl.h>
+#include <new>
 #include <string>
 
 #include "config.hpp"
@@ -26,8 +28,33 @@ constexpr char TAG[] = "web";
 constexpr size_t kTaskStack = 3072;
 constexpr UBaseType_t kTaskPriority = 3;
 constexpr size_t kRequestBuffer = 512;
+constexpr size_t kResponseBuffer = 2304;
+constexpr uint32_t kClientTimeoutMs = 10000;
 
-constexpr char kIndexPage[] = R"HTML(<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>IR Hub</title><style>body{font:16px system-ui;background:#111;color:#eee;margin:16px}button{font-size:15px;margin:3px;padding:10px 12px;border-radius:8px;border:0;background:#333;color:#fff}button:active{background:#08f}h2{font-size:15px;color:#aaa;margin:14px 0 4px}#status{margin:12px 0;color:#8f8}</style></head><body><h1>IR Hub</h1><div id="status">ready</div><div id="adb">adb: checking...</div><div id="buttons"></div><script>const groups=[["System",["EJECT","PLAYSTATION","SELECT","START","RETURN","BACK","OPTIONS","DISPLAY","TOPMENU","POPUP"]],["Numbers",["1","2","3","4","5","6","7","8","9","0"]],["Navigation",["UP","DOWN","LEFT","RIGHT","OK","AUIDO","ANGLE","SUBTITLE","CLEAR","TIME"]],["Colors",["RED","GREEN","BLUE","YELLOW"]],["Transport",["REWIND","PLAY","FORWARD","PREVIOUS","STOP","NEXT","SLOWREWIND","PAUSE","SLOWFORWARD"]],["Shoulder",["L1","L2","L3","R1","R2","R3","VIEW","X"]]];async function press(b){const r=await fetch('/press?button='+encodeURIComponent(b));document.getElementById('status').textContent=b+': '+await r.text();}async function refreshAdb(){const r=await fetch('/adb');document.getElementById('adb').textContent=await r.text();}setInterval(refreshAdb,2000);refreshAdb();const root=document.getElementById('buttons');for(const [name,keys] of groups){const h=document.createElement('h2');h.textContent=name;root.appendChild(h);const row=document.createElement('div');for(const key of keys){const b=document.createElement('button');b.textContent=key;b.onclick=()=>press(key);row.appendChild(b);}root.appendChild(row);}</script></body></html>)HTML";
+constexpr char kIndexPage[] = R"HTML(<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>IR Hub</title><style>body{font:16px system-ui;background:#111;color:#eee;margin:16px}button{font-size:15px;margin:3px;padding:10px 12px;border-radius:8px;border:0;background:#333;color:#fff}button:active{background:#08f}h2{font-size:15px;color:#aaa;margin:14px 0 4px}#status{margin:12px 0;color:#8f8}</style></head><body><h1>IR Hub</h1><div id="status">ready</div><div id="adb">adb: checking...</div><div id="buttons"></div><script>const groups=[["System",["EJECT","PLAYSTATION","SELECT","START","RETURN","BACK","OPTIONS","DISPLAY","TOPMENU","POPUP"]],["Numbers",["1","2","3","4","5","6","7","8","9","0"]],["Navigation",["UP","DOWN","LEFT","RIGHT","OK","AUIDO","ANGLE","SUBTITLE","CLEAR","TIME"]],["Colors",["RED","GREEN","BLUE","YELLOW"]],["Transport",["REWIND","PLAY","FORWARD","PREVIOUS","STOP","NEXT","SLOWREWIND","PAUSE","SLOWFORWARD"]],["Shoulder",["L1","L2","L3","R1","R2","R3","VIEW","X"]]];async function press(b){const r=await fetch('/press?button='+encodeURIComponent(b));document.getElementById('status').textContent=b+': '+await r.text();}let adbBusy=false;async function refreshAdb(){if(adbBusy)return;adbBusy=true;try{const r=await fetch('/adb');document.getElementById('adb').textContent=await r.text();}finally{adbBusy=false;}}setInterval(refreshAdb,5000);refreshAdb();const root=document.getElementById('buttons');for(const [name,keys] of groups){const h=document.createElement('h2');h.textContent=name;root.appendChild(h);const row=document.createElement('div');for(const key of keys){const b=document.createElement('button');b.textContent=key;b.onclick=()=>press(key);row.appendChild(b);}root.appendChild(row);}</script></body></html>)HTML";
+
+struct Client {
+    int fd = -1;
+    char* request = nullptr;
+    size_t request_length = 0;
+    char* response = nullptr;
+    size_t response_length = 0;
+    size_t response_offset = 0;
+    uint32_t last_active = 0;
+};
+
+Client s_client;
+
+bool would_block() {
+    return errno == EAGAIN || errno == EWOULDBLOCK || errno == EINPROGRESS;
+}
+
+void set_nonblocking(int fd) {
+    const int flags = fcntl(fd, F_GETFL, 0);
+    if (flags >= 0) {
+        fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+    }
+}
 
 int hex_value(char c) {
     if (c >= '0' && c <= '9') {
@@ -86,42 +113,36 @@ bool request_target(const char* request, char* target, size_t target_size) {
     return true;
 }
 
-void send_all(int client, const char* data, size_t length) {
-    size_t offset = 0;
-    while (offset < length) {
-        const int written = send(client, data + offset, length - offset, 0);
-        if (written <= 0) {
-            return;
-        }
-        offset += static_cast<size_t>(written);
-    }
-}
-
-void send_response(int client, const char* status, const char* content_type, const char* body,
-                   size_t length) {
-    char header[192];
+bool prepare_response(Client& client, const char* status, const char* content_type,
+                      const char* body, size_t length) {
     const int header_length =
-        std::snprintf(header, sizeof(header),
+        std::snprintf(client.response, kResponseBuffer,
                       "HTTP/1.1 %s\r\nContent-Type: %s\r\nContent-Length: %u\r\n"
                       "Cache-Control: no-store\r\nConnection: close\r\n\r\n",
                       status, content_type, static_cast<unsigned>(length));
-    if (header_length <= 0 || static_cast<size_t>(header_length) >= sizeof(header)) {
-        return;
+    if (header_length <= 0 || static_cast<size_t>(header_length) >= kResponseBuffer) {
+        return false;
     }
-    send_all(client, header, static_cast<size_t>(header_length));
+    const size_t header = static_cast<size_t>(header_length);
+    if (length > kResponseBuffer - header) {
+        return false;
+    }
     if (length > 0) {
-        send_all(client, body, length);
+        std::memcpy(client.response + header, body, length);
     }
+    client.response_length = header + length;
+    client.response_offset = 0;
+    return true;
 }
 
-void send_text(int client, const char* text) {
-    send_response(client, "200 OK", "text/plain; charset=utf-8", text, std::strlen(text));
+bool prepare_text(Client& client, const char* text) {
+    return prepare_response(client, "200 OK", "text/plain; charset=utf-8", text, std::strlen(text));
 }
 
-void handle_request(int client, const char* request) {
+void build_response(Client& client) {
     char target[128] = {};
-    if (!request_target(request, target, sizeof(target))) {
-        send_response(client, "400 Bad Request", "text/plain; charset=utf-8", "bad request", 11);
+    if (!request_target(client.request, target, sizeof(target))) {
+        prepare_response(client, "400 Bad Request", "text/plain; charset=utf-8", "bad request", 11);
         return;
     }
 
@@ -130,29 +151,29 @@ void handle_request(int client, const char* request) {
     const size_t path_length =
         query == nullptr ? std::strlen(target) : static_cast<size_t>(query - target);
     if (path_length == 0 || path_length >= sizeof(path)) {
-        send_response(client, "400 Bad Request", "text/plain; charset=utf-8", "bad request", 11);
+        prepare_response(client, "400 Bad Request", "text/plain; charset=utf-8", "bad request", 11);
         return;
     }
     std::memcpy(path, target, path_length);
     path[path_length] = '\0';
 
     if (std::strcmp(path, "/") == 0) {
-        send_response(client, "200 OK", "text/html; charset=utf-8", kIndexPage,
-                      sizeof(kIndexPage) - 1);
+        prepare_response(client, "200 OK", "text/html; charset=utf-8", kIndexPage,
+                         sizeof(kIndexPage) - 1);
         return;
     }
     if (std::strcmp(path, "/favicon.ico") == 0) {
-        send_response(client, "204 No Content", "text/plain", "", 0);
+        prepare_response(client, "204 No Content", "text/plain", "", 0);
         return;
     }
     if (std::strcmp(path, "/adb") == 0) {
-        send_text(client, adb::connected() ? "adb=connected" : "adb=disconnected");
+        prepare_text(client, adb::connected() ? "adb=connected" : "adb=disconnected");
         return;
     }
     if (std::strcmp(path, "/state") == 0) {
         char body[64] = {};
         std::snprintf(body, sizeof(body), "state=%s", control::state_name(control::current_state()));
-        send_text(client, body);
+        prepare_text(client, body);
         return;
     }
     if (std::strcmp(path, "/heap") == 0) {
@@ -160,14 +181,14 @@ void handle_request(int client, const char* request) {
         std::snprintf(body, sizeof(body), "heap=%u min=%u",
                       static_cast<unsigned>(ESP.getFreeHeap()),
                       static_cast<unsigned>(ESP.getMinFreeHeap()));
-        send_text(client, body);
+        prepare_text(client, body);
         return;
     }
     if (std::strcmp(path, "/press") == 0 && query != nullptr) {
         const char* encoded = std::strstr(query, "button=");
         char button[32] = {};
         if (encoded == nullptr || !url_decode(encoded + 7, button, sizeof(button))) {
-            send_text(client, "error");
+            prepare_text(client, "error");
             return;
         }
         std::transform(button, button + std::strlen(button), button,
@@ -175,37 +196,100 @@ void handle_request(int client, const char* request) {
         const char* command = input::ps3_convert(button);
         if (!control::post(command, control::ButtonSource::Internal)) {
             ESP_LOGW(TAG, "control queue full, dropped %s -> %s", button, command);
-            send_text(client, "error");
+            prepare_text(client, "error");
             return;
         }
         ESP_LOGI(TAG, "received %s -> %s", button, command);
-        send_text(client, "ok");
+        prepare_text(client, "ok");
         return;
     }
-    send_response(client, "404 Not Found", "text/plain; charset=utf-8", "not found", 9);
+    prepare_response(client, "404 Not Found", "text/plain; charset=utf-8", "not found", 9);
 }
 
-void serve_client(int client) {
-    struct timeval timeout = {};
-    timeout.tv_sec = 3;
-    setsockopt(client, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
+void close_client(Client& client) {
+    if (client.fd >= 0) {
+        close(client.fd);
+    }
+    delete[] client.request;
+    delete[] client.response;
+    client = Client{};
+}
 
-    char request[kRequestBuffer] = {};
-    size_t used = 0;
-    while (used + 1 < sizeof(request)) {
-        const int received = recv(client, request + used, sizeof(request) - used - 1, 0);
-        if (received <= 0) {
-            break;
-        }
-        used += static_cast<size_t>(received);
-        request[used] = '\0';
-        if (std::strstr(request, "\r\n\r\n") != nullptr) {
-            break;
-        }
+void accept_clients(int server) {
+    if (s_client.fd >= 0) {
+        return;
     }
-    if (used > 0) {
-        handle_request(client, request);
+    const int fd = accept(server, nullptr, nullptr);
+    if (fd < 0) {
+        return;
     }
+    char* request = new (std::nothrow) char[kRequestBuffer]();
+    char* response = new (std::nothrow) char[kResponseBuffer]();
+    if (request == nullptr || response == nullptr) {
+        delete[] request;
+        delete[] response;
+        close(fd);
+        return;
+    }
+    set_nonblocking(fd);
+    s_client.fd = fd;
+    s_client.request = request;
+    s_client.response = response;
+    s_client.last_active = millis();
+}
+
+void service_client(Client& client, fd_set& read_set, fd_set& write_set) {
+    if (client.fd < 0) {
+        return;
+    }
+    if (static_cast<int32_t>(millis() - client.last_active) < 0 ||
+        millis() - client.last_active > kClientTimeoutMs) {
+        close_client(client);
+        return;
+    }
+
+    if (client.response_length > client.response_offset) {
+        if (!FD_ISSET(client.fd, &write_set)) {
+            return;
+        }
+        const int written = send(client.fd, client.response + client.response_offset,
+                                 client.response_length - client.response_offset, 0);
+        if (written > 0) {
+            client.response_offset += static_cast<size_t>(written);
+            client.last_active = millis();
+            if (client.response_offset >= client.response_length) {
+                close_client(client);
+            }
+        } else if (written < 0 && !would_block()) {
+            close_client(client);
+        }
+        return;
+    }
+
+    if (!FD_ISSET(client.fd, &read_set)) {
+        return;
+    }
+    while (client.request_length + 1 < kRequestBuffer) {
+        const int received = recv(client.fd, client.request + client.request_length,
+                                  kRequestBuffer - client.request_length - 1, 0);
+        if (received > 0) {
+            client.request_length += static_cast<size_t>(received);
+            client.request[client.request_length] = '\0';
+            client.last_active = millis();
+            if (std::strstr(client.request, "\r\n\r\n") != nullptr) {
+                build_response(client);
+                return;
+            }
+            continue;
+        }
+        if (received == 0) {
+            close_client(client);
+        } else if (!would_block()) {
+            close_client(client);
+        }
+        return;
+    }
+    close_client(client);
 }
 
 void web_task(void*) {
@@ -216,6 +300,7 @@ void web_task(void*) {
         return;
     }
 
+    set_nonblocking(server);
     int reuse = 1;
     setsockopt(server, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse));
 
@@ -231,7 +316,7 @@ void web_task(void*) {
         vTaskDelete(nullptr);
         return;
     }
-    if (listen(server, 1) != 0) {
+    if (listen(server, 8) != 0) {
         ESP_LOGE(TAG, "listen failed: %s", std::strerror(errno));
         close(server);
         vTaskDelete(nullptr);
@@ -240,13 +325,32 @@ void web_task(void*) {
 
     ESP_LOGI(TAG, "listening on port %u", static_cast<unsigned>(config::kWebPort));
     while (true) {
-        const int client = accept(server, nullptr, nullptr);
-        if (client < 0) {
-            ESP_LOGW(TAG, "accept failed: %s", std::strerror(errno));
+        fd_set read_set;
+        fd_set write_set;
+        FD_ZERO(&read_set);
+        FD_ZERO(&write_set);
+        FD_SET(server, &read_set);
+        int max_fd = server;
+        if (s_client.fd >= 0) {
+            FD_SET(s_client.fd, &read_set);
+            if (s_client.response_length > s_client.response_offset) {
+                FD_SET(s_client.fd, &write_set);
+            }
+            if (s_client.fd > max_fd) {
+                max_fd = s_client.fd;
+            }
+        }
+
+        struct timeval timeout = {};
+        timeout.tv_usec = 250000;
+        const int ready = select(max_fd + 1, &read_set, &write_set, nullptr, &timeout);
+        if (ready <= 0) {
             continue;
         }
-        serve_client(client);
-        close(client);
+        if (FD_ISSET(server, &read_set)) {
+            accept_clients(server);
+        }
+        service_client(s_client, read_set, write_set);
     }
 }
 

@@ -59,8 +59,9 @@ bool build_shell_command(const char* key, char* out, size_t out_size) {
 
     const int written = std::snprintf(
         out, out_size,
-        "sendevent /dev/input/event1 1 %s 1 && sendevent /dev/input/event1 0 0 0 &&"
-        "sendevent /dev/input/event1 1 %s 0 && sendevent /dev/input/event1 0 0 0\n",
+        "f=$(getevent -il 2>/dev/null | awk '/add device/{d=$NF} /Amazon Fire TV Remote/{print d; exit}'); "
+        "[ -n \"$f\" ] && sendevent $f 1 %s 1 && sendevent $f 0 0 0 &&"
+        "sendevent $f 1 %s 0 && sendevent $f 0 0 0\n",
         key, key);
     return written > 0 && static_cast<size_t>(written) < out_size;
 }
