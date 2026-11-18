@@ -15,7 +15,7 @@ Immediate next steps
 
 - Verify the PS3 inactivity sleep disconnect and wake/reconnect using a temporarily shortened timeout, then restore 1800 s.
 - Stress PS3 input while Wi-Fi/HTTP is active and measure heap headroom.
-- Finish Fire TV ADB authorization on the real device and verify `FIRETVBEAM` commands end-to-end.
+- Verify Fire TV reactions to `HOME` and numeric shortcuts over the connected ADB shell, then check reconnect/reboot behavior and soak-test ADB with web/PS3 load.
 - Move raw HID report logs behind a debug flag and finalize the PS3 documentation.
 
 Goal
@@ -1085,7 +1085,7 @@ Status: the scancode map, conversions, 700/200 ms repeat tracker, report parser,
 - Keep the ADB reconnect/command task independent from the control task and input tasks, matching the Python thread.
 - Test navigation, HOME, app shortcuts, and recovery after the Fire TV reboots or changes network state.
 
-Status: the ADB transport, RSA key generation/storage, signature/public-key authentication, `shell:` open, key-command mapping, queue, command injection, and reconnect are implemented in `net/adb.cpp` / `net/adb_keys.cpp` and wired into `control.cpp` and `ir_hub.ino`. Reboot tests confirm the RSA key is loaded from NVS (`ADB key loaded from NVS (1191 bytes)`) instead of regenerated. Debug-firmware logs confirm the full auth exchange works: `AUTH packet type=1 bytes=20`, `signature sent=1 bytes=256`, second token, and `public key sent=1 bytes=714`. Fire TV logcat confirms it receives the key and launches `com.android.systemui/.usb.UsbDebuggingActivity`, but no ESP32 `CNXN`/shell-ready state has been confirmed yet. The fingerprint ending `B3:B2:C3:15:AA` is the correct ESP32 key; the earlier assumption that it belonged to the PC/Raspberry Pi was wrong. Memory tuning uses 4 KB ADB task stack plus 8 KB Arduino loop stack: the heavy key parse runs once from `adb::init()` on the loop stack, while signing stays on the 4 KB ADB task so RSA has enough contiguous heap. Do not raise the ADB task stack; that caused `mbedtls_pk_sign` to fail with `-0x4310`. The auth-wait timeout is currently 300 s so a dialog cannot expire while the user is approving it.
+Status: end-to-end ADB now works. The ESP32 loads its RSA key from NVS, signs the AUTH token, sends its public key, the user approves the dialog ending `B3:B2:C3:15:AA`, and the shell reaches ready state (`GET /adb` returns `adb=connected`). Pressing `HOME` through the web page submits `input keyevent 3` and the connection stays up. Memory tuning is 4 KB ADB task stack plus 8 KB Arduino loop stack; the heavy key parse runs once from `adb::init()`, and control sequence workers were reduced from 4 to 2 to free 4 KB so `mbedtls_pk_sign` no longer fails with `-0x4310` (`MBEDTLS_ERR_MPI_ALLOC_FAILED`). After the public key is sent, reconnect backoff is 60 s so the authorization dialog is not churned every 5 s. Do not raise the ADB task stack; that consumes heap and recreates the signing allocation failure.
 
 ADB findings from real-device tests
 -----------------------------------
@@ -1102,8 +1102,11 @@ ADB findings from real-device tests
 - Opening a pyserial connection to `/dev/ttyUSB0` resets the ESP32. That repeatedly destroyed the live authorized ADB connection before it could be inspected. To verify an approval, keep one serial session open across the approval and send `ADB` on that same session; do not close and reopen the port.
 - The original 60 s auth timeout could expire while the dialog was being approved; it is now 300 s. The ADB task still reconnects every 5 s while disconnected, so avoid leaving host ADB running while testing because it competes for the same dialog.
 - To stop host ADB cleanly, kill by exact process name (`pgrep -x adb`) and do not run `adb disconnect` afterwards, because that starts a new adb server. Keep the Raspberry Pi ADB block in place.
-- Memory headroom changed with the web server: free heap is roughly 17-20 KB at rest and the observed minimum is about 8 KB after repeated HTTP requests. ADB plus web server under load has not yet been soak-tested.
-- Next ADB verification: keep host ADB/Pi quiet, hold one non-resetting serial session open, wait for the dialog ending `15:AA`, approve it, then query `ADB` on that same session. If that works, test `FIRETVBEAM HOME` and numeric shortcuts. If Fire OS still requires a new prompt on every reconnect, change the ADB task to keep the single authorized connection alive indefinitely instead of disconnecting while waiting for auth.
+- After the web server was added, ESP32 serial logs showed `token signing failed: -0x4310` on every AUTH attempt. This is `MBEDTLS_ERR_RSA_PRIVATE_FAILED + MBEDTLS_ERR_MPI_ALLOC_FAILED`, i.e. not enough heap for mbedtls RSA private-op temporaries, not a protocol/key problem. Reducing `kSequenceWorkers` in `control.cpp` from 4 to 2 freed 4 KB and signing succeeded immediately; do not raise the ADB task stack to fix this because that consumes the same heap.
+- Repeated 5 s reconnects while waiting for authorization churned/cancelled the Fire TV dialog. After `public key sent`, the ADB task now backs off to 60 s before retrying; this gave a stable dialog and logcat confirmed `Displayed com.android.systemui/.usb.UsbDebuggingActivity`.
+- Added `GET /adb` and a live ADB status line to the web page so authorization can be checked without opening the serial port. Opening pyserial resets the ESP32 and destroys the live authorized connection, so use `/adb` after approval.
+- End-to-end result: after approving the dialog, `/adb` returned `adb=connected`, heap was about 21 KB with an 11.9 KB minimum, and `/press?button=HOME` returned `ok` while the ADB connection stayed up. ADB plus web server under sustained load still needs a soak test; reducing sequence workers from 4 to 2 also needs behavior verification for overlapping IR sequences.
+- Next ADB checks: confirm the Fire TV screen reacts to `HOME` and numeric shortcuts, verify reconnection after a Fire TV reboot without needing re-approval, and soak-test ADB plus web server plus PS3 input together.
 
 Exit criterion: projector-mode Fire TV navigation works with the same latency as the Pi, and the ESP32 reconnects automatically after a Fire TV reboot.
 

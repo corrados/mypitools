@@ -33,6 +33,8 @@ constexpr uint16_t kAdbPort = 5555;
 constexpr uint32_t kProtocolVersion = 0x01000000U;
 constexpr uint32_t kMaxPayload = 4096U;
 constexpr uint32_t kReconnectMs = 5000U;
+constexpr uint32_t kAuthWaitMs = 60000U;
+constexpr uint32_t kAuthRetryDelayMs = 30000U;
 constexpr uint32_t kConnectTimeoutMs = 2000U;
 constexpr uint32_t kPacketTimeoutMs = 1000U;
 constexpr uint32_t kLocalId = 1U;
@@ -66,6 +68,8 @@ bool s_shell_ready = false;
 uint32_t s_remote_id = 0;
 uint32_t s_last_packet_ms = 0;
 std::atomic<bool> s_connected{false};
+uint32_t s_reconnect_delay_ms = kReconnectMs;
+uint32_t s_auth_wait_deadline_ms = 0;
 
 int rng(void*, unsigned char* buffer, size_t length) {
     for (size_t i = 0; i < length; ++i) {
@@ -296,6 +300,7 @@ void disconnect(const char* reason) {
     s_signature_sent = false;
     s_remote_id = 0;
     s_last_packet_ms = 0;
+    s_auth_wait_deadline_ms = 0;
     s_client.stop();
 
     char key[32] = {};
@@ -360,8 +365,12 @@ bool handle_auth(const Packet& packet) {
     key.push_back('\0');
     const bool sent = send_packet(kCmdAuth, kAuthPublicKey, 0,
                                   reinterpret_cast<const uint8_t*>(key.data()), key.size());
-    ESP_LOGD(TAG, "public key sent=%d bytes=%u", sent ? 1 : 0,
-             static_cast<unsigned>(key.size()));
+    ESP_LOGI(TAG,
+             "public key sent=%d bytes=%u auth wait=%u ms auth backoff=%u ms", sent ? 1 : 0,
+             static_cast<unsigned>(key.size()), static_cast<unsigned>(kAuthWaitMs),
+             static_cast<unsigned>(kAuthRetryDelayMs));
+    s_auth_wait_deadline_ms = millis() + kAuthWaitMs;
+    s_reconnect_delay_ms = kAuthRetryDelayMs;
     return sent;
 }
 
@@ -393,6 +402,11 @@ void adb_task(void*) {
     uint32_t next_attempt_ms = 0;
     while (true) {
         if (s_client.connected()) {
+            if (s_auth_wait_deadline_ms != 0 &&
+                static_cast<int32_t>(millis() - s_auth_wait_deadline_ms) >= 0) {
+                disconnect("auth wait expired");
+                continue;
+            }
             if (s_last_packet_ms != 0 &&
                 static_cast<int32_t>(millis() - s_last_packet_ms) > 300000) {
                 disconnect("auth timeout");
@@ -415,6 +429,8 @@ void adb_task(void*) {
                     }
                     break;
                 case kCmdCnxn:
+                    s_auth_wait_deadline_ms = 0;
+                    s_reconnect_delay_ms = kReconnectMs;
                     ESP_LOGI(TAG, "ADB connected");
                     if (!open_shell()) {
                         disconnect("shell open failed");
@@ -451,7 +467,7 @@ void adb_task(void*) {
             disconnect("link lost");
         }
         if (static_cast<int32_t>(millis() - next_attempt_ms) >= 0) {
-            next_attempt_ms = millis() + kReconnectMs;
+            next_attempt_ms = millis() + s_reconnect_delay_ms;
             if (!connect_and_handshake()) {
                 s_client.stop();
             }

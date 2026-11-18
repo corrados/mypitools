@@ -12,6 +12,7 @@
 #include "config.hpp"
 #include "control/control.hpp"
 #include "input/ps3_remote.hpp"
+#include "net/adb.hpp"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -26,7 +27,7 @@ constexpr size_t kTaskStack = 3072;
 constexpr UBaseType_t kTaskPriority = 3;
 constexpr size_t kRequestBuffer = 512;
 
-constexpr char kIndexPage[] = R"HTML(<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>IR Hub</title><style>body{font:16px system-ui;background:#111;color:#eee;margin:16px}button{font-size:15px;margin:3px;padding:10px 12px;border-radius:8px;border:0;background:#333;color:#fff}button:active{background:#08f}h2{font-size:15px;color:#aaa;margin:14px 0 4px}#status{margin:12px 0;color:#8f8}</style></head><body><h1>IR Hub</h1><div id="status">ready</div><div id="buttons"></div><script>const groups=[["System",["EJECT","PLAYSTATION","SELECT","START","RETURN","BACK","OPTIONS","DISPLAY","TOPMENU","POPUP"]],["Numbers",["1","2","3","4","5","6","7","8","9","0"]],["Navigation",["UP","DOWN","LEFT","RIGHT","OK","AUIDO","ANGLE","SUBTITLE","CLEAR","TIME"]],["Colors",["RED","GREEN","BLUE","YELLOW"]],["Transport",["REWIND","PLAY","FORWARD","PREVIOUS","STOP","NEXT","SLOWREWIND","PAUSE","SLOWFORWARD"]],["Shoulder",["L1","L2","L3","R1","R2","R3","VIEW","X"]]];async function press(b){const r=await fetch('/press?button='+encodeURIComponent(b));document.getElementById('status').textContent=b+': '+await r.text();}const root=document.getElementById('buttons');for(const [name,keys] of groups){const h=document.createElement('h2');h.textContent=name;root.appendChild(h);const row=document.createElement('div');for(const key of keys){const b=document.createElement('button');b.textContent=key;b.onclick=()=>press(key);row.appendChild(b);}root.appendChild(row);}</script></body></html>)HTML";
+constexpr char kIndexPage[] = R"HTML(<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>IR Hub</title><style>body{font:16px system-ui;background:#111;color:#eee;margin:16px}button{font-size:15px;margin:3px;padding:10px 12px;border-radius:8px;border:0;background:#333;color:#fff}button:active{background:#08f}h2{font-size:15px;color:#aaa;margin:14px 0 4px}#status{margin:12px 0;color:#8f8}</style></head><body><h1>IR Hub</h1><div id="status">ready</div><div id="adb">adb: checking...</div><div id="buttons"></div><script>const groups=[["System",["EJECT","PLAYSTATION","SELECT","START","RETURN","BACK","OPTIONS","DISPLAY","TOPMENU","POPUP"]],["Numbers",["1","2","3","4","5","6","7","8","9","0"]],["Navigation",["UP","DOWN","LEFT","RIGHT","OK","AUIDO","ANGLE","SUBTITLE","CLEAR","TIME"]],["Colors",["RED","GREEN","BLUE","YELLOW"]],["Transport",["REWIND","PLAY","FORWARD","PREVIOUS","STOP","NEXT","SLOWREWIND","PAUSE","SLOWFORWARD"]],["Shoulder",["L1","L2","L3","R1","R2","R3","VIEW","X"]]];async function press(b){const r=await fetch('/press?button='+encodeURIComponent(b));document.getElementById('status').textContent=b+': '+await r.text();}async function refreshAdb(){const r=await fetch('/adb');document.getElementById('adb').textContent=await r.text();}setInterval(refreshAdb,2000);refreshAdb();const root=document.getElementById('buttons');for(const [name,keys] of groups){const h=document.createElement('h2');h.textContent=name;root.appendChild(h);const row=document.createElement('div');for(const key of keys){const b=document.createElement('button');b.textContent=key;b.onclick=()=>press(key);row.appendChild(b);}root.appendChild(row);}</script></body></html>)HTML";
 
 int hex_value(char c) {
     if (c >= '0' && c <= '9') {
@@ -142,6 +143,10 @@ void handle_request(int client, const char* request) {
     }
     if (std::strcmp(path, "/favicon.ico") == 0) {
         send_response(client, "204 No Content", "text/plain", "", 0);
+        return;
+    }
+    if (std::strcmp(path, "/adb") == 0) {
+        send_text(client, adb::connected() ? "adb=connected" : "adb=disconnected");
         return;
     }
     if (std::strcmp(path, "/state") == 0) {

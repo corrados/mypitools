@@ -27,7 +27,7 @@ constexpr size_t kTaskStack = 3072;
 constexpr size_t kSequenceTaskStack = 2048;
 constexpr UBaseType_t kTaskPriority = 8;
 constexpr UBaseType_t kSequencePriority = 6;
-constexpr size_t kSequenceWorkers = 4;
+constexpr size_t kSequenceWorkers = 2;
 
 struct SequenceJob {
     SequenceId id;
