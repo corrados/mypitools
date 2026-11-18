@@ -22,7 +22,6 @@
 #include "mbedtls/md5.h"
 #include "mbedtls/pk.h"
 #include "mbedtls/rsa.h"
-#include "mbedtls/sha1.h"
 #include "net/adb_keys.hpp"
 
 namespace irhub::adb {
@@ -50,7 +49,11 @@ constexpr uint32_t kCmdClse = 0x45534c43U;
 constexpr size_t kQueueLength = 16;
 constexpr size_t kTaskStack = 4096;
 constexpr UBaseType_t kTaskPriority = 3;
-constexpr char kAdbUser[] = " ir-hub@esp32";
+#ifdef IR_HUB_HAS_ADB_KEY_SECRET
+constexpr const char* kAdbUser = adb_secret::kAdbKeyUser;
+#else
+constexpr const char* kAdbUser = " ir-hub@esp32";
+#endif
 
 struct Packet {
     uint32_t command = 0;
@@ -160,11 +163,32 @@ bool ensure_key() {
     mbedtls_pk_init(&s_key);
     Preferences preferences;
     preferences.begin("adb", false);
-    const size_t stored_length = preferences.getBytesLength("rsa_der");
+    size_t stored_length = preferences.getBytesLength("rsa_der");
     std::vector<uint8_t> der(stored_length);
     if (stored_length > 0) {
         preferences.getBytes("rsa_der", der.data(), der.size());
     }
+#ifdef IR_HUB_HAS_ADB_KEY_SECRET
+    const bool needs_secret_key =
+        stored_length != adb_secret::kAdbKeyDerLength ||
+        std::memcmp(der.data(), adb_secret::kAdbKeyDer, adb_secret::kAdbKeyDerLength) != 0;
+    if (needs_secret_key) {
+        const size_t written = preferences.putBytes("rsa_der", adb_secret::kAdbKeyDer,
+                                                    adb_secret::kAdbKeyDerLength);
+        preferences.end();
+        if (written != adb_secret::kAdbKeyDerLength) {
+            ESP_LOGE(TAG, "cannot store pre-authorized ADB key");
+            mbedtls_pk_free(&s_key);
+            return false;
+        }
+        der.assign(adb_secret::kAdbKeyDer,
+                   adb_secret::kAdbKeyDer + adb_secret::kAdbKeyDerLength);
+        stored_length = adb_secret::kAdbKeyDerLength;
+        preferences.begin("adb", false);
+        ESP_LOGI(TAG, "ADB key replaced with pre-authorized key (%u bytes)",
+                 static_cast<unsigned>(stored_length));
+    }
+#endif
     preferences.end();
 
     int result = 0;
@@ -214,13 +238,13 @@ bool ensure_key() {
 }
 
 bool sign_token(const uint8_t* token, size_t length, std::vector<uint8_t>& signature) {
-    uint8_t hash[20] = {};
-    mbedtls_sha1(token, length, hash);
+    if (length != 20) {
+        return false;
+    }
     signature.resize(256);
     size_t signature_length = 0;
-    const int result = mbedtls_pk_sign(&s_key, MBEDTLS_MD_SHA1, hash, sizeof(hash),
-                                       signature.data(), signature.size(), &signature_length, rng,
-                                       nullptr);
+    const int result = mbedtls_pk_sign(&s_key, MBEDTLS_MD_SHA1, token, length, signature.data(),
+                                       signature.size(), &signature_length, rng, nullptr);
     if (result != 0) {
         ESP_LOGE(TAG, "token signing failed: -0x%04x", static_cast<unsigned>(-result));
         return false;
