@@ -46,9 +46,9 @@ constexpr uint32_t kCmdOpen = 0x4e45504fU;
 constexpr uint32_t kCmdOkay = 0x59414b4fU;
 constexpr uint32_t kCmdWrte = 0x45545257U;
 constexpr uint32_t kCmdClse = 0x45534c43U;
-constexpr size_t kQueueLength = 32;
+constexpr size_t kQueueLength = 64;
 constexpr size_t kTaskStack = 4096;
-constexpr UBaseType_t kTaskPriority = 3;
+constexpr UBaseType_t kTaskPriority = 2;
 #ifdef IR_HUB_HAS_ADB_KEY_SECRET
 constexpr const char* kAdbUser = adb_secret::kAdbKeyUser;
 #else
@@ -404,50 +404,21 @@ bool open_shell() {
                        sizeof(kService));
 }
 
-bool send_batch(const char* batch, size_t length) {
-    if (!send_packet(kCmdWrte, kLocalId, s_remote_id,
-                     reinterpret_cast<const uint8_t*>(batch), length)) {
-        disconnect("write failed");
-        return false;
-    }
-    const size_t shown = length < 160 ? length : 160;
-    ESP_LOGI(TAG, "shell batch %u: %.*s", static_cast<unsigned>(length),
-             static_cast<int>(shown), batch);
-    return true;
-}
-
 void send_queued_commands() {
-    static char batch[1024];
-    size_t used = 0;
-    size_t count = 0;
-    while (s_shell_ready && count < 4) {
-        char key[32] = {};
-        if (xQueueReceive(s_queue, key, 0) != pdTRUE) {
-            break;
-        }
+    char key[32] = {};
+    while (s_shell_ready && xQueueReceive(s_queue, key, 0) == pdTRUE) {
         char command[256] = {};
         if (!build_shell_command(key, command, sizeof(command))) {
             ESP_LOGW(TAG, "invalid command '%s'", key);
             continue;
         }
         const size_t length = std::strlen(command);
-        if (used + length >= sizeof(batch)) {
-            if (used > 0) {
-                if (!send_batch(batch, used)) {
-                    return;
-                }
-                used = 0;
-            }
-            if (length >= sizeof(batch)) {
-                continue;
-            }
+        if (!send_packet(kCmdWrte, kLocalId, s_remote_id,
+                         reinterpret_cast<const uint8_t*>(command), length)) {
+            disconnect("write failed");
+            return;
         }
-        std::memcpy(batch + used, command, length);
-        used += length;
-        ++count;
-    }
-    if (used > 0) {
-        send_batch(batch, used);
+        ESP_LOGD(TAG, "shell: %s", command);
     }
 }
 

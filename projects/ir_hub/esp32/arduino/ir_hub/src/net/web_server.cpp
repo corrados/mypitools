@@ -216,26 +216,25 @@ void close_client(Client& client) {
 }
 
 void accept_clients(int server) {
-    if (s_client.fd >= 0) {
-        return;
+    while (s_client.fd < 0) {
+        const int fd = accept(server, nullptr, nullptr);
+        if (fd < 0) {
+            return;
+        }
+        char* request = new (std::nothrow) char[kRequestBuffer]();
+        char* response = new (std::nothrow) char[kResponseBuffer]();
+        if (request == nullptr || response == nullptr) {
+            delete[] request;
+            delete[] response;
+            close(fd);
+            return;
+        }
+        set_nonblocking(fd);
+        s_client.fd = fd;
+        s_client.request = request;
+        s_client.response = response;
+        s_client.last_active = millis();
     }
-    const int fd = accept(server, nullptr, nullptr);
-    if (fd < 0) {
-        return;
-    }
-    char* request = new (std::nothrow) char[kRequestBuffer]();
-    char* response = new (std::nothrow) char[kResponseBuffer]();
-    if (request == nullptr || response == nullptr) {
-        delete[] request;
-        delete[] response;
-        close(fd);
-        return;
-    }
-    set_nonblocking(fd);
-    s_client.fd = fd;
-    s_client.request = request;
-    s_client.response = response;
-    s_client.last_active = millis();
 }
 
 void service_client(Client& client, fd_set& read_set, fd_set& write_set) {
@@ -316,7 +315,7 @@ void web_task(void*) {
         vTaskDelete(nullptr);
         return;
     }
-    if (listen(server, 8) != 0) {
+    if (listen(server, 64) != 0) {
         ESP_LOGE(TAG, "listen failed: %s", std::strerror(errno));
         close(server);
         vTaskDelete(nullptr);
