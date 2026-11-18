@@ -441,6 +441,7 @@ void adb_task(void*) {
                 if (!s_client.connected()) {
                     disconnect("connection closed");
                 }
+                send_queued_commands();
                 vTaskDelay(pdMS_TO_TICKS(10));
                 continue;
             }
