@@ -7,6 +7,8 @@
 namespace irhub::adb {
 namespace {
 
+constexpr char kEventDevice[] = "/dev/input/event1";
+
 bool copy_command(const char* command, char* out, size_t out_size) {
     if (command == nullptr || out == nullptr || out_size == 0) {
         return false;
@@ -57,12 +59,11 @@ bool build_shell_command(const char* key, char* out, size_t out_size) {
         return false;
     }
 
-    const int written = std::snprintf(
-        out, out_size,
-        "f=$(getevent -il 2>/dev/null | awk '/add device/{d=$NF} /Amazon Fire TV Remote/{print d; exit}'); "
-        "[ -n \"$f\" ] && sendevent $f 1 %s 1 && sendevent $f 0 0 0 &&"
-        "sendevent $f 1 %s 0 && sendevent $f 0 0 0\n",
-        key, key);
+    const int written = std::snprintf(out, out_size,
+                                      "sendevent %s 1 %s 1 && sendevent %s 0 0 0 &&"
+                                      "sendevent %s 1 %s 0 && sendevent %s 0 0 0\n",
+                                      kEventDevice, key, kEventDevice, kEventDevice, key,
+                                      kEventDevice);
     return written > 0 && static_cast<size_t>(written) < out_size;
 }
 

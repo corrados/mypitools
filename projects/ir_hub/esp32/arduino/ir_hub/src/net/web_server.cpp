@@ -208,7 +208,7 @@ void build_response_impl(Client& client) {
             prepare_text(client, "error");
             return;
         }
-        ESP_LOGI(TAG, "received %s -> %s", button, command);
+        ESP_LOGD(TAG, "received %s -> %s", button, command);
         prepare_response(client, "204 No Content", "text/plain", "", 0);
         return;
     }

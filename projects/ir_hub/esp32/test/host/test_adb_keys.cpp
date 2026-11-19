@@ -34,9 +34,8 @@ void test_numeric_command() {
     char out[256] = {};
     assert(irhub::adb::build_shell_command("103", out, sizeof(out)));
     assert(equals(
-        "f=$(getevent -il 2>/dev/null | awk '/add device/{d=$NF} /Amazon Fire TV Remote/{print d; exit}'); "
-        "[ -n \"$f\" ] && sendevent $f 1 103 1 && sendevent $f 0 0 0 &&"
-        "sendevent $f 1 103 0 && sendevent $f 0 0 0\n",
+        "sendevent /dev/input/event1 1 103 1 && sendevent /dev/input/event1 0 0 0 &&"
+        "sendevent /dev/input/event1 1 103 0 && sendevent /dev/input/event1 0 0 0\n",
         out));
 }
 
