@@ -48,7 +48,8 @@ constexpr uint32_t kCmdOkay = 0x59414b4fU;
 constexpr uint32_t kCmdWrte = 0x45545257U;
 constexpr uint32_t kCmdClse = 0x45534c43U;
 constexpr size_t kQueueLength = 64;
-constexpr size_t kMaxInFlight = 8;
+constexpr size_t kMaxInFlight = 16;
+constexpr size_t kSendBatch = 4;
 constexpr size_t kTaskStack = 4096;
 constexpr UBaseType_t kTaskPriority = 2;
 #ifdef IR_HUB_HAS_ADB_KEY_SECRET
@@ -488,7 +489,8 @@ bool open_shell() {
 
 void send_queued_commands() {
     AdbItem item = {};
-    while (s_shell_ready && in_flight_count() < kMaxInFlight &&
+    size_t sent = 0;
+    while (s_shell_ready && sent < kSendBatch && in_flight_count() < kMaxInFlight &&
            xQueueReceive(s_queue, &item, 0) == pdTRUE) {
         char command[256] = {};
         if (!build_shell_command(item.key, command, sizeof(command))) {
@@ -505,6 +507,7 @@ void send_queued_commands() {
             return;
         }
         push_sent_time(micros());
+        ++sent;
         ESP_LOGD(TAG, "shell: %s", command);
     }
 }
