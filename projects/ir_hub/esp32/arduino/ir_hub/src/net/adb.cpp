@@ -36,7 +36,6 @@ constexpr uint32_t kAuthWaitMs = 60000U;
 constexpr uint32_t kAuthRetryDelayMs = 30000U;
 constexpr uint32_t kConnectTimeoutMs = 2000U;
 constexpr uint32_t kPacketTimeoutMs = 1000U;
-constexpr uint32_t kShellCommandTimeoutMs = 3000U;
 constexpr size_t kShellTailLength = 64;
 constexpr uint32_t kLocalId = 1U;
 constexpr uint32_t kAuthToken = 1U;
@@ -49,6 +48,7 @@ constexpr uint32_t kCmdOkay = 0x59414b4fU;
 constexpr uint32_t kCmdWrte = 0x45545257U;
 constexpr uint32_t kCmdClse = 0x45534c43U;
 constexpr size_t kQueueLength = 64;
+constexpr size_t kMaxInFlight = 8;
 constexpr size_t kTaskStack = 4096;
 constexpr UBaseType_t kTaskPriority = 2;
 #ifdef IR_HUB_HAS_ADB_KEY_SECRET
@@ -75,17 +75,44 @@ mbedtls_pk_context s_key = {};
 bool s_key_ready = false;
 bool s_signature_sent = false;
 bool s_shell_ready = false;
-bool s_shell_busy = false;
-uint32_t s_shell_command_ms = 0;
-uint32_t s_shell_command_us = 0;
 char s_shell_tail[kShellTailLength] = {};
 size_t s_shell_tail_length = 0;
+uint32_t s_sent_us[kQueueLength] = {};
+size_t s_sent_head = 0;
+size_t s_sent_tail = 0;
 uint32_t s_remote_id = 0;
 uint32_t s_last_packet_ms = 0;
 std::atomic<bool> s_connected{false};
 uint32_t s_reconnect_delay_ms = kReconnectMs;
 uint32_t s_auth_wait_deadline_ms = 0;
 AdbStats s_stats;
+
+void clear_sent_times() {
+    s_sent_head = 0;
+    s_sent_tail = 0;
+}
+
+size_t in_flight_count() {
+    return (s_sent_tail + kQueueLength - s_sent_head) % kQueueLength;
+}
+
+void push_sent_time(uint32_t sent_us) {
+    const size_t next = (s_sent_tail + 1) % kQueueLength;
+    if (next == s_sent_head) {
+        s_sent_head = (s_sent_head + 1) % kQueueLength;
+    }
+    s_sent_us[s_sent_tail] = sent_us;
+    s_sent_tail = next;
+}
+
+uint32_t pop_sent_time() {
+    if (s_sent_head == s_sent_tail) {
+        return 0;
+    }
+    const uint32_t sent_us = s_sent_us[s_sent_head];
+    s_sent_head = (s_sent_head + 1) % kQueueLength;
+    return sent_us;
+}
 
 int rng(void*, unsigned char* buffer, size_t length) {
     for (size_t i = 0; i < length; ++i) {
@@ -331,9 +358,6 @@ bool public_key(std::string& out) {
 }
 
 void reset_shell_output() {
-    s_shell_busy = false;
-    s_shell_command_ms = 0;
-    s_shell_command_us = 0;
     s_shell_tail_length = 0;
     s_shell_tail[0] = '\0';
 }
@@ -361,8 +385,9 @@ void observe_shell_output(const Packet& packet) {
 
     for (size_t i = 0; i + 1 < length; ++i) {
         if ((combined[i] == '$' || combined[i] == '#') && combined[i + 1] == ' ') {
-            if (s_shell_busy && s_shell_command_us != 0) {
-                s_stats.round_trip.add(micros() - s_shell_command_us);
+            const uint32_t sent_us = pop_sent_time();
+            if (sent_us != 0) {
+                s_stats.round_trip.add(micros() - sent_us);
             }
             reset_shell_output();
             return;
@@ -374,6 +399,7 @@ void disconnect(const char* reason) {
     ESP_LOGI(TAG, "disconnected: %s", reason);
     s_connected.store(false);
     s_shell_ready = false;
+    clear_sent_times();
     reset_shell_output();
     s_signature_sent = false;
     s_remote_id = 0;
@@ -412,6 +438,7 @@ bool connect_and_handshake() {
 
     s_signature_sent = false;
     s_shell_ready = false;
+    clear_sent_times();
     reset_shell_output();
     s_remote_id = 0;
     s_last_packet_ms = millis();
@@ -461,7 +488,8 @@ bool open_shell() {
 
 void send_queued_commands() {
     AdbItem item = {};
-    while (s_shell_ready && !s_shell_busy && xQueueReceive(s_queue, &item, 0) == pdTRUE) {
+    while (s_shell_ready && in_flight_count() < kMaxInFlight &&
+           xQueueReceive(s_queue, &item, 0) == pdTRUE) {
         char command[256] = {};
         if (!build_shell_command(item.key, command, sizeof(command))) {
             ESP_LOGW(TAG, "invalid command '%s'", item.key);
@@ -476,9 +504,7 @@ void send_queued_commands() {
             disconnect("write failed");
             return;
         }
-        s_shell_busy = true;
-        s_shell_command_ms = millis();
-        s_shell_command_us = micros();
+        push_sent_time(micros());
         ESP_LOGD(TAG, "shell: %s", command);
     }
 }
@@ -487,13 +513,6 @@ void adb_task(void*) {
     uint32_t next_attempt_ms = 0;
     while (true) {
         if (s_client.connected()) {
-            if (s_shell_busy && s_shell_command_ms != 0 &&
-                static_cast<int32_t>(millis() - s_shell_command_ms) >
-                    static_cast<int32_t>(kShellCommandTimeoutMs)) {
-                ESP_LOGW(TAG, "shell command timeout");
-                ++s_stats.timeouts;
-                reset_shell_output();
-            }
             if (s_auth_wait_deadline_ms != 0 &&
                 static_cast<int32_t>(millis() - s_auth_wait_deadline_ms) >= 0) {
                 disconnect("auth wait expired");
@@ -543,6 +562,7 @@ void adb_task(void*) {
                         s_remote_id = packet.arg0;
                         s_shell_ready = true;
                         s_connected.store(true);
+                        clear_sent_times();
                         reset_shell_output();
                         ESP_LOGI(TAG, "shell ready");
                     }
