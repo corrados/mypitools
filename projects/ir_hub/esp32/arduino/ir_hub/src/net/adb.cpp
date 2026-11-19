@@ -62,8 +62,11 @@ struct Packet {
     uint32_t command = 0;
     uint32_t arg0 = 0;
     uint32_t arg1 = 0;
-    std::vector<uint8_t> data;
+    const uint8_t* data = nullptr;
+    size_t length = 0;
 };
+
+uint8_t s_packet_buffer[kMaxPayload] = {};
 
 struct AdbItem {
     char key[32];
@@ -76,7 +79,7 @@ mbedtls_pk_context s_key = {};
 bool s_key_ready = false;
 bool s_signature_sent = false;
 bool s_shell_ready = false;
-char s_shell_tail[kShellTailLength] = {};
+char s_shell_tail[kShellTailLength + 1] = {};
 size_t s_shell_tail_length = 0;
 uint32_t s_sent_us[kQueueLength] = {};
 size_t s_sent_head = 0;
@@ -189,11 +192,12 @@ bool read_packet(Packet& packet) {
         return false;
     }
 
-    packet.data.resize(length);
-    if (length > 0 && s_client.readBytes(packet.data.data(), length) != length) {
+    packet.data = s_packet_buffer;
+    packet.length = length;
+    if (length > 0 && s_client.readBytes(s_packet_buffer, length) != length) {
         return false;
     }
-    return checksum(packet.data.data(), length) == expected_checksum;
+    return checksum(packet.data, length) == expected_checksum;
 }
 
 bool ensure_key() {
@@ -364,7 +368,7 @@ void reset_shell_output() {
 }
 
 void observe_shell_output(const Packet& packet) {
-    if (packet.data.empty()) {
+    if (packet.length == 0) {
         return;
     }
     char combined[kShellTailLength + 128] = {};
@@ -374,8 +378,8 @@ void observe_shell_output(const Packet& packet) {
         length = s_shell_tail_length;
     }
     const size_t available = sizeof(combined) - length - 1;
-    const size_t received = packet.data.size() < available ? packet.data.size() : available;
-    std::memcpy(combined + length, packet.data.data(), received);
+    const size_t received = packet.length < available ? packet.length : available;
+    std::memcpy(combined + length, packet.data, received);
     length += received;
     combined[length] = '\0';
 
@@ -448,13 +452,13 @@ bool connect_and_handshake() {
 
 bool handle_auth(const Packet& packet) {
     ESP_LOGD(TAG, "AUTH packet type=%u bytes=%u", static_cast<unsigned>(packet.arg0),
-             static_cast<unsigned>(packet.data.size()));
-    if (packet.arg0 != kAuthToken || packet.data.size() < 16) {
+             static_cast<unsigned>(packet.length));
+    if (packet.arg0 != kAuthToken || packet.length < 16) {
         return true;
     }
     if (!s_signature_sent) {
         std::vector<uint8_t> signature;
-        if (!sign_token(packet.data.data(), packet.data.size(), signature)) {
+        if (!sign_token(packet.data, packet.length, signature)) {
             return false;
         }
         s_signature_sent = true;
@@ -515,6 +519,7 @@ void send_queued_commands() {
 void adb_task(void*) {
     uint32_t next_attempt_ms = 0;
     while (true) {
+      try {
         if (s_client.connected()) {
             if (s_auth_wait_deadline_ms != 0 &&
                 static_cast<int32_t>(millis() - s_auth_wait_deadline_ms) >= 0) {
@@ -595,6 +600,11 @@ void adb_task(void*) {
             }
         }
         vTaskDelay(pdMS_TO_TICKS(50));
+      } catch (...) {
+        ESP_LOGE(TAG, "adb task exception; reconnecting");
+        disconnect("exception");
+        vTaskDelay(pdMS_TO_TICKS(50));
+      }
     }
 }
 

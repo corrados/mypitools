@@ -16,6 +16,7 @@
 #include "input/ps3_remote.hpp"
 #include "net/adb.hpp"
 #include "esp_log.h"
+#include "esp_system.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "lwip/inet.h"
@@ -25,7 +26,7 @@ namespace irhub::web_server {
 namespace {
 
 constexpr char TAG[] = "web";
-constexpr size_t kTaskStack = 3072;
+constexpr size_t kTaskStack = 4096;
 constexpr UBaseType_t kTaskPriority = 3;
 constexpr size_t kRequestBuffer = 384;
 constexpr size_t kResponseBuffer = 2048;
@@ -46,6 +47,8 @@ struct Client {
 
 Client s_client;
 WebStats s_web_stats;
+char s_request_buffer[kRequestBuffer] = {};
+char s_response_buffer[kResponseBuffer] = {};
 
 bool would_block() {
     return errno == EAGAIN || errno == EWOULDBLOCK || errno == EINPROGRESS;
@@ -179,15 +182,16 @@ void build_response_impl(Client& client) {
         return;
     }
     if (std::strcmp(path, "/heap") == 0) {
-        char body[64] = {};
-        std::snprintf(body, sizeof(body), "heap=%u min=%u",
+        char body[96] = {};
+        std::snprintf(body, sizeof(body), "heap=%u min=%u rst=%u",
                       static_cast<unsigned>(ESP.getFreeHeap()),
-                      static_cast<unsigned>(ESP.getMinFreeHeap()));
+                      static_cast<unsigned>(ESP.getMinFreeHeap()),
+                      static_cast<unsigned>(esp_reset_reason()));
         prepare_text(client, body);
         return;
     }
     if (std::strcmp(path, "/latency") == 0) {
-        char body[1024] = {};
+        static char body[768];
         format_stats(body, sizeof(body));
         prepare_text(client, body);
         return;
@@ -229,11 +233,16 @@ void close_client(Client& client) {
         s_web_stats.tx.add(micros() - client.response_us);
     }
     if (client.fd >= 0) {
+        char discard[64];
+        while (recv(client.fd, discard, sizeof(discard), MSG_DONTWAIT) > 0) {
+        }
         close(client.fd);
     }
-    delete[] client.request;
-    delete[] client.response;
-    client = Client{};
+    client.fd = -1;
+    client.request_length = 0;
+    client.response_length = 0;
+    client.response_offset = 0;
+    client.response_us = 0;
 }
 
 void accept_clients(int server) {
@@ -242,23 +251,21 @@ void accept_clients(int server) {
         if (fd < 0) {
             return;
         }
-        char* request = new (std::nothrow) char[kRequestBuffer]();
-        char* response = new (std::nothrow) char[kResponseBuffer]();
-        if (request == nullptr || response == nullptr) {
-            delete[] request;
-            delete[] response;
-            close(fd);
-            return;
-        }
         set_nonblocking(fd);
+        s_request_buffer[0] = '\0';
+        s_response_buffer[0] = '\0';
         s_client.fd = fd;
-        s_client.request = request;
-        s_client.response = response;
+        s_client.request = s_request_buffer;
+        s_client.response = s_response_buffer;
+        s_client.request_length = 0;
+        s_client.response_length = 0;
+        s_client.response_offset = 0;
+        s_client.response_us = 0;
         s_client.last_active = millis();
     }
 }
 
-void service_client(Client& client, fd_set& read_set, fd_set& write_set) {
+void service_client(Client& client) {
     if (client.fd < 0) {
         return;
     }
@@ -269,11 +276,8 @@ void service_client(Client& client, fd_set& read_set, fd_set& write_set) {
     }
 
     if (client.response_length > client.response_offset) {
-        if (!FD_ISSET(client.fd, &write_set)) {
-            return;
-        }
         const int written = send(client.fd, client.response + client.response_offset,
-                                 client.response_length - client.response_offset, 0);
+                                 client.response_length - client.response_offset, MSG_DONTWAIT);
         if (written > 0) {
             client.response_offset += static_cast<size_t>(written);
             client.last_active = millis();
@@ -286,12 +290,9 @@ void service_client(Client& client, fd_set& read_set, fd_set& write_set) {
         return;
     }
 
-    if (!FD_ISSET(client.fd, &read_set)) {
-        return;
-    }
     while (client.request_length + 1 < kRequestBuffer) {
         const int received = recv(client.fd, client.request + client.request_length,
-                                  kRequestBuffer - client.request_length - 1, 0);
+                                  kRequestBuffer - client.request_length - 1, MSG_DONTWAIT);
         if (received > 0) {
             client.request_length += static_cast<size_t>(received);
             client.request[client.request_length] = '\0';
@@ -362,15 +363,12 @@ void web_task(void*) {
         }
 
         struct timeval timeout = {};
-        timeout.tv_usec = 250000;
-        const int ready = select(max_fd + 1, &read_set, &write_set, nullptr, &timeout);
-        if (ready <= 0) {
-            continue;
-        }
+        timeout.tv_usec = 50000;
+        select(max_fd + 1, &read_set, &write_set, nullptr, &timeout);
         if (FD_ISSET(server, &read_set)) {
             accept_clients(server);
         }
-        service_client(s_client, read_set, write_set);
+        service_client(s_client);
     }
 }
 
