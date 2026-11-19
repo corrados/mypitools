@@ -30,8 +30,9 @@ namespace {
 constexpr char TAG[] = "adb";
 constexpr uint16_t kAdbPort = 5555;
 constexpr uint32_t kProtocolVersion = 0x01000000U;
-constexpr uint32_t kMaxPayload = 4096U;
+constexpr uint32_t kMaxPayload = 1024U;
 constexpr uint32_t kReconnectMs = 5000U;
+constexpr size_t kMaxInFlight = 8;
 constexpr uint32_t kAuthWaitMs = 60000U;
 constexpr uint32_t kAuthRetryDelayMs = 30000U;
 constexpr uint32_t kConnectTimeoutMs = 2000U;
@@ -48,7 +49,6 @@ constexpr uint32_t kCmdOkay = 0x59414b4fU;
 constexpr uint32_t kCmdWrte = 0x45545257U;
 constexpr uint32_t kCmdClse = 0x45534c43U;
 constexpr size_t kQueueLength = 64;
-constexpr size_t kMaxInFlight = 16;
 constexpr size_t kSendBatch = 4;
 constexpr size_t kTaskStack = 4096;
 constexpr UBaseType_t kTaskPriority = 2;
@@ -387,17 +387,6 @@ void observe_shell_output(const Packet& packet) {
     std::memcpy(s_shell_tail, combined + length - tail_length, tail_length);
     s_shell_tail[tail_length] = '\0';
     s_shell_tail_length = tail_length;
-
-    for (size_t i = 0; i + 1 < length; ++i) {
-        if ((combined[i] == '$' || combined[i] == '#') && combined[i + 1] == ' ') {
-            const uint32_t sent_us = pop_sent_time();
-            if (sent_us != 0) {
-                s_stats.round_trip.add(micros() - sent_us);
-            }
-            reset_shell_output();
-            return;
-        }
-    }
 }
 
 void disconnect(const char* reason) {
@@ -573,6 +562,11 @@ void adb_task(void*) {
                         clear_sent_times();
                         reset_shell_output();
                         ESP_LOGI(TAG, "shell ready");
+                    } else if (s_shell_ready && packet.arg1 == kLocalId) {
+                        const uint32_t sent_us = pop_sent_time();
+                        if (sent_us != 0) {
+                            s_stats.round_trip.add(micros() - sent_us);
+                        }
                     }
                     break;
                 case kCmdWrte:

@@ -254,9 +254,6 @@ void build_response(Client& client) {
 }
 
 void close_client(Client& client) {
-    if (client.response_us != 0) {
-        s_web_stats.tx.add(micros() - client.response_us);
-    }
     if (client.fd >= 0) {
         char discard[64];
         while (recv(client.fd, discard, sizeof(discard), MSG_DONTWAIT) > 0) {
@@ -308,6 +305,8 @@ void service_client(Client& client) {
             client.response_offset += static_cast<size_t>(written);
             client.last_active = millis();
             if (client.response_offset >= client.response_length) {
+                s_web_stats.tx.add(micros() - client.response_us);
+                client.response_us = 0;
                 if (client.keep_alive) {
                     client.request_length = 0;
                     client.response_length = 0;
