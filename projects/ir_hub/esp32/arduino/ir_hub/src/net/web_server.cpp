@@ -27,8 +27,8 @@ namespace {
 constexpr char TAG[] = "web";
 constexpr size_t kTaskStack = 3072;
 constexpr UBaseType_t kTaskPriority = 3;
-constexpr size_t kRequestBuffer = 512;
-constexpr size_t kResponseBuffer = 2304;
+constexpr size_t kRequestBuffer = 384;
+constexpr size_t kResponseBuffer = 2048;
 constexpr uint32_t kClientTimeoutMs = 10000;
 
 constexpr char kIndexPage[] = R"HTML(<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>IR Hub</title><style>body{font:16px system-ui;background:#111;color:#eee;margin:16px}button{font-size:15px;margin:3px;padding:10px 12px;border-radius:8px;border:0;background:#333;color:#fff}button:active{background:#08f}h2{font-size:15px;color:#aaa;margin:14px 0 4px}#status{margin:12px 0;color:#8f8}</style></head><body><h1>IR Hub</h1><div id="status">ready</div><div id="buttons"></div><script>const groups=[["System",["EJECT","PLAYSTATION","SELECT","START","RETURN","BACK","OPTIONS","DISPLAY","TOPMENU","POPUP"]],["Numbers",["1","2","3","4","5","6","7","8","9","0"]],["Navigation",["UP","DOWN","LEFT","RIGHT","OK","AUIDO","ANGLE","SUBTITLE","CLEAR","TIME"]],["Colors",["RED","GREEN","BLUE","YELLOW"]],["Transport",["REWIND","PLAY","FORWARD","PREVIOUS","STOP","NEXT","SLOWREWIND","PAUSE","SLOWFORWARD"]],["Shoulder",["L1","L2","L3","R1","R2","R3","VIEW","X"]]];function press(b){fetch('/press?button='+encodeURIComponent(b));document.getElementById('status').textContent=b+': sent';}const root=document.getElementById('buttons');for(const [name,keys] of groups){const h=document.createElement('h2');h.textContent=name;root.appendChild(h);const row=document.createElement('div');for(const key of keys){const b=document.createElement('button');b.textContent=key;b.onclick=()=>press(key);row.appendChild(b);}root.appendChild(row);}</script></body></html>)HTML";
@@ -40,10 +40,12 @@ struct Client {
     char* response = nullptr;
     size_t response_length = 0;
     size_t response_offset = 0;
+    uint32_t response_us = 0;
     uint32_t last_active = 0;
 };
 
 Client s_client;
+WebStats s_web_stats;
 
 bool would_block() {
     return errno == EAGAIN || errno == EWOULDBLOCK || errno == EINPROGRESS;
@@ -139,7 +141,7 @@ bool prepare_text(Client& client, const char* text) {
     return prepare_response(client, "200 OK", "text/plain; charset=utf-8", text, std::strlen(text));
 }
 
-void build_response(Client& client) {
+void build_response_impl(Client& client) {
     char target[128] = {};
     if (!request_target(client.request, target, sizeof(target))) {
         prepare_response(client, "400 Bad Request", "text/plain; charset=utf-8", "bad request", 11);
@@ -184,6 +186,12 @@ void build_response(Client& client) {
         prepare_text(client, body);
         return;
     }
+    if (std::strcmp(path, "/latency") == 0) {
+        char body[1024] = {};
+        format_stats(body, sizeof(body));
+        prepare_text(client, body);
+        return;
+    }
     if (std::strcmp(path, "/press") == 0 && query != nullptr) {
         const char* encoded = std::strstr(query, "button=");
         char button[32] = {};
@@ -195,6 +203,7 @@ void build_response(Client& client) {
                        [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
         const char* command = input::ps3_convert(button);
         if (!control::post(command, control::ButtonSource::Internal)) {
+            ++s_web_stats.dropped;
             ESP_LOGW(TAG, "control queue full, dropped %s -> %s", button, command);
             prepare_text(client, "error");
             return;
@@ -206,7 +215,19 @@ void build_response(Client& client) {
     prepare_response(client, "404 Not Found", "text/plain; charset=utf-8", "not found", 9);
 }
 
+void build_response(Client& client) {
+    const uint32_t started = micros();
+    build_response_impl(client);
+    if (client.response_length > 0) {
+        s_web_stats.handle.add(micros() - started);
+        client.response_us = micros();
+    }
+}
+
 void close_client(Client& client) {
+    if (client.response_us != 0) {
+        s_web_stats.tx.add(micros() - client.response_us);
+    }
     if (client.fd >= 0) {
         close(client.fd);
     }
@@ -315,7 +336,7 @@ void web_task(void*) {
         vTaskDelete(nullptr);
         return;
     }
-    if (listen(server, 64) != 0) {
+    if (listen(server, 32) != 0) {
         ESP_LOGE(TAG, "listen failed: %s", std::strerror(errno));
         close(server);
         vTaskDelete(nullptr);
@@ -354,6 +375,32 @@ void web_task(void*) {
 }
 
 }  // namespace
+
+size_t format_stats(char* out, size_t size) {
+    const control::ControlStats& control_stats = control::stats();
+    const adb::AdbStats& adb_stats = adb::stats();
+    size_t offset = 0;
+    char line[160] = {};
+    diag::format("web.handle", s_web_stats.handle, line, sizeof(line));
+    offset += static_cast<size_t>(std::snprintf(out + offset, size - offset, "%s\n", line));
+    diag::format("web.tx", s_web_stats.tx, line, sizeof(line));
+    offset += static_cast<size_t>(std::snprintf(out + offset, size - offset, "%s\n", line));
+    diag::format("control.wait", control_stats.queue_wait, line, sizeof(line));
+    offset += static_cast<size_t>(std::snprintf(out + offset, size - offset, "%s\n", line));
+    diag::format("control.exec", control_stats.handler, line, sizeof(line));
+    offset += static_cast<size_t>(std::snprintf(out + offset, size - offset, "%s\n", line));
+    diag::format("adb.wait", adb_stats.queue_wait, line, sizeof(line));
+    offset += static_cast<size_t>(std::snprintf(out + offset, size - offset, "%s\n", line));
+    diag::format("adb.rtt", adb_stats.round_trip, line, sizeof(line));
+    offset += static_cast<size_t>(std::snprintf(out + offset, size - offset, "%s\n", line));
+    offset += static_cast<size_t>(
+        std::snprintf(out + offset, size - offset, "drops web=%u control=%u adb=%u adb_timeouts=%u\n",
+                      static_cast<unsigned>(s_web_stats.dropped),
+                      static_cast<unsigned>(control_stats.dropped),
+                      static_cast<unsigned>(adb_stats.dropped),
+                      static_cast<unsigned>(adb_stats.timeouts)));
+    return offset;
+}
 
 esp_err_t start() {
     const BaseType_t result = xTaskCreate(web_task, "web", kTaskStack, nullptr, kTaskPriority, nullptr);

@@ -77,6 +77,10 @@ void handle_serial_command() {
                                   static_cast<unsigned>(ESP.getMinFreeHeap()));
                 } else if (std::strcmp(command, "TASKS") == 0) {
                     print_tasks();
+                } else if (std::strcmp(command, "LATENCY") == 0) {
+                    char stats[1024] = {};
+                    irhub::web_server::format_stats(stats, sizeof(stats));
+                    Serial.printf("%s", stats);
                 } else if (std::strcmp(command, "IP") == 0) {
                     Serial.printf("wifi=%d ip=%s rssi=%d\n", static_cast<int>(WiFi.status()),
                                   WiFi.localIP().toString().c_str(), WiFi.RSSI());
@@ -115,6 +119,13 @@ void setup() {
     require_ok(irhub::ir::start(), "ir::start");
     require_ok(irhub::radio_socket::start(), "radio_socket::start");
     require_ok(irhub::adb::start(), "adb::start");
+    require_ok(irhub::script_server::start(), "script_server::start");
+    require_ok(irhub::web_server::start(), "web_server::start");
+    Serial.println("Web ready; waiting for ADB before Bluetooth");
+    for (uint32_t waited = 0; waited < 15000 && !irhub::adb::connected(); waited += 100) {
+        delay(100);
+    }
+    ESP_LOGI(TAG, "ADB ready before PS3 init: %d", irhub::adb::connected() ? 1 : 0);
     ESP_LOGI(TAG, "free heap before PS3 init: %u", static_cast<unsigned>(ESP.getFreeHeap()));
     const esp_err_t ps3_err = irhub::input::init();
     if (ps3_err != ESP_OK) {
@@ -122,8 +133,6 @@ void setup() {
         Serial.printf("PS3 remote init failed: %s\n", esp_err_to_name(ps3_err));
     }
     ESP_LOGI(TAG, "free heap after init: %u", static_cast<unsigned>(ESP.getFreeHeap()));
-    require_ok(irhub::script_server::start(), "script_server::start");
-    require_ok(irhub::web_server::start(), "web_server::start");
     Serial.println("IR hub started");
     Serial.println("Send a button name or 'IR DEVICE COMMAND' followed by newline");
 }

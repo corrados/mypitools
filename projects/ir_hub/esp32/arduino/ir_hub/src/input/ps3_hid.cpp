@@ -496,7 +496,7 @@ esp_err_t start_bluetooth() {
         }
         esp_bt_controller_config_t cfg = BT_CONTROLLER_INIT_CONFIG_DEFAULT();
         cfg.mode = ESP_BT_MODE_CLASSIC_BT;
-        cfg.bt_max_acl_conn = 4;
+        cfg.bt_max_acl_conn = 1;
         cfg.ble_max_conn = 0;
         cfg.normal_adv_size = 10;
         cfg.mesh_adv_size = 10;

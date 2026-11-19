@@ -42,18 +42,7 @@ std::atomic<State> s_shared_state{State::Idle};
 std::atomic<bool> s_radio_timer_active{false};
 esp_timer_handle_t s_radio_timer = nullptr;
 std::atomic<uint8_t> s_battery_level{5};
-
-const char* source_name(ButtonSource source) {
-    switch (source) {
-        case ButtonSource::Bluetooth:
-            return "bluetooth";
-        case ButtonSource::ScriptSocket:
-            return "script";
-        case ButtonSource::Internal:
-            return "internal";
-    }
-    return "unknown";
-}
+ControlStats s_stats;
 
 void send_ir(ir::Device device, const char* command, uint8_t repeat) {
     if (device == ir::Device::FireTvBeam) {
@@ -213,12 +202,12 @@ void handle_event(const ControlEvent& event) {
     s_machine = outcome.next;
     s_shared_state.store(s_machine.state);
 
-    ESP_LOGI(TAG, "button=%s source=%s state=%s alt=%d led=%d transition=%d help=%d actions=%u",
-             event.button, source_name(event.source), state_name(s_machine.state),
+    ESP_LOGD(TAG, "button=%s source=%d state=%s alt=%d led=%d transition=%d help=%d actions=%u",
+             event.button, static_cast<int>(event.source), state_name(s_machine.state),
              s_machine.alt_func ? 1 : 0, s_machine.led_is_on ? 1 : 0,
              outcome.transitioned ? 1 : 0, outcome.help_action ? 1 : 0,
              static_cast<unsigned>(outcome.action_count));
-    ESP_LOGI(TAG, "state=%s prev=%s mapping=%d alt=%d led=%d", state_name(s_machine.state),
+    ESP_LOGD(TAG, "state=%s prev=%s mapping=%d alt=%d led=%d", state_name(s_machine.state),
              state_name(s_machine.prev_state), static_cast<int>(s_machine.mapping),
              s_machine.alt_func ? 1 : 0, s_machine.led_is_on ? 1 : 0);
 
@@ -234,7 +223,12 @@ void control_task(void*) {
     ControlEvent event = {};
     while (true) {
         if (xQueueReceive(s_queue, &event, portMAX_DELAY) == pdTRUE) {
+            const uint32_t started = micros();
+            if (event.enqueued_us != 0) {
+                s_stats.queue_wait.add(started - event.enqueued_us);
+            }
             handle_event(event);
+            s_stats.handler.add(micros() - started);
         }
     }
 }
@@ -296,14 +290,23 @@ bool post(const char* button, ButtonSource source) {
 
     ControlEvent event = {};
     event.source = source;
+    event.enqueued_us = micros();
     std::strncpy(event.button, button, sizeof(event.button) - 1);
     event.button[sizeof(event.button) - 1] = '\0';
 
-    return xQueueSend(s_queue, &event, pdMS_TO_TICKS(10)) == pdTRUE;
+    if (xQueueSend(s_queue, &event, pdMS_TO_TICKS(10)) != pdTRUE) {
+        ++s_stats.dropped;
+        return false;
+    }
+    return true;
 }
 
 State current_state() {
     return s_shared_state.load();
+}
+
+const ControlStats& stats() {
+    return s_stats;
 }
 
 void set_battery_level(uint8_t level) {

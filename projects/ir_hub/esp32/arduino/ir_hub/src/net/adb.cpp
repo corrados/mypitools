@@ -64,6 +64,11 @@ struct Packet {
     std::vector<uint8_t> data;
 };
 
+struct AdbItem {
+    char key[32];
+    uint32_t enqueued_us = 0;
+};
+
 QueueHandle_t s_queue = nullptr;
 WiFiClient s_client;
 mbedtls_pk_context s_key = {};
@@ -72,6 +77,7 @@ bool s_signature_sent = false;
 bool s_shell_ready = false;
 bool s_shell_busy = false;
 uint32_t s_shell_command_ms = 0;
+uint32_t s_shell_command_us = 0;
 char s_shell_tail[kShellTailLength] = {};
 size_t s_shell_tail_length = 0;
 uint32_t s_remote_id = 0;
@@ -79,6 +85,7 @@ uint32_t s_last_packet_ms = 0;
 std::atomic<bool> s_connected{false};
 uint32_t s_reconnect_delay_ms = kReconnectMs;
 uint32_t s_auth_wait_deadline_ms = 0;
+AdbStats s_stats;
 
 int rng(void*, unsigned char* buffer, size_t length) {
     for (size_t i = 0; i < length; ++i) {
@@ -326,6 +333,7 @@ bool public_key(std::string& out) {
 void reset_shell_output() {
     s_shell_busy = false;
     s_shell_command_ms = 0;
+    s_shell_command_us = 0;
     s_shell_tail_length = 0;
     s_shell_tail[0] = '\0';
 }
@@ -353,6 +361,9 @@ void observe_shell_output(const Packet& packet) {
 
     for (size_t i = 0; i + 1 < length; ++i) {
         if ((combined[i] == '$' || combined[i] == '#') && combined[i + 1] == ' ') {
+            if (s_shell_busy && s_shell_command_us != 0) {
+                s_stats.round_trip.add(micros() - s_shell_command_us);
+            }
             reset_shell_output();
             return;
         }
@@ -370,8 +381,8 @@ void disconnect(const char* reason) {
     s_auth_wait_deadline_ms = 0;
     s_client.stop();
 
-    char key[32] = {};
-    while (xQueueReceive(s_queue, key, 0) == pdTRUE) {
+    AdbItem item = {};
+    while (xQueueReceive(s_queue, &item, 0) == pdTRUE) {
     }
 }
 
@@ -449,12 +460,15 @@ bool open_shell() {
 }
 
 void send_queued_commands() {
-    char key[32] = {};
-    while (s_shell_ready && !s_shell_busy && xQueueReceive(s_queue, key, 0) == pdTRUE) {
+    AdbItem item = {};
+    while (s_shell_ready && !s_shell_busy && xQueueReceive(s_queue, &item, 0) == pdTRUE) {
         char command[256] = {};
-        if (!build_shell_command(key, command, sizeof(command))) {
-            ESP_LOGW(TAG, "invalid command '%s'", key);
+        if (!build_shell_command(item.key, command, sizeof(command))) {
+            ESP_LOGW(TAG, "invalid command '%s'", item.key);
             continue;
+        }
+        if (item.enqueued_us != 0) {
+            s_stats.queue_wait.add(micros() - item.enqueued_us);
         }
         const size_t length = std::strlen(command);
         if (!send_packet(kCmdWrte, kLocalId, s_remote_id,
@@ -464,7 +478,8 @@ void send_queued_commands() {
         }
         s_shell_busy = true;
         s_shell_command_ms = millis();
-        ESP_LOGI(TAG, "shell: %s", command);
+        s_shell_command_us = micros();
+        ESP_LOGD(TAG, "shell: %s", command);
     }
 }
 
@@ -476,6 +491,7 @@ void adb_task(void*) {
                 static_cast<int32_t>(millis() - s_shell_command_ms) >
                     static_cast<int32_t>(kShellCommandTimeoutMs)) {
                 ESP_LOGW(TAG, "shell command timeout");
+                ++s_stats.timeouts;
                 reset_shell_output();
             }
             if (s_auth_wait_deadline_ms != 0 &&
@@ -565,7 +581,7 @@ esp_err_t init() {
     if (s_queue != nullptr) {
         return ESP_OK;
     }
-    s_queue = xQueueCreate(kQueueLength, sizeof(char[32]));
+    s_queue = xQueueCreate(kQueueLength, sizeof(AdbItem));
     if (s_queue == nullptr) {
         return ESP_ERR_NO_MEM;
     }
@@ -582,11 +598,21 @@ esp_err_t start() {
 
 bool submit(const char* command) {
     if (s_queue == nullptr || command == nullptr || !s_connected.load()) {
+        ++s_stats.dropped;
         return false;
     }
-    char item[32] = {};
-    std::strncpy(item, command, sizeof(item) - 1);
-    return xQueueSend(s_queue, item, pdMS_TO_TICKS(10)) == pdTRUE;
+    AdbItem item = {};
+    item.enqueued_us = micros();
+    std::strncpy(item.key, command, sizeof(item.key) - 1);
+    if (xQueueSend(s_queue, &item, pdMS_TO_TICKS(10)) != pdTRUE) {
+        ++s_stats.dropped;
+        return false;
+    }
+    return true;
+}
+
+const AdbStats& stats() {
+    return s_stats;
 }
 
 bool connected() {
