@@ -255,9 +255,6 @@ void build_response(Client& client) {
 
 void close_client(Client& client) {
     if (client.fd >= 0) {
-        char discard[64];
-        while (recv(client.fd, discard, sizeof(discard), MSG_DONTWAIT) > 0) {
-        }
         close(client.fd);
     }
     client.fd = -1;
@@ -299,8 +296,10 @@ void service_client(Client& client) {
     }
 
     if (client.response_length > client.response_offset) {
-        const int written = send(client.fd, client.response + client.response_offset,
-                                 client.response_length - client.response_offset, MSG_DONTWAIT);
+        const size_t remaining = client.response_length - client.response_offset;
+        const size_t chunk = remaining < 256 ? remaining : 256;
+        const int written = send(client.fd, client.response + client.response_offset, chunk,
+                                 MSG_DONTWAIT);
         if (written > 0) {
             client.response_offset += static_cast<size_t>(written);
             client.last_active = millis();
