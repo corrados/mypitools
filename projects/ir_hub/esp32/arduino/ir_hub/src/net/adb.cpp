@@ -36,6 +36,8 @@ constexpr uint32_t kAuthWaitMs = 60000U;
 constexpr uint32_t kAuthRetryDelayMs = 30000U;
 constexpr uint32_t kConnectTimeoutMs = 2000U;
 constexpr uint32_t kPacketTimeoutMs = 1000U;
+constexpr uint32_t kShellCommandTimeoutMs = 3000U;
+constexpr size_t kShellTailLength = 64;
 constexpr uint32_t kLocalId = 1U;
 constexpr uint32_t kAuthToken = 1U;
 constexpr uint32_t kAuthSignature = 2U;
@@ -68,6 +70,10 @@ mbedtls_pk_context s_key = {};
 bool s_key_ready = false;
 bool s_signature_sent = false;
 bool s_shell_ready = false;
+bool s_shell_busy = false;
+uint32_t s_shell_command_ms = 0;
+char s_shell_tail[kShellTailLength] = {};
+size_t s_shell_tail_length = 0;
 uint32_t s_remote_id = 0;
 uint32_t s_last_packet_ms = 0;
 std::atomic<bool> s_connected{false};
@@ -317,10 +323,47 @@ bool public_key(std::string& out) {
     return ok;
 }
 
+void reset_shell_output() {
+    s_shell_busy = false;
+    s_shell_command_ms = 0;
+    s_shell_tail_length = 0;
+    s_shell_tail[0] = '\0';
+}
+
+void observe_shell_output(const Packet& packet) {
+    if (packet.data.empty()) {
+        return;
+    }
+    char combined[kShellTailLength + 128] = {};
+    size_t length = 0;
+    if (s_shell_tail_length > 0) {
+        std::memcpy(combined, s_shell_tail, s_shell_tail_length);
+        length = s_shell_tail_length;
+    }
+    const size_t available = sizeof(combined) - length - 1;
+    const size_t received = packet.data.size() < available ? packet.data.size() : available;
+    std::memcpy(combined + length, packet.data.data(), received);
+    length += received;
+    combined[length] = '\0';
+
+    const size_t tail_length = length < kShellTailLength ? length : kShellTailLength;
+    std::memcpy(s_shell_tail, combined + length - tail_length, tail_length);
+    s_shell_tail[tail_length] = '\0';
+    s_shell_tail_length = tail_length;
+
+    for (size_t i = 0; i + 1 < length; ++i) {
+        if ((combined[i] == '$' || combined[i] == '#') && combined[i + 1] == ' ') {
+            reset_shell_output();
+            return;
+        }
+    }
+}
+
 void disconnect(const char* reason) {
     ESP_LOGI(TAG, "disconnected: %s", reason);
     s_connected.store(false);
     s_shell_ready = false;
+    reset_shell_output();
     s_signature_sent = false;
     s_remote_id = 0;
     s_last_packet_ms = 0;
@@ -358,6 +401,7 @@ bool connect_and_handshake() {
 
     s_signature_sent = false;
     s_shell_ready = false;
+    reset_shell_output();
     s_remote_id = 0;
     s_last_packet_ms = millis();
     return true;
@@ -406,7 +450,7 @@ bool open_shell() {
 
 void send_queued_commands() {
     char key[32] = {};
-    while (s_shell_ready && xQueueReceive(s_queue, key, 0) == pdTRUE) {
+    while (s_shell_ready && !s_shell_busy && xQueueReceive(s_queue, key, 0) == pdTRUE) {
         char command[256] = {};
         if (!build_shell_command(key, command, sizeof(command))) {
             ESP_LOGW(TAG, "invalid command '%s'", key);
@@ -418,7 +462,9 @@ void send_queued_commands() {
             disconnect("write failed");
             return;
         }
-        ESP_LOGD(TAG, "shell: %s", command);
+        s_shell_busy = true;
+        s_shell_command_ms = millis();
+        ESP_LOGI(TAG, "shell: %s", command);
     }
 }
 
@@ -426,6 +472,12 @@ void adb_task(void*) {
     uint32_t next_attempt_ms = 0;
     while (true) {
         if (s_client.connected()) {
+            if (s_shell_busy && s_shell_command_ms != 0 &&
+                static_cast<int32_t>(millis() - s_shell_command_ms) >
+                    static_cast<int32_t>(kShellCommandTimeoutMs)) {
+                ESP_LOGW(TAG, "shell command timeout");
+                reset_shell_output();
+            }
             if (s_auth_wait_deadline_ms != 0 &&
                 static_cast<int32_t>(millis() - s_auth_wait_deadline_ms) >= 0) {
                 disconnect("auth wait expired");
@@ -475,11 +527,13 @@ void adb_task(void*) {
                         s_remote_id = packet.arg0;
                         s_shell_ready = true;
                         s_connected.store(true);
+                        reset_shell_output();
                         ESP_LOGI(TAG, "shell ready");
                     }
                     break;
                 case kCmdWrte:
                     send_packet(kCmdOkay, kLocalId, s_remote_id, nullptr, 0);
+                    observe_shell_output(packet);
                     break;
                 case kCmdClse:
                     disconnect("shell closed");
