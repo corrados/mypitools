@@ -43,7 +43,31 @@ struct Client {
     size_t response_offset = 0;
     uint32_t response_us = 0;
     uint32_t last_active = 0;
+    bool keep_alive = false;
 };
+
+bool contains_ci(const char* haystack, const char* needle) {
+    const size_t needle_length = std::strlen(needle);
+    for (const char* p = haystack; *p != '\0'; ++p) {
+        size_t i = 0;
+        while (i < needle_length && p[i] != '\0' &&
+               std::tolower(static_cast<unsigned char>(p[i])) ==
+                   std::tolower(static_cast<unsigned char>(needle[i]))) {
+            ++i;
+        }
+        if (i == needle_length) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool request_keep_alive(const char* request) {
+    if (std::strstr(request, "HTTP/1.1") == nullptr) {
+        return false;
+    }
+    return !contains_ci(request, "connection: close");
+}
 
 Client s_client;
 WebStats s_web_stats;
@@ -123,8 +147,9 @@ bool prepare_response(Client& client, const char* status, const char* content_ty
     const int header_length =
         std::snprintf(client.response, kResponseBuffer,
                       "HTTP/1.1 %s\r\nContent-Type: %s\r\nContent-Length: %u\r\n"
-                      "Cache-Control: no-store\r\nConnection: close\r\n\r\n",
-                      status, content_type, static_cast<unsigned>(length));
+                      "Cache-Control: no-store\r\nConnection: %s\r\n\r\n",
+                      status, content_type, static_cast<unsigned>(length),
+                      client.keep_alive ? "keep-alive" : "close");
     if (header_length <= 0 || static_cast<size_t>(header_length) >= kResponseBuffer) {
         return false;
     }
@@ -243,6 +268,7 @@ void close_client(Client& client) {
     client.response_length = 0;
     client.response_offset = 0;
     client.response_us = 0;
+    client.keep_alive = false;
 }
 
 void accept_clients(int server) {
@@ -282,7 +308,15 @@ void service_client(Client& client) {
             client.response_offset += static_cast<size_t>(written);
             client.last_active = millis();
             if (client.response_offset >= client.response_length) {
-                close_client(client);
+                if (client.keep_alive) {
+                    client.request_length = 0;
+                    client.response_length = 0;
+                    client.response_offset = 0;
+                    client.response_us = 0;
+                    client.request[0] = '\0';
+                } else {
+                    close_client(client);
+                }
             }
         } else if (written < 0 && !would_block()) {
             close_client(client);
@@ -298,6 +332,7 @@ void service_client(Client& client) {
             client.request[client.request_length] = '\0';
             client.last_active = millis();
             if (std::strstr(client.request, "\r\n\r\n") != nullptr) {
+                client.keep_alive = request_keep_alive(client.request);
                 build_response(client);
                 return;
             }
