@@ -147,15 +147,21 @@ uint32_t checksum(const uint8_t* data, size_t length) {
 
 bool write_all(const uint8_t* data, size_t length) {
     size_t offset = 0;
+    uint32_t retries = 0;
     while (offset < length) {
         if (!s_client.connected()) {
             return false;
         }
         const size_t written = s_client.write(data + offset, length - offset);
         if (written == 0) {
-            return false;
+            if (++retries > 500) {
+                return false;
+            }
+            delay(1);
+            continue;
         }
         offset += written;
+        retries = 0;
     }
     return true;
 }

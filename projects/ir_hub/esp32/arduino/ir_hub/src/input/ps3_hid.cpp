@@ -28,9 +28,9 @@ constexpr char TAG[] = "ps3";
 constexpr uint64_t kRepeatFirstUs = 700000;
 constexpr uint64_t kRepeatNextUs = 200000;
 constexpr uint64_t kSleepUs = 1800000ULL * 1000ULL * 1000ULL;
-constexpr uint64_t kDiscoveryRetryUs = 2000000;
+constexpr uint64_t kDiscoveryRetryUs = 30000000;
 constexpr uint64_t kConnectTimeoutUs = 10000000;
-constexpr uint8_t kInquiryLength = 0x08;
+constexpr uint8_t kInquiryLength = 0x04;
 constexpr uint32_t kRemoteCod = 0x0000250C;
 constexpr size_t kButtonLength = 32;
 
@@ -169,7 +169,7 @@ void connect_known_remote() {
 }
 
 void schedule_reconnect() {
-    schedule_discovery(kDiscoveryRetryUs * 3);
+    schedule_discovery(kDiscoveryRetryUs);
 }
 
 void connect_remote(const uint8_t* bda) {
@@ -434,7 +434,7 @@ void l2cap_connect_cfm(UINT16 l2cap_cid, UINT16 result) {
             s_connecting.store(false);
             s_control_cid.store(0);
             s_interrupt_cid.store(0);
-            schedule_discovery(kDiscoveryRetryUs);
+            schedule_reconnect();
         }
         return;
     }
@@ -598,7 +598,7 @@ esp_err_t start_bluetooth() {
     s_interrupt_cid.store(register_l2cap_service("PS3-HIDI", kL2capPsmsHidInterrupt,
                                                   kSecServiceFirstEmpty + 1));
 
-    err = esp_bt_gap_set_scan_mode(ESP_BT_CONNECTABLE, ESP_BT_GENERAL_DISCOVERABLE);
+    err = esp_bt_gap_set_scan_mode(ESP_BT_CONNECTABLE, ESP_BT_NON_DISCOVERABLE);
     if (err != ESP_OK) {
         return err;
     }
