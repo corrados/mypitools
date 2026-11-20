@@ -49,6 +49,8 @@ std::atomic<bool> s_sleeping{false};
 std::atomic<uint16_t> s_control_cid{0};
 std::atomic<uint16_t> s_interrupt_cid{0};
 uint8_t s_remote_bda[6] = {};
+uint8_t s_known_bda[6] = {};
+bool s_has_known_bda = false;
 uint8_t s_last_battery = 0;
 
 tL2CAP_CFG_INFO s_config = {};
@@ -120,6 +122,7 @@ void start_discovery() {
 }
 
 void connect_remote(const uint8_t* bda);
+void connect_known_remote();
 
 void discovery_timer_cb(void*) {
     if (s_connected.load()) {
@@ -131,7 +134,42 @@ void discovery_timer_cb(void*) {
         s_control_cid.store(0);
         s_interrupt_cid.store(0);
     }
+    connect_known_remote();
+}
+
+bool parse_known_bda() {
+    const char* text = config::kPs3RemoteMac;
+    uint8_t bytes[6] = {};
+    for (size_t i = 0; i < sizeof(bytes); ++i) {
+        const char* begin = text + i * 3;
+        if (begin[0] == '\0' || begin[1] == '\0') {
+            return false;
+        }
+        char* end = nullptr;
+        const unsigned long value = std::strtoul(begin, &end, 16);
+        if (end != begin + 2 || value > 255U) {
+            return false;
+        }
+        bytes[i] = static_cast<uint8_t>(value);
+        if (i + 1 < sizeof(bytes) && begin[2] != ':') {
+            return false;
+        }
+    }
+    std::memcpy(s_known_bda, bytes, sizeof(bytes));
+    s_has_known_bda = true;
+    return true;
+}
+
+void connect_known_remote() {
+    if (s_has_known_bda) {
+        connect_remote(s_known_bda);
+        return;
+    }
     start_discovery();
+}
+
+void schedule_reconnect() {
+    schedule_discovery(kDiscoveryRetryUs * 3);
 }
 
 void connect_remote(const uint8_t* bda) {
@@ -149,7 +187,7 @@ void connect_remote(const uint8_t* bda) {
     if (cid == 0) {
         ESP_LOGW(TAG, "HID interrupt connect request to %s failed", address);
         s_connecting.store(false);
-        schedule_discovery(kDiscoveryRetryUs);
+        schedule_reconnect();
         return;
     }
     s_interrupt_cid.store(cid);
@@ -350,7 +388,7 @@ void gap_callback(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t* param) {
                     taskEXIT_CRITICAL(&s_bda_mux);
                     connect_remote(bda);
                 } else if (!s_connected.load() && !s_connecting.load()) {
-                    schedule_discovery(kDiscoveryRetryUs);
+                    schedule_reconnect();
                 }
             }
             break;
@@ -600,8 +638,11 @@ esp_err_t init() {
         return err;
     }
 
-    ESP_LOGI(TAG, "HID host ready; hold Start+Enter for 5s on the BD remote to pair");
-    start_discovery();
+    if (!parse_known_bda()) {
+        ESP_LOGW(TAG, "invalid configured remote MAC; falling back to inquiry");
+    }
+    ESP_LOGI(TAG, "HID host ready; reconnecting to configured BD remote");
+    connect_known_remote();
     return ESP_OK;
 }
 
