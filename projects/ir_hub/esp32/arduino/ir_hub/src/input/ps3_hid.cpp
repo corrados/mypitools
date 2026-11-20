@@ -641,8 +641,7 @@ esp_err_t init() {
     if (!parse_known_bda()) {
         ESP_LOGW(TAG, "invalid configured remote MAC; falling back to inquiry");
     }
-    ESP_LOGI(TAG, "HID host ready; reconnecting to configured BD remote");
-    connect_known_remote();
+    ESP_LOGI(TAG, "HID host ready; waiting for remote-initiated connection");
     return ESP_OK;
 }
 

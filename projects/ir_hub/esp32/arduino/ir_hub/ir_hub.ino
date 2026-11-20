@@ -4,6 +4,7 @@
 #include <cstring>
 #include <string>
 
+#include "config.hpp"
 #include "control/control.hpp"
 #include "esp_log.h"
 #include "input/ps3_hid.hpp"
@@ -120,7 +121,9 @@ void setup() {
     require_ok(irhub::radio_socket::start(), "radio_socket::start");
     require_ok(irhub::adb::start(), "adb::start");
     require_ok(irhub::script_server::start(), "script_server::start");
-    require_ok(irhub::web_server::start(), "web_server::start");
+    if constexpr (irhub::config::kWebServerEnabled) {
+        require_ok(irhub::web_server::start(), "web_server::start");
+    }
     Serial.println("Web ready; waiting for ADB before Bluetooth");
     for (uint32_t waited = 0; waited < 15000 && !irhub::adb::connected(); waited += 100) {
         delay(100);

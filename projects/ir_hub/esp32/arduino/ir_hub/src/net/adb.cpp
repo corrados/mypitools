@@ -32,7 +32,7 @@ constexpr uint16_t kAdbPort = 5555;
 constexpr uint32_t kProtocolVersion = 0x01000000U;
 constexpr uint32_t kMaxPayload = 1024U;
 constexpr uint32_t kReconnectMs = 5000U;
-constexpr size_t kMaxInFlight = 8;
+constexpr size_t kMaxInFlight = 32;
 constexpr uint32_t kAuthWaitMs = 60000U;
 constexpr uint32_t kAuthRetryDelayMs = 30000U;
 constexpr uint32_t kConnectTimeoutMs = 2000U;
@@ -49,7 +49,7 @@ constexpr uint32_t kCmdOkay = 0x59414b4fU;
 constexpr uint32_t kCmdWrte = 0x45545257U;
 constexpr uint32_t kCmdClse = 0x45534c43U;
 constexpr size_t kQueueLength = 64;
-constexpr size_t kSendBatch = 4;
+constexpr size_t kSendBatch = 8;
 constexpr size_t kTaskStack = 4096;
 constexpr UBaseType_t kTaskPriority = 2;
 #ifdef IR_HUB_HAS_ADB_KEY_SECRET
