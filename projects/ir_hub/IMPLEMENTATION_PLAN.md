@@ -1141,6 +1141,34 @@ Status: implemented in `net/web_server.cpp` / `net/web_server.hpp` and started f
 
 Exit criterion: the button page controls the same device states as the PS3 remote without destabilizing Bluetooth, IR, ADB, or radio control.
 
+Recent BT/Wi-Fi coexistence findings (current)
+----------------------------------------------
+
+- User priority: PS3 Bluetooth and fast ADB input are essential; the browser server is optional. Target behavior is low-latency BT+ADB, with a usable web UI only if it does not destabilize radio coexistence.
+- With PS3/Bluetooth init disabled, the complete firmware is stable: 150 sequential HTTP `/press?button=RIGHT` requests passed with `avg=0.079 s`, `max=0.138 s`, ADB stayed connected, and heap stayed at `~139 KB` free / `~133 KB` minimum.
+- With Bluetooth enabled, measured free heap drops to roughly `~10-12 KB` and minimum to `~7.5 KB`. This is the main constraint: lwIP, ADB, and Bluedroid all allocate from the same small internal heap.
+- Classic BT active inquiry is especially harmful: it caused ADB RTT spikes into the seconds, web timeouts, and Bluedroid asserts. Direct reconnect attempts every ~2 s to the known remote MAC (`00:1E:3D:10:CB:F0`, remote currently off) caused `fixed_queue_dequeue`/`fixed_queue_new` asserts in `btm_sec_check_pending_reqs`. Increasing retries to 30 s reduced but did not remove all risk.
+- Current `ps3_hid.cpp` approach: `ESP_BT_CONNECTABLE` + `ESP_BT_NON_DISCOVERABLE`, no proactive inquiry or reconnect at boot, and rely on a paired remote initiating the L2CAP connection. Known-MAC direct-connect code remains only as fallback for failure paths; normal boot stays radio-quiet. This removed inquiry-triggered crashes and kept BT available for a remote-initiated connection.
+- With BT idle/no discovery and the web server disabled, a 150-press script-socket stress test completed in `~30 s` with zero socket resets, zero ADB disconnects, zero crashes, and no inquiry. Latency was good: `control.wait avg=16 us max=21 us`, `adb.wait avg=2646 us max=5506 us`, `adb.rtt avg=16204 us max=60544 us`.
+- With the web server enabled alongside BT, rapid HTTP clicking still fails intermittently at roughly press 10-31 with client timeouts or `ConnectionResetError`, even after ADB pipelining was increased to `kMaxInFlight=32`, `kSendBatch=8`. In one run `web.handle` was only `~0.5 ms` while `adb.wait` reached `~20 s`; in another, tcpdump showed the ESP32 ACKed the HTTP request but sent no response bytes before FIN/timeout. The server-side stall is caused by WiFi/lwIP/ADB resource contention under BT, not by HTML generation.
+- `TCP_NODELAY` and a 16 KB `SO_SNDBUF` on accepted HTTP sockets removed many `send()` EAGAIN stalls and produced one clean 60-press run (`avg=0.068 s`, `max=0.258 s`), but longer mixed tests still failed. These settings are kept in `web_server.cpp`.
+- Raising ADB in-flight limit and batch size improved pipelining but cannot hide the fundamental heap/radio contention when the web server is active.
+- WiFi power-save disabled (`WIFI_PS_NONE`) and maximum TX power (`WIFI_POWER_19_5dBm`) were tried and reverted; neither helped.
+- Decision now implemented: add `IR_HUB_WEB_SERVER_ENABLED` (default `0`) in `config.hpp` and gate `web_server::start()` in `ir_hub.ino`. Default firmware runs BT+ADB+script socket with low latency and no web server. Enable the flag only for web UI debugging or when BT is intentionally off. This change was written but the final compile/flash was interrupted and still needs verification.
+- A temporary `LATENCY` diagnostic in the script task overflowed its 3 KB stack (`Stack canary watchpoint triggered (script)`) when it used a 1 KB stack buffer; a static buffer avoided it, and the diagnostic was removed. Keep script task callbacks small and avoid large stack buffers.
+- Current working source state also includes: direct-only BT connection code with 30 s retry helpers, `TCP_NODELAY`/`SO_SNDBUF` in `web_server.cpp`, and ADB `kMaxInFlight=32`/`kSendBatch=8`. Temporary `DBG` logs were removed. Host tests passed 6/6 before the final config-flag edit and must be rerun after final cleanup.
+
+Dual-core execution guidance (apply next)
+-----------------------------------------
+
+- Original ESP32 has two Xtensa LX6 cores. ESP-IDF/Arduino defaults put Wi-Fi and Bluetooth protocol stacks on Core 0 (PRO_CPU) and Arduino `setup()`/`loop()` on Core 1 (APP_CPU). Keep heavy/blocking application work off Core 0 so radio tasks and interrupts are not starved.
+- Pin latency-sensitive application tasks to Core 1 with `xTaskCreatePinnedToCore()` where practical (control, ADB worker, script/web workers, IR worker as appropriate). Keep only light background work on Core 0, and only when it is idle.
+- Keep BT/Wi-Fi event callbacks short: push data/events into FreeRTOS queues and process them in worker tasks instead of doing parsing, allocation, or blocking I/O inside stack callbacks.
+- Protect shared state with queues, mutexes, or atomics; do not rely on unguarded globals shared across cores. The current control path already uses bounded queues and `std::atomic` for some shared state, but task pinning and callback audit are still pending.
+- Never starve IDLE: every infinite task loop must block on a queue/semaphore/select or call `vTaskDelay()`. Tight loops without blocking prevent IDLE from feeding the TWDT and cause reboots.
+- Size stacks from measured high-water marks (`uxTaskGetStackHighWaterMark()`). Current known sizes: control 4 KB, sequence workers 3 KB, IR 3 KB, ADB 4 KB, loop 6 KB, web 4 KB, script 3 KB, radio 4 KB. Under-sized stacks cause canary panics; over-sized stacks waste scarce SRAM.
+- Important limitation: splitting CPU work across two cores prevents CPU starvation only. It does not increase the single 2.4 GHz radio; simultaneous heavy Wi-Fi and Bluetooth still share airtime and must be reduced at the source.
+
 Build and test commands
 -----------------------
 
