@@ -102,7 +102,7 @@ void handle_serial_command() {
 }  // namespace
 
 size_t getArduinoLoopTaskStackSize(void) {
-    return 6144;
+    return 4096;
 }
 
 void setup() {
