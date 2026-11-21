@@ -1,5 +1,7 @@
 #include "input/ps3_hid.hpp"
 
+#include <Arduino.h>
+
 #include <atomic>
 #include <cstdio>
 #include <cstdlib>
@@ -359,6 +361,7 @@ void repeat_timer_cb(void*) {
         esp_timer_start_once(s_repeat_timer, 10000);
         return;
     }
+    Serial.printf("PS3 repeat: %s\n", button);
     if (!control::post(button, control::ButtonSource::Bluetooth)) {
         ESP_LOGW(TAG, "control queue full for repeat %s", button);
     }
@@ -382,6 +385,11 @@ void sleep_timer_cb(void*) {
 }
 
 void handle_report(const Ps3Report& report) {
+    ESP_LOGI(TAG,
+             "report valid=%d has_button=%d release=%d has_battery=%d scancode=%llu",
+             report.valid ? 1 : 0, report.has_button ? 1 : 0, report.release ? 1 : 0,
+             report.has_battery ? 1 : 0,
+             static_cast<unsigned long long>(report.button_value));
     if (!report.valid) {
         return;
     }
@@ -391,6 +399,7 @@ void handle_report(const Ps3Report& report) {
         control::set_battery_level(report.battery);
     }
     if (report.release) {
+        Serial.println("PS3 release");
         stop_repeat();
         return;
     }
@@ -403,6 +412,8 @@ void handle_report(const Ps3Report& report) {
 
     const char* mapped = ps3_map(report.button_value);
     if (mapped == nullptr) {
+        Serial.printf("PS3 unknown scancode=%llu\n",
+                      static_cast<unsigned long long>(report.button_value));
         ESP_LOGW(TAG, "UNKNOWN scancode %llu",
                  static_cast<unsigned long long>(report.button_value));
         return;
@@ -410,6 +421,8 @@ void handle_report(const Ps3Report& report) {
     const char* button = ps3_convert(mapped);
     ESP_LOGI(TAG, "button %s (%s) scancode=%llu", button, mapped,
              static_cast<unsigned long long>(report.button_value));
+    Serial.printf("PS3 key: %s (%s, scancode=%llu)\n", button, mapped,
+                  static_cast<unsigned long long>(report.button_value));
 
     if (!control::post(button, control::ButtonSource::Bluetooth)) {
         ESP_LOGW(TAG, "control queue full for %s", button);
