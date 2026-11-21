@@ -37,7 +37,7 @@ constexpr uint32_t kReconnectMs = 5000U;
 constexpr size_t kMaxInFlight = 32;
 constexpr uint32_t kAuthWaitMs = 60000U;
 constexpr uint32_t kAuthRetryDelayMs = 30000U;
-constexpr uint32_t kConnectTimeoutMs = 2000U;
+constexpr uint32_t kConnectTimeoutMs = 3000U;
 constexpr uint32_t kPacketTimeoutMs = 1000U;
 constexpr size_t kShellTailLength = 64;
 constexpr uint32_t kLocalId = 1U;
@@ -458,6 +458,7 @@ bool connect_and_handshake() {
     ESP_LOGI(TAG, "connecting to %s:%u", config::kFireTvHost, kAdbPort);
     s_client.setTimeout(kConnectTimeoutMs);
     if (!s_client.connect(address, kAdbPort, kConnectTimeoutMs)) {
+        ESP_LOGW(TAG, "connect to %s:%u failed", config::kFireTvHost, kAdbPort);
         return false;
     }
     s_client.setNoDelay(true);
