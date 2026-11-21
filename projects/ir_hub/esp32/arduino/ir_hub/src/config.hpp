@@ -62,6 +62,10 @@
 #define IR_HUB_RADIO_SOCKET_HOST "radiosocket"
 #endif
 
+#ifndef IR_HUB_RADIO_SOCKET_IP
+#define IR_HUB_RADIO_SOCKET_IP "192.168.178.148"
+#endif
+
 namespace irhub::config {
 
 inline constexpr int kIrPin = IR_HUB_IR_GPIO;
@@ -82,5 +86,6 @@ inline constexpr int kWifiMaxRetry = IR_HUB_WIFI_MAX_RETRY;
 inline constexpr char kPs3RemoteMac[] = IR_HUB_PS3_REMOTE_MAC;
 inline constexpr char kFireTvHost[] = IR_HUB_FIRETV_HOST;
 inline constexpr char kRadioSocketHost[] = IR_HUB_RADIO_SOCKET_HOST;
+inline constexpr char kRadioSocketIp[] = IR_HUB_RADIO_SOCKET_IP;
 
 }  // namespace irhub::config

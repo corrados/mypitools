@@ -12,6 +12,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
 #include "freertos/task.h"
+#include "lwip/inet.h"
 #include "lwip/netdb.h"
 #include "lwip/sockets.h"
 
@@ -20,7 +21,7 @@ namespace {
 
 constexpr char TAG[] = "radio";
 constexpr size_t kQueueLength = 8;
-constexpr size_t kTaskStack = 2048;
+constexpr size_t kTaskStack = 4096;
 constexpr UBaseType_t kTaskPriority = 3;
 constexpr int kTimeoutMs = 2000;
 
@@ -60,9 +61,15 @@ bool request_power(bool on) {
     char path[64] = {};
     std::snprintf(path, sizeof(path), "/cm?cmnd=Power%%20%s", on ? "On" : "Off");
 
-    hostent* host = gethostbyname(config::kRadioSocketHost);
-    if (host == nullptr || host->h_addr_list == nullptr || host->h_addr_list[0] == nullptr) {
-        return false;
+    sockaddr_in address = {};
+    address.sin_family = AF_INET;
+    address.sin_port = htons(80);
+    if (inet_pton(AF_INET, config::kRadioSocketIp, &address.sin_addr) != 1) {
+        hostent* host = gethostbyname(config::kRadioSocketHost);
+        if (host == nullptr || host->h_addr_list == nullptr || host->h_addr_list[0] == nullptr) {
+            return false;
+        }
+        std::memcpy(&address.sin_addr, host->h_addr_list[0], sizeof(address.sin_addr));
     }
 
     const int fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
@@ -73,11 +80,6 @@ bool request_power(bool on) {
     if (flags >= 0) {
         fcntl(fd, F_SETFL, flags | O_NONBLOCK);
     }
-
-    sockaddr_in address = {};
-    address.sin_family = AF_INET;
-    address.sin_port = htons(80);
-    std::memcpy(&address.sin_addr, host->h_addr_list[0], sizeof(address.sin_addr));
 
     bool ok = false;
     const int result = connect(fd, reinterpret_cast<sockaddr*>(&address), sizeof(address));

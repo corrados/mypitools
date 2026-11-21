@@ -274,7 +274,7 @@ void accept_clients(int server) {
         set_nonblocking(fd);
         const int nodelay = 1;
         setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &nodelay, sizeof(nodelay));
-        const int send_buffer = 4096;
+        const int send_buffer = 2048;
         setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &send_buffer, sizeof(send_buffer));
         s_request_buffer[0] = '\0';
         s_response_buffer[0] = '\0';
