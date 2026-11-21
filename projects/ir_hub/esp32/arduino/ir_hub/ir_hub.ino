@@ -8,6 +8,7 @@
 #include "control/control.hpp"
 #include "esp_log.h"
 #include "input/ps3_hid.hpp"
+#include "input/ps3_remote.hpp"
 #include "input/script_server.hpp"
 #include "ir/ir_tx.hpp"
 #include "net/adb.hpp"
@@ -59,6 +60,11 @@ void handle_serial_command() {
                 } else if (std::strcmp(command, "BTPAIR") == 0) {
                     const esp_err_t pair_err = irhub::input::start_pairing();
                     Serial.printf("btpair=%s\n", esp_err_to_name(pair_err));
+                } else if (std::strncmp(command, "PS3TEST ", 8) == 0) {
+                    const char* button = irhub::input::ps3_convert(command + 8);
+                    if (!irhub::control::post(button, irhub::control::ButtonSource::Bluetooth)) {
+                        Serial.println("ps3test rejected");
+                    }
                 } else if (std::strcmp(command, "ADB") == 0) {
                     Serial.printf("adb=%s\n",
                                   irhub::adb::connected() ? "connected" : "disconnected");
