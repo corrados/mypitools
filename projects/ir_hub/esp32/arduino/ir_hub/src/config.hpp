@@ -30,6 +30,10 @@
 #define IR_HUB_WEB_SERVER_ENABLED 0
 #endif
 
+#ifndef IR_HUB_APP_CORE
+#define IR_HUB_APP_CORE 1
+#endif
+
 #ifndef IR_HUB_STANDBY_SECONDS
 #define IR_HUB_STANDBY_SECONDS 1800
 #endif
@@ -67,6 +71,7 @@ inline constexpr uint8_t kRgbValue = IR_HUB_RGB_VALUE;
 inline constexpr uint16_t kScriptPort = IR_HUB_SCRIPT_PORT;
 inline constexpr uint16_t kWebPort = IR_HUB_WEB_PORT;
 inline constexpr bool kWebServerEnabled = IR_HUB_WEB_SERVER_ENABLED != 0;
+inline constexpr int kAppCore = IR_HUB_APP_CORE;
 inline constexpr uint32_t kStandbySeconds = IR_HUB_STANDBY_SECONDS;
 inline constexpr uint32_t kStandbyMs = kStandbySeconds * 1000U;
 

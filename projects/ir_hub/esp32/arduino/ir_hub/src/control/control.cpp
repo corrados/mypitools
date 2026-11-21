@@ -271,15 +271,15 @@ esp_err_t start() {
     }
 
     for (size_t i = 0; i < kSequenceWorkers; ++i) {
-        const BaseType_t result = xTaskCreate(sequence_task, "sequence", kSequenceTaskStack,
-                                              nullptr, kSequencePriority, nullptr);
+        const BaseType_t result = xTaskCreatePinnedToCore(sequence_task, "sequence", kSequenceTaskStack,
+                                                    nullptr, kSequencePriority, nullptr, config::kAppCore);
         if (result != pdPASS) {
             return ESP_ERR_NO_MEM;
         }
     }
 
     const BaseType_t result =
-        xTaskCreate(control_task, "control", kTaskStack, nullptr, kTaskPriority, nullptr);
+        xTaskCreatePinnedToCore(control_task, "control", kTaskStack, nullptr, kTaskPriority, nullptr, config::kAppCore);
     return result == pdPASS ? ESP_OK : ESP_ERR_NO_MEM;
 }
 

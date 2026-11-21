@@ -438,7 +438,7 @@ size_t format_stats(char* out, size_t size) {
 }
 
 esp_err_t start() {
-    const BaseType_t result = xTaskCreate(web_task, "web", kTaskStack, nullptr, kTaskPriority, nullptr);
+    const BaseType_t result = xTaskCreatePinnedToCore(web_task, "web", kTaskStack, nullptr, kTaskPriority, nullptr, config::kAppCore);
     return result == pdPASS ? ESP_OK : ESP_ERR_NO_MEM;
 }
 

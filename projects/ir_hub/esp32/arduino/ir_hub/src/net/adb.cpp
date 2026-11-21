@@ -625,7 +625,7 @@ esp_err_t start() {
     if (s_queue == nullptr) {
         return ESP_ERR_INVALID_STATE;
     }
-    const BaseType_t result = xTaskCreate(adb_task, "adb", kTaskStack, nullptr, kTaskPriority, nullptr);
+    const BaseType_t result = xTaskCreatePinnedToCore(adb_task, "adb", kTaskStack, nullptr, kTaskPriority, nullptr, config::kAppCore);
     return result == pdPASS ? ESP_OK : ESP_ERR_NO_MEM;
 }
 

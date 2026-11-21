@@ -17,6 +17,8 @@
 #include "esp_system.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
+#include "freertos/queue.h"
+#include "freertos/task.h"
 #include "input/ps3_hid_compat.hpp"
 #include "input/ps3_protocol.hpp"
 #include "input/ps3_remote.hpp"
@@ -52,6 +54,25 @@ uint8_t s_remote_bda[6] = {};
 uint8_t s_known_bda[6] = {};
 bool s_has_known_bda = false;
 uint8_t s_last_battery = 0;
+
+enum class BtWork : uint8_t { Connect };
+struct BtWorkItem {
+    BtWork type;
+    uint8_t bda[6];
+};
+QueueHandle_t s_bt_work_queue = nullptr;
+
+void enqueue_connect(const uint8_t* bda) {
+    if (s_bt_work_queue == nullptr || bda == nullptr) {
+        return;
+    }
+    BtWorkItem item = {};
+    item.type = BtWork::Connect;
+    std::memcpy(item.bda, bda, sizeof(item.bda));
+    if (xQueueSend(s_bt_work_queue, &item, 0) != pdTRUE) {
+        ESP_LOGW(TAG, "BT work queue full");
+    }
+}
 
 tL2CAP_CFG_INFO s_config = {};
 tL2CAP_APPL_INFO s_callbacks = {};
@@ -195,6 +216,15 @@ void connect_remote(const uint8_t* bda) {
     schedule_discovery(kConnectTimeoutUs);
 }
 
+void bt_work_task(void*) {
+    BtWorkItem item = {};
+    while (xQueueReceive(s_bt_work_queue, &item, portMAX_DELAY) == pdTRUE) {
+        if (item.type == BtWork::Connect) {
+            connect_remote(item.bda);
+        }
+    }
+}
+
 void handle_discovery_result(const esp_bt_gap_cb_param_t::disc_res_param& result) {
     char name[ESP_BT_GAP_MAX_BDNAME_LEN + 1] = {};
     uint32_t cod = 0;
@@ -238,7 +268,7 @@ void handle_discovery_result(const esp_bt_gap_cb_param_t::disc_res_param& result
         s_connect_pending.store(true);
         if (esp_bt_gap_cancel_discovery() != ESP_OK) {
             s_connect_pending.store(false);
-            connect_remote(result.bda);
+            enqueue_connect(result.bda);
         }
     }
 }
@@ -386,7 +416,7 @@ void gap_callback(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t* param) {
                     taskENTER_CRITICAL(&s_bda_mux);
                     std::memcpy(bda, s_remote_bda, sizeof(bda));
                     taskEXIT_CRITICAL(&s_bda_mux);
-                    connect_remote(bda);
+                    enqueue_connect(bda);
                 } else if (!s_connected.load() && !s_connecting.load()) {
                     schedule_reconnect();
                 }
@@ -608,6 +638,17 @@ esp_err_t start_bluetooth() {
 }  // namespace
 
 esp_err_t init() {
+    s_bt_work_queue = xQueueCreate(4, sizeof(BtWorkItem));
+    if (s_bt_work_queue == nullptr) {
+        return ESP_ERR_NO_MEM;
+    }
+    if (xTaskCreatePinnedToCore(bt_work_task, "bt_work", 2048, nullptr, 2, nullptr,
+                                config::kAppCore) != pdPASS) {
+        vQueueDelete(s_bt_work_queue);
+        s_bt_work_queue = nullptr;
+        return ESP_ERR_NO_MEM;
+    }
+
     esp_timer_create_args_t repeat_args = {};
     repeat_args.callback = repeat_timer_cb;
     repeat_args.name = "ps3_repeat";

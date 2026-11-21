@@ -231,7 +231,7 @@ esp_err_t start() {
     }
 
     const BaseType_t result =
-        xTaskCreate(ir_task, "ir", kTaskStack, nullptr, kTaskPriority, nullptr);
+        xTaskCreatePinnedToCore(ir_task, "ir", kTaskStack, nullptr, kTaskPriority, nullptr, config::kAppCore);
     return result == pdPASS ? ESP_OK : ESP_ERR_NO_MEM;
 }
 

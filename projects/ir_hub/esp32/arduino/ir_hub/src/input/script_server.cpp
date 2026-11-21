@@ -128,7 +128,7 @@ void script_task(void*) {
 
 esp_err_t start() {
     const BaseType_t result =
-        xTaskCreate(script_task, "script", kTaskStack, nullptr, kTaskPriority, nullptr);
+        xTaskCreatePinnedToCore(script_task, "script", kTaskStack, nullptr, kTaskPriority, nullptr, config::kAppCore);
     return result == pdPASS ? ESP_OK : ESP_ERR_NO_MEM;
 }
 

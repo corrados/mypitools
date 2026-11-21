@@ -137,7 +137,7 @@ esp_err_t start() {
         return ESP_ERR_INVALID_STATE;
     }
     const BaseType_t result =
-        xTaskCreate(radio_task, "radio", kTaskStack, nullptr, kTaskPriority, nullptr);
+        xTaskCreatePinnedToCore(radio_task, "radio", kTaskStack, nullptr, kTaskPriority, nullptr, config::kAppCore);
     return result == pdPASS ? ESP_OK : ESP_ERR_NO_MEM;
 }
 
