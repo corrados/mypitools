@@ -27,10 +27,10 @@ namespace {
 
 constexpr char TAG[] = "web";
 constexpr size_t kTaskStack = 3072;
-constexpr UBaseType_t kTaskPriority = 3;
+constexpr UBaseType_t kTaskPriority = 4;
 constexpr size_t kRequestBuffer = 384;
 constexpr size_t kResponseBuffer = 2048;
-constexpr uint32_t kClientTimeoutMs = 10000;
+constexpr uint32_t kClientTimeoutMs = 3000;
 
 constexpr char kIndexPage[] = R"HTML(<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>IR Hub</title><style>body{font:16px system-ui;background:#111;color:#eee;margin:16px}button{font-size:15px;margin:3px;padding:10px 12px;border-radius:8px;border:0;background:#333;color:#fff}button:active{background:#08f}h2{font-size:15px;color:#aaa;margin:14px 0 4px}#status{margin:12px 0;color:#8f8}</style></head><body><h1>IR Hub</h1><div id="status">ready</div><div id="buttons"></div><script>const groups=[["System",["EJECT","PLAYSTATION","SELECT","START","RETURN","BACK","OPTIONS","DISPLAY","TOPMENU","POPUP"]],["Numbers",["1","2","3","4","5","6","7","8","9","0"]],["Navigation",["UP","DOWN","LEFT","RIGHT","OK","AUIDO","ANGLE","SUBTITLE","CLEAR","TIME"]],["Colors",["RED","GREEN","BLUE","YELLOW"]],["Transport",["REWIND","PLAY","FORWARD","PREVIOUS","STOP","NEXT","SLOWREWIND","PAUSE","SLOWFORWARD"]],["Shoulder",["L1","L2","L3","R1","R2","R3","VIEW","X"]]];function press(b){fetch('/press?button='+encodeURIComponent(b));document.getElementById('status').textContent=b+': sent';}const root=document.getElementById('buttons');for(const [name,keys] of groups){const h=document.createElement('h2');h.textContent=name;root.appendChild(h);const row=document.createElement('div');for(const key of keys){const b=document.createElement('button');b.textContent=key;b.onclick=()=>press(key);row.appendChild(b);}root.appendChild(row);}</script></body></html>)HTML";
 
@@ -45,29 +45,6 @@ struct Client {
     uint32_t last_active = 0;
     bool keep_alive = false;
 };
-
-bool contains_ci(const char* haystack, const char* needle) {
-    const size_t needle_length = std::strlen(needle);
-    for (const char* p = haystack; *p != '\0'; ++p) {
-        size_t i = 0;
-        while (i < needle_length && p[i] != '\0' &&
-               std::tolower(static_cast<unsigned char>(p[i])) ==
-                   std::tolower(static_cast<unsigned char>(needle[i]))) {
-            ++i;
-        }
-        if (i == needle_length) {
-            return true;
-        }
-    }
-    return false;
-}
-
-bool request_keep_alive(const char* request) {
-    if (std::strstr(request, "HTTP/1.1") == nullptr) {
-        return false;
-    }
-    return !contains_ci(request, "connection: close");
-}
 
 Client s_client;
 WebStats s_web_stats;
@@ -255,6 +232,10 @@ void build_response(Client& client) {
 
 void close_client(Client& client) {
     if (client.fd >= 0) {
+        ESP_LOGD(TAG, "close fd=%d req=%u resp=%u/%u", client.fd,
+                 static_cast<unsigned>(client.request_length),
+                 static_cast<unsigned>(client.response_offset),
+                 static_cast<unsigned>(client.response_length));
         close(client.fd);
     }
     client.fd = -1;
@@ -271,6 +252,7 @@ void accept_clients(int server) {
         if (fd < 0) {
             return;
         }
+        ESP_LOGD(TAG, "accept fd=%d", fd);
         set_nonblocking(fd);
         const int nodelay = 1;
         setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &nodelay, sizeof(nodelay));
@@ -320,7 +302,7 @@ void service_client(Client& client) {
                     close_client(client);
                 }
             }
-        } else if (written < 0 && !would_block()) {
+        } else if (written == 0 || (written < 0 && !would_block())) {
             close_client(client);
         }
         return;
@@ -334,7 +316,7 @@ void service_client(Client& client) {
             client.request[client.request_length] = '\0';
             client.last_active = millis();
             if (std::strstr(client.request, "\r\n\r\n") != nullptr) {
-                client.keep_alive = request_keep_alive(client.request);
+                client.keep_alive = false;
                 build_response(client);
                 return;
             }
