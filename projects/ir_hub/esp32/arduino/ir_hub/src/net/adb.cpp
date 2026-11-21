@@ -5,6 +5,7 @@
 
 #include <Preferences.h>
 #include <atomic>
+#include <cerrno>
 #include <cstdio>
 #include <cstring>
 #include <string>
@@ -16,6 +17,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
 #include "freertos/task.h"
+#include "lwip/sockets.h"
 #include "mbedtls/base64.h"
 #include "mbedtls/bignum.h"
 #include "mbedtls/md.h"
@@ -50,6 +52,8 @@ constexpr uint32_t kCmdWrte = 0x45545257U;
 constexpr uint32_t kCmdClse = 0x45534c43U;
 constexpr size_t kQueueLength = 64;
 constexpr size_t kSendBatch = 8;
+constexpr uint32_t kWriteRetries = 50;
+constexpr uint32_t kWriteSelectTimeoutUs = 10000;
 constexpr size_t kTaskStack = 4096;
 constexpr UBaseType_t kTaskPriority = 2;
 #ifdef IR_HUB_HAS_ADB_KEY_SECRET
@@ -90,6 +94,8 @@ std::atomic<bool> s_connected{false};
 uint32_t s_reconnect_delay_ms = kReconnectMs;
 uint32_t s_auth_wait_deadline_ms = 0;
 AdbStats s_stats;
+
+void disconnect(const char* reason);
 
 void clear_sent_times() {
     s_sent_head = 0;
@@ -152,16 +158,37 @@ bool write_all(const uint8_t* data, size_t length) {
         if (!s_client.connected()) {
             return false;
         }
-        const size_t written = s_client.write(data + offset, length - offset);
-        if (written == 0) {
-            if (++retries > 500) {
+        const int fd = s_client.fd();
+        if (fd < 0) {
+            return false;
+        }
+        fd_set write_set;
+        FD_ZERO(&write_set);
+        FD_SET(fd, &write_set);
+        struct timeval timeout = {};
+        timeout.tv_usec = kWriteSelectTimeoutUs;
+        const int ready = ::select(fd + 1, nullptr, &write_set, nullptr, &timeout);
+        if (ready < 0 && errno != EINTR) {
+            return false;
+        }
+        if (ready <= 0) {
+            if (++retries > kWriteRetries) {
                 return false;
             }
-            delay(1);
             continue;
         }
-        offset += written;
-        retries = 0;
+        const int written = ::send(fd, data + offset, length - offset, MSG_DONTWAIT);
+        if (written > 0) {
+            offset += static_cast<size_t>(written);
+            retries = 0;
+            continue;
+        }
+        if (written == 0 || (errno != EAGAIN && errno != EWOULDBLOCK && errno != EINPROGRESS)) {
+            return false;
+        }
+        if (++retries > kWriteRetries) {
+            return false;
+        }
     }
     return true;
 }
@@ -176,9 +203,14 @@ bool send_packet(uint32_t command, uint32_t arg0, uint32_t arg1, const uint8_t* 
     write_le32(header + 16, checksum(data, length));
     write_le32(header + 20, command ^ 0xffffffffU);
     if (!write_all(header, sizeof(header))) {
+        disconnect("write failed");
         return false;
     }
-    return length == 0 || write_all(data, length);
+    if (length != 0 && !write_all(data, length)) {
+        disconnect("write failed");
+        return false;
+    }
+    return true;
 }
 
 bool read_packet(Packet& packet) {
@@ -425,10 +457,10 @@ bool connect_and_handshake() {
 
     ESP_LOGI(TAG, "connecting to %s:%u", config::kFireTvHost, kAdbPort);
     s_client.setTimeout(kConnectTimeoutMs);
-    s_client.setNoDelay(true);
     if (!s_client.connect(address, kAdbPort, kConnectTimeoutMs)) {
         return false;
     }
+    s_client.setNoDelay(true);
 
     static constexpr char kHost[] = "host::";
     if (!send_packet(kCmdCnxn, kProtocolVersion, kMaxPayload,
@@ -502,7 +534,6 @@ void send_queued_commands() {
         const size_t length = std::strlen(command);
         if (!send_packet(kCmdWrte, kLocalId, s_remote_id,
                          reinterpret_cast<const uint8_t*>(command), length)) {
-            disconnect("write failed");
             return;
         }
         push_sent_time(micros());
