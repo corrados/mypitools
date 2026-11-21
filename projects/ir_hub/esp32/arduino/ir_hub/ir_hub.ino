@@ -124,7 +124,7 @@ void setup() {
     if constexpr (irhub::config::kWebServerEnabled) {
         require_ok(irhub::web_server::start(), "web_server::start");
     }
-    Serial.println("Web ready; waiting for ADB before Bluetooth");
+    Serial.println("Services ready; waiting for ADB before Bluetooth");
     for (uint32_t waited = 0; waited < 15000 && !irhub::adb::connected(); waited += 100) {
         delay(100);
     }
