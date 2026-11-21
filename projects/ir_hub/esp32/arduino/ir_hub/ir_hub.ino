@@ -56,6 +56,9 @@ void handle_serial_command() {
                 } else if (std::strcmp(command, "BT") == 0) {
                     Serial.printf("ps3=%s\n",
                                   irhub::input::connected() ? "connected" : "disconnected");
+                } else if (std::strcmp(command, "BTPAIR") == 0) {
+                    const esp_err_t pair_err = irhub::input::start_pairing();
+                    Serial.printf("btpair=%s\n", esp_err_to_name(pair_err));
                 } else if (std::strcmp(command, "ADB") == 0) {
                     Serial.printf("adb=%s\n",
                                   irhub::adb::connected() ? "connected" : "disconnected");

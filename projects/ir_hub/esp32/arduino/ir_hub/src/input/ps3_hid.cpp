@@ -32,6 +32,8 @@ constexpr uint64_t kRepeatNextUs = 200000;
 constexpr uint64_t kSleepUs = 1800000ULL * 1000ULL * 1000ULL;
 constexpr uint64_t kDiscoveryRetryUs = 30000000;
 constexpr uint64_t kConnectTimeoutUs = 10000000;
+constexpr uint32_t kPairingWindowMs = 60000U;
+constexpr uint64_t kPairingInquiryRetryUs = 6000000ULL;
 constexpr uint8_t kInquiryLength = 0x04;
 constexpr uint32_t kRemoteCod = 0x0000250C;
 constexpr size_t kButtonLength = 32;
@@ -48,6 +50,7 @@ std::atomic<bool> s_discovering{false};
 std::atomic<bool> s_connecting{false};
 std::atomic<bool> s_connect_pending{false};
 std::atomic<bool> s_sleeping{false};
+std::atomic<uint32_t> s_pairing_until_ms{0};
 std::atomic<uint16_t> s_control_cid{0};
 std::atomic<uint16_t> s_interrupt_cid{0};
 uint8_t s_remote_bda[6] = {};
@@ -55,23 +58,37 @@ uint8_t s_known_bda[6] = {};
 bool s_has_known_bda = false;
 uint8_t s_last_battery = 0;
 
-enum class BtWork : uint8_t { Connect };
+enum class BtWork : uint8_t { Connect, StartDiscovery, FinishPairing };
 struct BtWorkItem {
     BtWork type;
     uint8_t bda[6];
 };
 QueueHandle_t s_bt_work_queue = nullptr;
 
-void enqueue_connect(const uint8_t* bda) {
-    if (s_bt_work_queue == nullptr || bda == nullptr) {
+void enqueue_work(BtWork type, const uint8_t* bda = nullptr) {
+    if (s_bt_work_queue == nullptr) {
         return;
     }
     BtWorkItem item = {};
-    item.type = BtWork::Connect;
-    std::memcpy(item.bda, bda, sizeof(item.bda));
+    item.type = type;
+    if (bda != nullptr) {
+        std::memcpy(item.bda, bda, sizeof(item.bda));
+    }
     if (xQueueSend(s_bt_work_queue, &item, 0) != pdTRUE) {
         ESP_LOGW(TAG, "BT work queue full");
     }
+}
+
+void enqueue_connect(const uint8_t* bda) {
+    enqueue_work(BtWork::Connect, bda);
+}
+
+void enqueue_start_discovery() {
+    enqueue_work(BtWork::StartDiscovery);
+}
+
+void enqueue_finish_pairing() {
+    enqueue_work(BtWork::FinishPairing);
 }
 
 tL2CAP_CFG_INFO s_config = {};
@@ -79,6 +96,21 @@ tL2CAP_APPL_INFO s_callbacks = {};
 
 uint32_t now_ms() {
     return static_cast<uint32_t>(esp_timer_get_time() / 1000ULL);
+}
+
+bool pairing_active() {
+    const uint32_t deadline = s_pairing_until_ms.load();
+    return deadline != 0 && static_cast<int32_t>(now_ms() - deadline) < 0;
+}
+
+esp_err_t finish_pairing() {
+    if (s_pairing_until_ms.exchange(0) == 0) {
+        return ESP_OK;
+    }
+    const esp_err_t err =
+        esp_bt_gap_set_scan_mode(ESP_BT_CONNECTABLE, ESP_BT_NON_DISCOVERABLE);
+    ESP_LOGI(TAG, "pairing window closed");
+    return err;
 }
 
 void format_bda(const uint8_t* bda, char* out, size_t length) {
@@ -146,6 +178,14 @@ void connect_remote(const uint8_t* bda);
 void connect_known_remote();
 
 void discovery_timer_cb(void*) {
+    if (pairing_active()) {
+        if (!s_connected.load() && !s_connecting.load() && !s_discovering.load()) {
+            enqueue_start_discovery();
+        }
+        schedule_discovery(kPairingInquiryRetryUs);
+        return;
+    }
+    enqueue_finish_pairing();
     if (s_connected.load()) {
         return;
     }
@@ -221,6 +261,10 @@ void bt_work_task(void*) {
     while (xQueueReceive(s_bt_work_queue, &item, portMAX_DELAY) == pdTRUE) {
         if (item.type == BtWork::Connect) {
             connect_remote(item.bda);
+        } else if (item.type == BtWork::StartDiscovery) {
+            start_discovery();
+        } else if (item.type == BtWork::FinishPairing) {
+            finish_pairing();
         }
     }
 }
@@ -417,7 +461,7 @@ void gap_callback(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t* param) {
                     std::memcpy(bda, s_remote_bda, sizeof(bda));
                     taskEXIT_CRITICAL(&s_bda_mux);
                     enqueue_connect(bda);
-                } else if (!s_connected.load() && !s_connecting.load()) {
+                } else if (!pairing_active() && !s_connected.load() && !s_connecting.load()) {
                     schedule_reconnect();
                 }
             }
@@ -493,6 +537,7 @@ void l2cap_config_cfm(UINT16 l2cap_cid, tL2CAP_CFG_INFO* config) {
             esp_timer_stop(s_discovery_timer);
         }
         reset_sleep_timer();
+        enqueue_finish_pairing();
         ESP_LOGI(TAG, "BD remote ready");
     }
 }
@@ -683,6 +728,26 @@ esp_err_t init() {
         ESP_LOGW(TAG, "invalid configured remote MAC; falling back to inquiry");
     }
     ESP_LOGI(TAG, "HID host ready; waiting for remote-initiated connection");
+    return ESP_OK;
+}
+
+esp_err_t start_pairing() {
+    if (s_connected.load()) {
+        ESP_LOGI(TAG, "remote already connected");
+        return ESP_OK;
+    }
+    const esp_err_t mode_err =
+        esp_bt_gap_set_scan_mode(ESP_BT_CONNECTABLE, ESP_BT_GENERAL_DISCOVERABLE);
+    if (mode_err != ESP_OK) {
+        return mode_err;
+    }
+    s_pairing_until_ms.store(now_ms() + kPairingWindowMs);
+    s_connecting.store(false);
+    s_discovering.store(false);
+    start_discovery();
+    schedule_discovery(kPairingInquiryRetryUs);
+    ESP_LOGI(TAG, "pairing window open for %u s; hold Start+Enter on the remote",
+             static_cast<unsigned>(kPairingWindowMs / 1000U));
     return ESP_OK;
 }
 
