@@ -120,6 +120,63 @@ void format_bda(const uint8_t* bda, char* out, size_t length) {
                   bda[2], bda[3], bda[4], bda[5]);
 }
 
+const char* connect_result_name(UINT16 result) {
+    switch (result) {
+        case 0:
+            return "OK / HCI_SUCCESS";
+        case 1:
+            return "PENDING";
+        case 2:
+            return "NO_PSM / HCI_NO_CONNECTION";
+        case 3:
+            return "SECURITY_BLOCK / HCI_HW_FAILURE";
+        case 4:
+            return "NO_RESOURCES / HCI_PAGE_TIMEOUT";
+        case 5:
+            return "BAD_CTLR_ID / HCI_AUTH_FAILURE";
+        case 6:
+            return "HCI_KEY_MISSING";
+        case 7:
+            return "HCI_MEMORY_FULL";
+        case 8:
+            return "HCI_CONNECTION_TOUT";
+        case 9:
+            return "HCI_MAX_NUM_OF_CONNECTIONS";
+        case 10:
+            return "HCI_MAX_NUM_OF_SCOS";
+        case 11:
+            return "HCI_CONNECTION_EXISTS";
+        case 12:
+            return "HCI_COMMAND_DISALLOWED";
+        case 13:
+            return "HCI_HOST_REJECT_RESOURCES";
+        case 14:
+            return "HCI_HOST_REJECT_SECURITY";
+        case 15:
+            return "HCI_HOST_REJECT_DEVICE";
+        case 0x13:
+            return "HCI_PEER_USER";
+        case 0x18:
+            return "HCI_PAIRING_NOT_ALLOWED";
+        case 0x22:
+            return "HCI_LMP_RESPONSE_TIMEOUT";
+        case 0x2F:
+            return "HCI_INSUFFICIENT_SECURITY";
+        case 0x3E:
+            return "HCI_CONN_FAILED_ESTABLISHMENT";
+        case 254:
+            return "AMP_FAILED";
+        case 255:
+            return "NO_LINK";
+        case 256:
+            return "CANCEL";
+        case 0xEEEE:
+            return "TIMEOUT";
+        default:
+            return "UNKNOWN";
+    }
+}
+
 bool is_remote_name(const char* name) {
     return name != nullptr && std::strstr(name, "BD Remote") != nullptr;
 }
@@ -232,7 +289,7 @@ void connect_known_remote() {
 }
 
 void schedule_reconnect() {
-    schedule_discovery(kDiscoveryRetryUs);
+    schedule_discovery(pairing_active() ? kPairingInquiryRetryUs : kDiscoveryRetryUs);
 }
 
 void connect_remote(const uint8_t* bda) {
@@ -443,15 +500,22 @@ void handle_report(const Ps3Report& report) {
 void gap_callback(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t* param) {
     switch (event) {
         case ESP_BT_GAP_PIN_REQ_EVT: {
+            char address[18] = {};
+            format_bda(param->pin_req.bda, address, sizeof(address));
             esp_bt_pin_code_t pin = {'0', '0', '0', '0'};
-            esp_bt_gap_pin_reply(param->pin_req.bda, true, 4, pin);
-            ESP_LOGI(TAG, "PIN request answered");
+            const esp_err_t err = esp_bt_gap_pin_reply(param->pin_req.bda, true, 4, pin);
+            ESP_LOGI(TAG, "PIN request from %s answered with 0000: %s", address,
+                     esp_err_to_name(err));
             break;
         }
-        case ESP_BT_GAP_CFM_REQ_EVT:
-            esp_bt_gap_ssp_confirm_reply(param->cfm_req.bda, true);
-            ESP_LOGI(TAG, "SSP confirmation accepted");
+        case ESP_BT_GAP_CFM_REQ_EVT: {
+            char address[18] = {};
+            format_bda(param->cfm_req.bda, address, sizeof(address));
+            const esp_err_t err = esp_bt_gap_ssp_confirm_reply(param->cfm_req.bda, true);
+            ESP_LOGI(TAG, "SSP confirmation accepted for %s: %s", address,
+                     esp_err_to_name(err));
             break;
+        }
         case ESP_BT_GAP_AUTH_CMPL_EVT:
             ESP_LOGI(TAG, "authentication %s: %s", param->auth_cmpl.device_name,
                      param->auth_cmpl.stat == ESP_BT_STATUS_SUCCESS ? "ok" : "failed");
@@ -486,9 +550,10 @@ void gap_callback(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t* param) {
                      static_cast<int>(param->read_rmt_name.stat));
             break;
         case ESP_BT_GAP_ACL_CONN_CMPL_STAT_EVT:
-            ESP_LOGI(TAG, "ACL connected handle=%u status=%d",
+            ESP_LOGI(TAG, "ACL connected handle=%u status=%u (%s)",
                      static_cast<unsigned>(param->acl_conn_cmpl_stat.handle),
-                     static_cast<int>(param->acl_conn_cmpl_stat.stat));
+                     static_cast<unsigned>(param->acl_conn_cmpl_stat.stat),
+                     connect_result_name(param->acl_conn_cmpl_stat.stat));
             break;
         case ESP_BT_GAP_ACL_DISCONN_CMPL_STAT_EVT:
             ESP_LOGI(TAG, "ACL disconnected handle=%u reason=%d",
@@ -515,7 +580,8 @@ void l2cap_connect_ind(BD_ADDR bd_addr, UINT16 l2cap_cid, UINT16 psm, UINT8 id) 
 }
 
 void l2cap_connect_cfm(UINT16 l2cap_cid, UINT16 result) {
-    ESP_LOGI(TAG, "L2CAP connected cid=0x%04x result=%u", l2cap_cid, result);
+    ESP_LOGI(TAG, "L2CAP connected cid=0x%04x result=%u (%s)", l2cap_cid, result,
+             connect_result_name(result));
     if (result != kL2capConnectOk) {
         if (s_connecting.load()) {
             s_connecting.store(false);
@@ -622,12 +688,13 @@ esp_err_t start_bluetooth() {
         }
         esp_bt_controller_config_t cfg = BT_CONTROLLER_INIT_CONFIG_DEFAULT();
         cfg.mode = ESP_BT_MODE_CLASSIC_BT;
-        cfg.bt_max_acl_conn = 1;
+        cfg.bt_max_acl_conn = 2;
         cfg.ble_max_conn = 0;
         cfg.normal_adv_size = 10;
         cfg.mesh_adv_size = 10;
-        ESP_LOGI(TAG, "free heap before controller: %u",
-                 static_cast<unsigned>(esp_get_free_heap_size()));
+        ESP_LOGI(TAG, "free heap before controller: %u max_acl=%u",
+                 static_cast<unsigned>(esp_get_free_heap_size()),
+                 static_cast<unsigned>(cfg.bt_max_acl_conn));
         esp_err_t controller_err = esp_bt_controller_init(&cfg);
         if (controller_err != ESP_OK) {
             return controller_err;
