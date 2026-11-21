@@ -52,7 +52,7 @@ constexpr uint32_t kCmdWrte = 0x45545257U;
 constexpr uint32_t kCmdClse = 0x45534c43U;
 constexpr size_t kQueueLength = 64;
 constexpr size_t kSendBatch = 8;
-constexpr uint32_t kWriteRetries = 50;
+constexpr uint32_t kWriteRetries = 500;
 constexpr uint32_t kWriteSelectTimeoutUs = 10000;
 constexpr size_t kTaskStack = 4096;
 constexpr UBaseType_t kTaskPriority = 2;
@@ -156,10 +156,14 @@ bool write_all(const uint8_t* data, size_t length) {
     uint32_t retries = 0;
     while (offset < length) {
         if (!s_client.connected()) {
+            ESP_LOGW(TAG, "write failed: disconnected at %u/%u", static_cast<unsigned>(offset),
+                     static_cast<unsigned>(length));
             return false;
         }
         const int fd = s_client.fd();
         if (fd < 0) {
+            ESP_LOGW(TAG, "write failed: bad fd at %u/%u", static_cast<unsigned>(offset),
+                     static_cast<unsigned>(length));
             return false;
         }
         fd_set write_set;
@@ -169,10 +173,13 @@ bool write_all(const uint8_t* data, size_t length) {
         timeout.tv_usec = kWriteSelectTimeoutUs;
         const int ready = ::select(fd + 1, nullptr, &write_set, nullptr, &timeout);
         if (ready < 0 && errno != EINTR) {
+            ESP_LOGW(TAG, "write failed: select fd=%d errno=%d", fd, errno);
             return false;
         }
         if (ready <= 0) {
             if (++retries > kWriteRetries) {
+                ESP_LOGW(TAG, "write failed: select timeout fd=%d at %u/%u", fd,
+                         static_cast<unsigned>(offset), static_cast<unsigned>(length));
                 return false;
             }
             continue;
@@ -184,9 +191,13 @@ bool write_all(const uint8_t* data, size_t length) {
             continue;
         }
         if (written == 0 || (errno != EAGAIN && errno != EWOULDBLOCK && errno != EINPROGRESS)) {
+            ESP_LOGW(TAG, "write failed: send fd=%d errno=%d at %u/%u", fd, errno,
+                     static_cast<unsigned>(offset), static_cast<unsigned>(length));
             return false;
         }
         if (++retries > kWriteRetries) {
+            ESP_LOGW(TAG, "write failed: send busy fd=%d errno=%d at %u/%u", fd, errno,
+                     static_cast<unsigned>(offset), static_cast<unsigned>(length));
             return false;
         }
     }
