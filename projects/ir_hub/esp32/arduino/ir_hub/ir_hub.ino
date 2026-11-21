@@ -20,6 +20,8 @@
 namespace {
 
 constexpr char TAG[] = "app";
+constexpr int kBootLedPin = 2;
+constexpr uint32_t kBootBlinkMs = 500;
 char command[64];
 size_t command_length = 0;
 
@@ -38,6 +40,16 @@ void require_ok(esp_err_t err, const char* operation) {
         ESP_LOGE(TAG, "%s failed: %s", operation, esp_err_to_name(err));
         Serial.printf("%s failed: %s\n", operation, esp_err_to_name(err));
         abort();
+    }
+}
+
+void blink_boot_led() {
+    pinMode(kBootLedPin, OUTPUT);
+    for (int i = 0; i < 3; ++i) {
+        digitalWrite(kBootLedPin, HIGH);
+        delay(kBootBlinkMs);
+        digitalWrite(kBootLedPin, LOW);
+        delay(kBootBlinkMs);
     }
 }
 
@@ -115,6 +127,7 @@ void setup() {
     Serial.begin(115200);
     delay(500);
     Serial.setDebugOutput(true);
+    blink_boot_led();
     esp_log_level_set("*", ESP_LOG_NONE);
     for (const char* tag : {"app", "ps3", "adb", "control", "radio", "web", "ir", "script", "rgb_led"}) {
         esp_log_level_set(tag, ESP_LOG_INFO);
