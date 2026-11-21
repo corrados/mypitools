@@ -23,7 +23,7 @@ constexpr char TAG[] = "radio";
 constexpr size_t kQueueLength = 8;
 constexpr size_t kTaskStack = 4096;
 constexpr UBaseType_t kTaskPriority = 3;
-constexpr int kTimeoutMs = 2000;
+constexpr int kTimeoutMs = 5000;
 
 QueueHandle_t s_queue = nullptr;
 
@@ -67,6 +67,7 @@ bool request_power(bool on) {
     if (inet_pton(AF_INET, config::kRadioSocketIp, &address.sin_addr) != 1) {
         hostent* host = gethostbyname(config::kRadioSocketHost);
         if (host == nullptr || host->h_addr_list == nullptr || host->h_addr_list[0] == nullptr) {
+            ESP_LOGD(TAG, "address lookup failed for %s", config::kRadioSocketHost);
             return false;
         }
         std::memcpy(&address.sin_addr, host->h_addr_list[0], sizeof(address.sin_addr));
@@ -74,6 +75,7 @@ bool request_power(bool on) {
 
     const int fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (fd < 0) {
+        ESP_LOGD(TAG, "socket failed errno=%d", errno);
         return false;
     }
     const int flags = fcntl(fd, F_GETFL, 0);
@@ -81,32 +83,42 @@ bool request_power(bool on) {
         fcntl(fd, F_SETFL, flags | O_NONBLOCK);
     }
 
-    bool ok = false;
     const int result = connect(fd, reinterpret_cast<sockaddr*>(&address), sizeof(address));
-    if (result == 0 || (result < 0 && errno == EINPROGRESS)) {
-        if (wait_socket(fd, true, kTimeoutMs)) {
-            int socket_error = 0;
-            socklen_t error_length = sizeof(socket_error);
-            if (getsockopt(fd, SOL_SOCKET, SO_ERROR, &socket_error, &error_length) == 0 &&
-                socket_error == 0) {
-                char request[192] = {};
-                const int request_length =
-                    std::snprintf(request, sizeof(request),
-                                  "GET %s HTTP/1.0\r\nHost: %s\r\nConnection: close\r\n\r\n", path,
-                                  config::kRadioSocketHost);
-                if (request_length > 0 &&
-                    send_all(fd, request, static_cast<size_t>(request_length))) {
-                    wait_socket(fd, false, kTimeoutMs);
-                    char discard[64] = {};
-                    while (recv(fd, discard, sizeof(discard), 0) > 0) {
-                    }
-                    ok = true;
-                }
-            }
-        }
+    if (result != 0 && (result >= 0 || errno != EINPROGRESS)) {
+        ESP_LOGD(TAG, "connect failed errno=%d", errno);
+        close(fd);
+        return false;
+    }
+    if (!wait_socket(fd, true, kTimeoutMs)) {
+        ESP_LOGD(TAG, "connect timeout");
+        close(fd);
+        return false;
+    }
+    int socket_error = 0;
+    socklen_t error_length = sizeof(socket_error);
+    const int option_result = getsockopt(fd, SOL_SOCKET, SO_ERROR, &socket_error, &error_length);
+    if (option_result != 0 || socket_error != 0) {
+        ESP_LOGD(TAG, "socket check failed getsockopt=%d so_error=%d errno=%d", option_result,
+                 socket_error, errno);
+        close(fd);
+        return false;
+    }
+    char request[192] = {};
+    const int request_length =
+        std::snprintf(request, sizeof(request),
+                      "GET %s HTTP/1.0\r\nHost: %s\r\nConnection: close\r\n\r\n", path,
+                      config::kRadioSocketHost);
+    if (request_length <= 0 || !send_all(fd, request, static_cast<size_t>(request_length))) {
+        ESP_LOGD(TAG, "send failed errno=%d", errno);
+        close(fd);
+        return false;
+    }
+    wait_socket(fd, false, kTimeoutMs);
+    char discard[64] = {};
+    while (recv(fd, discard, sizeof(discard), 0) > 0) {
     }
     close(fd);
-    return ok;
+    return true;
 }
 
 void radio_task(void*) {
@@ -116,11 +128,8 @@ void radio_task(void*) {
             continue;
         }
         ESP_LOGI(TAG, "Power %s request", on ? "On" : "Off");
-        if (request_power(on)) {
-            ESP_LOGI(TAG, "Power %s sent", on ? "On" : "Off");
-        } else {
-            ESP_LOGW(TAG, "Power %s failed", on ? "On" : "Off");
-        }
+        request_power(on);
+        ESP_LOGI(TAG, "Power %s request complete", on ? "On" : "Off");
     }
 }
 

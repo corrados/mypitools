@@ -109,7 +109,10 @@ void setup() {
     Serial.begin(115200);
     delay(500);
     Serial.setDebugOutput(true);
-    esp_log_level_set("*", ESP_LOG_INFO);
+    esp_log_level_set("*", ESP_LOG_NONE);
+    for (const char* tag : {"app", "ps3", "adb", "control", "radio", "web", "ir", "script", "rgb_led"}) {
+        esp_log_level_set(tag, ESP_LOG_INFO);
+    }
 
     Serial.println();
     Serial.println("Starting IR hub");
