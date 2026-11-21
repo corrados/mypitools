@@ -52,7 +52,7 @@ constexpr uint32_t kCmdWrte = 0x45545257U;
 constexpr uint32_t kCmdClse = 0x45534c43U;
 constexpr size_t kQueueLength = 64;
 constexpr size_t kSendBatch = 8;
-constexpr uint32_t kWriteRetries = 500;
+constexpr uint32_t kWriteRetries = 2000;
 constexpr uint32_t kWriteSelectTimeoutUs = 10000;
 constexpr size_t kTaskStack = 4096;
 constexpr UBaseType_t kTaskPriority = 2;
@@ -337,8 +337,13 @@ bool sign_token(const uint8_t* token, size_t length, std::vector<uint8_t>& signa
     }
     signature.resize(256);
     size_t signature_length = 0;
-    const int result = mbedtls_pk_sign(&s_key, MBEDTLS_MD_SHA1, token, length, signature.data(),
-                                       signature.size(), &signature_length, rng, nullptr);
+    int result = mbedtls_pk_sign(&s_key, MBEDTLS_MD_SHA1, token, length, signature.data(),
+                                 signature.size(), &signature_length, rng, nullptr);
+    if (result != 0) {
+        vTaskDelay(pdMS_TO_TICKS(20));
+        result = mbedtls_pk_sign(&s_key, MBEDTLS_MD_SHA1, token, length, signature.data(),
+                                 signature.size(), &signature_length, rng, nullptr);
+    }
     if (result != 0) {
         ESP_LOGE(TAG, "token signing failed: -0x%04x", static_cast<unsigned>(-result));
         return false;
