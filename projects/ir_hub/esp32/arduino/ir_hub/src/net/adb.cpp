@@ -18,12 +18,34 @@
 #include "freertos/queue.h"
 #include "freertos/task.h"
 #include "lwip/sockets.h"
+#include "mbedtls/asn1.h"
 #include "mbedtls/base64.h"
-#include "mbedtls/bignum.h"
+#define MBEDTLS_DECLARE_PRIVATE_IDENTIFIERS
+#define MBEDTLS_ALLOW_PRIVATE_ACCESS
+#include "mbedtls/private/bignum.h"
+extern "C" {
+void mbedtls_mpi_init(mbedtls_mpi *X);
+void mbedtls_mpi_free(mbedtls_mpi *X);
+int mbedtls_mpi_set_bit(mbedtls_mpi *X, size_t pos, unsigned char val);
+int mbedtls_mpi_mod_mpi(mbedtls_mpi *R, const mbedtls_mpi *A, const mbedtls_mpi *B);
+int mbedtls_mpi_inv_mod(mbedtls_mpi *X, const mbedtls_mpi *A, const mbedtls_mpi *N);
+int mbedtls_mpi_sub_mpi(mbedtls_mpi *X, const mbedtls_mpi *A, const mbedtls_mpi *B);
+int mbedtls_mpi_mul_mpi(mbedtls_mpi *X, const mbedtls_mpi *A, const mbedtls_mpi *B);
+int mbedtls_mpi_write_binary_le(const mbedtls_mpi *X, unsigned char *buf, size_t buflen);
+int mbedtls_asn1_get_mpi(unsigned char **p, const unsigned char *end, mbedtls_mpi *X);
+}
 #include "mbedtls/md.h"
-#include "mbedtls/md5.h"
+#define MBEDTLS_DECLARE_PRIVATE_IDENTIFIERS
 #include "mbedtls/pk.h"
+#if __has_include("mbedtls/private/pk_private.h")
+#include "mbedtls/private/pk_private.h"
+#endif
+#if __has_include("mbedtls/rsa.h")
 #include "mbedtls/rsa.h"
+#elif __has_include("mbedtls/private/rsa.h")
+#include "mbedtls/private/rsa.h"
+#endif
+#include "psa/crypto.h"
 #include "net/adb_keys.hpp"
 
 namespace irhub::adb {
@@ -122,13 +144,6 @@ uint32_t pop_sent_time() {
     const uint32_t sent_us = s_sent_us[s_sent_head];
     s_sent_head = (s_sent_head + 1) % kQueueLength;
     return sent_us;
-}
-
-int rng(void*, unsigned char* buffer, size_t length) {
-    for (size_t i = 0; i < length; ++i) {
-        buffer[i] = static_cast<unsigned char>(esp_random());
-    }
-    return 0;
 }
 
 void write_le32(uint8_t* out, uint32_t value) {
@@ -287,19 +302,46 @@ bool ensure_key() {
 
     int result = 0;
     if (stored_length > 0) {
-        result = mbedtls_pk_parse_key(&s_key, der.data(), der.size(), nullptr, 0, rng, nullptr);
+        result = mbedtls_pk_parse_key(&s_key, der.data(), der.size(), nullptr, 0);
         if (result == 0) {
             ESP_LOGI(TAG, "ADB key loaded from NVS (%u bytes)",
                      static_cast<unsigned>(stored_length));
         }
     } else {
+        ESP_LOGI(TAG, "Generating ADB RSA key");
         const mbedtls_pk_info_t* info = mbedtls_pk_info_from_type(MBEDTLS_PK_RSA);
-        if (info == nullptr || mbedtls_pk_setup(&s_key, info) != 0) {
-            ESP_LOGE(TAG, "cannot set up RSA key");
-            mbedtls_pk_free(&s_key);
-            return false;
+        if (info == nullptr) {
+            result = -1;
+        } else {
+            result = mbedtls_pk_setup(&s_key, info);
         }
-        result = mbedtls_rsa_gen_key(mbedtls_pk_rsa(s_key), rng, nullptr, 2048, 65537);
+        if (result == 0) {
+#if defined(MBEDTLS_RSA_C)
+            psa_key_attributes_t attrs = PSA_KEY_ATTRIBUTES_INIT;
+            psa_set_key_type(&attrs, PSA_KEY_TYPE_RSA_KEY_PAIR);
+            psa_set_key_bits(&attrs, 2048);
+            psa_set_key_algorithm(&attrs, PSA_ALG_RSA_PKCS1V15_SIGN(PSA_ALG_SHA_1));
+            psa_set_key_usage_flags(&attrs, PSA_KEY_USAGE_SIGN_HASH | PSA_KEY_USAGE_EXPORT);
+            mbedtls_svc_key_id_t key_id = MBEDTLS_SVC_KEY_ID_INIT;
+            psa_status_t st = psa_generate_key(&attrs, &key_id);
+            if (st == PSA_SUCCESS) {
+                uint8_t der[2048] = {};
+                size_t der_len = 0;
+                st = psa_export_key(key_id, der, sizeof(der), &der_len);
+                if (st == PSA_SUCCESS) {
+                    result = mbedtls_pk_parse_key(&s_key, der, der_len, nullptr, 0);
+                } else {
+                    result = -1;
+                }
+                psa_destroy_key(key_id);
+            } else {
+                result = -1;
+            }
+            psa_reset_key_attributes(&attrs);
+#else
+            result = -1;
+#endif
+        }
         if (result == 0) {
             uint8_t buffer[2048] = {};
             const int der_length = mbedtls_pk_write_key_der(&s_key, buffer, sizeof(buffer));
@@ -335,17 +377,30 @@ bool sign_token(const uint8_t* token, size_t length, std::vector<uint8_t>& signa
     if (length != 20) {
         return false;
     }
-    signature.resize(256);
-    size_t signature_length = 0;
-    int result = mbedtls_pk_sign(&s_key, MBEDTLS_MD_SHA1, token, length, signature.data(),
-                                 signature.size(), &signature_length, rng, nullptr);
-    if (result != 0) {
-        vTaskDelay(pdMS_TO_TICKS(20));
-        result = mbedtls_pk_sign(&s_key, MBEDTLS_MD_SHA1, token, length, signature.data(),
-                                 signature.size(), &signature_length, rng, nullptr);
+    psa_key_attributes_t attributes = PSA_KEY_ATTRIBUTES_INIT;
+    mbedtls_svc_key_id_t key_id = MBEDTLS_SVC_KEY_ID_INIT;
+    psa_status_t status = mbedtls_pk_get_psa_attributes(&s_key, PSA_KEY_USAGE_SIGN_HASH, &attributes);
+    if (status == 0) {
+        psa_set_key_algorithm(&attributes, PSA_ALG_RSA_PKCS1V15_SIGN(PSA_ALG_SHA_1));
+        status = mbedtls_pk_import_into_psa(&s_key, &attributes, &key_id);
     }
-    if (result != 0) {
-        ESP_LOGE(TAG, "token signing failed: -0x%04x", static_cast<unsigned>(-result));
+    size_t signature_length = 0;
+    if (status == PSA_SUCCESS) {
+        signature.resize(256);
+        status = psa_sign_hash(key_id, PSA_ALG_RSA_PKCS1V15_SIGN(PSA_ALG_SHA_1), token, length,
+                               signature.data(), signature.size(), &signature_length);
+        if (status != PSA_SUCCESS) {
+            vTaskDelay(pdMS_TO_TICKS(20));
+            status = psa_sign_hash(key_id, PSA_ALG_RSA_PKCS1V15_SIGN(PSA_ALG_SHA_1), token, length,
+                                   signature.data(), signature.size(), &signature_length);
+        }
+    }
+    if (!mbedtls_svc_key_id_is_null(key_id)) {
+        psa_destroy_key(key_id);
+    }
+    psa_reset_key_attributes(&attributes);
+    if (status != PSA_SUCCESS) {
+        ESP_LOGE(TAG, "token signing failed: -0x%04x", static_cast<unsigned>(-static_cast<int>(status)));
         return false;
     }
     signature.resize(signature_length);
@@ -370,6 +425,19 @@ std::string base64(const uint8_t* data, size_t length) {
 }
 
 bool public_key(std::string& out) {
+    uint8_t pk_der[512] = {};
+    const int pk_len = mbedtls_pk_write_pubkey_der(&s_key, pk_der, sizeof(pk_der));
+    if (pk_len <= 0) {
+        return false;
+    }
+    const uint8_t* pk_start = pk_der + sizeof(pk_der) - pk_len;
+
+    mbedtls_pk_context pk = {};
+    mbedtls_pk_init(&pk);
+    if (mbedtls_pk_parse_public_key(&pk, pk_start, static_cast<size_t>(pk_len)) != 0) {
+        mbedtls_pk_free(&pk);
+        return false;
+    }
     mbedtls_mpi n = {};
     mbedtls_mpi e = {};
     mbedtls_mpi r32 = {};
@@ -385,7 +453,28 @@ bool public_key(std::string& out) {
     mbedtls_mpi_init(&n0inv_value);
     mbedtls_mpi_init(&rr);
 
-    bool ok = mbedtls_rsa_export(mbedtls_pk_rsa(s_key), &n, nullptr, nullptr, nullptr, &e) == 0;
+    bool ok = false;
+    uint8_t key_buf[1024] = {};
+    unsigned char* p = key_buf;
+    const int key_len = mbedtls_pk_write_pubkey_der(&pk, key_buf, sizeof(key_buf));
+    if (key_len > 0) {
+        p = key_buf + sizeof(key_buf) - key_len;
+        size_t pos = 0;
+        if (mbedtls_asn1_get_tag(&p, key_buf + sizeof(key_buf), &pos, MBEDTLS_ASN1_CONSTRUCTED | MBEDTLS_ASN1_SEQUENCE) == 0) {
+            unsigned char* seq_end = p + pos;
+            if (mbedtls_asn1_get_tag(&p, seq_end, &pos, MBEDTLS_ASN1_CONSTRUCTED | MBEDTLS_ASN1_SEQUENCE) == 0) {
+                p += pos; // skip AlgorithmIdentifier
+            }
+            if (mbedtls_asn1_get_tag(&p, seq_end, &pos, MBEDTLS_ASN1_BIT_STRING) == 0) {
+                if (pos > 0) { ++p; --pos; } // skip unused-bits
+                unsigned char* rsa_end = p + pos;
+                if (mbedtls_asn1_get_tag(&p, rsa_end, &pos, MBEDTLS_ASN1_CONSTRUCTED | MBEDTLS_ASN1_SEQUENCE) == 0) {
+                    rsa_end = p + pos;
+                    ok = mbedtls_asn1_get_mpi(&p, rsa_end, &n) == 0 && mbedtls_asn1_get_mpi(&p, rsa_end, &e) == 0;
+                }
+            }
+        }
+    }
     uint8_t blob[524] = {};
     if (ok) {
         write_le32(blob, 64);
@@ -413,6 +502,7 @@ bool public_key(std::string& out) {
     mbedtls_mpi_free(&inverse);
     mbedtls_mpi_free(&n0inv_value);
     mbedtls_mpi_free(&rr);
+    mbedtls_pk_free(&pk);
     return ok;
 }
 
@@ -722,7 +812,13 @@ std::string public_key_fingerprint() {
         return {};
     }
     unsigned char digest[16] = {};
-    mbedtls_md5(decoded.data(), decoded_length, digest);
+    size_t digest_length = 0;
+    const mbedtls_md_info_t* md_info = mbedtls_md_info_from_type(MBEDTLS_MD_MD5);
+    if (md_info == nullptr ||
+        mbedtls_md(md_info, decoded.data(), decoded_length, digest) != 0) {
+        return {};
+    }
+    (void)digest_length;
     char text[48] = {};
     for (size_t i = 0; i < sizeof(digest); ++i) {
         std::snprintf(text + i * 3, i + 1 == sizeof(digest) ? 3 : 4, "%02X%s", digest[i],
