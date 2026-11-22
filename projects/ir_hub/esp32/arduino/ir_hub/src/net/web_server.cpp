@@ -26,7 +26,7 @@ namespace irhub::web_server {
 namespace {
 
 constexpr char TAG[] = "web";
-constexpr size_t kTaskStack = 3072;
+constexpr size_t kTaskStack = 2560;
 constexpr UBaseType_t kTaskPriority = 4;
 constexpr size_t kRequestBuffer = 384;
 constexpr size_t kResponseBuffer = 2048;

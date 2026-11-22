@@ -20,7 +20,7 @@ namespace irhub::script_server {
 namespace {
 
 constexpr char TAG[] = "script";
-constexpr size_t kTaskStack = 3072;
+constexpr size_t kTaskStack = 2560;
 constexpr UBaseType_t kTaskPriority = 4;
 constexpr size_t kMaxPending = 1024;
 

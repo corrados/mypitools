@@ -23,7 +23,7 @@ namespace {
 constexpr char TAG[] = "control";
 constexpr size_t kQueueLength = 64;
 constexpr size_t kSequenceQueueLength = 16;
-constexpr size_t kTaskStack = 3072;
+constexpr size_t kTaskStack = 2560;
 constexpr size_t kSequenceTaskStack = 2048;
 constexpr UBaseType_t kTaskPriority = 8;
 constexpr UBaseType_t kSequencePriority = 6;

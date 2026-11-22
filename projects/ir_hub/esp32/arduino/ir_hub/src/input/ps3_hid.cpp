@@ -305,9 +305,10 @@ void connect_remote(const uint8_t* bda) {
     format_bda(s_remote_bda, address, sizeof(address));
     const uint32_t free_heap = esp_get_free_heap_size();
     const uint32_t largest = heap_caps_get_largest_free_block(MALLOC_CAP_8BIT);
-    ESP_LOGI(TAG, "pre-connect heap=%u largest=%u", static_cast<unsigned>(free_heap),
-             static_cast<unsigned>(largest));
-    if (free_heap < 8192 || largest < 4096) {
+    ESP_LOGI(TAG, "pre-connect heap=%u largest=%u internal=%u",
+             static_cast<unsigned>(free_heap), static_cast<unsigned>(largest),
+             static_cast<unsigned>(heap_caps_get_free_size(MALLOC_CAP_INTERNAL)));
+    if (free_heap < 4096 || largest < 1024) {
         ESP_LOGW(TAG, "skipping connect: low heap");
         s_connecting.store(false);
         schedule_reconnect();
@@ -365,15 +366,13 @@ void handle_discovery_result(const esp_bt_gap_cb_param_t::disc_res_param& result
 
     char address[18] = {};
     format_bda(result.bda, address, sizeof(address));
-    if (name[0] != '\0' || cod != 0) {
-        ESP_LOGI(TAG, "found %s [%s] cod=0x%06X", name[0] != '\0' ? name : "?",
-                 address, static_cast<unsigned>(cod));
-    }
+    ESP_LOGI(TAG, "found %s [%s] cod=0x%06X pairing=%d", name[0] != '\0' ? name : "?",
+             address, static_cast<unsigned>(cod), pairing_active() ? 1 : 0);
 
     if (s_connected.load() || s_connecting.load() || s_connect_pending.load()) {
         return;
     }
-    if (is_remote_name(name) || cod == kRemoteCod) {
+    if (is_remote_name(name) || cod == kRemoteCod || pairing_active()) {
         ESP_LOGI(TAG, "BD remote found at %s", address);
         taskENTER_CRITICAL(&s_bda_mux);
         std::memcpy(s_remote_bda, result.bda, sizeof(s_remote_bda));
@@ -693,10 +692,25 @@ UINT16 register_l2cap_service(const char* name, UINT16 psm, UINT8 service_id) {
 
 esp_err_t start_bluetooth() {
     if (!btStarted()) {
-        ESP_LOGI(TAG, "free heap before controller: %u",
-                 static_cast<unsigned>(esp_get_free_heap_size()));
-        if (!btStartMode(BT_MODE_CLASSIC_BT)) {
+        if (!btMemRelease(BT_MODE_BLE)) {
             return ESP_FAIL;
+        }
+        esp_bt_controller_config_t cfg = BT_CONTROLLER_INIT_CONFIG_DEFAULT();
+        cfg.mode = ESP_BT_MODE_CLASSIC_BT;
+        cfg.bt_max_acl_conn = 2;
+        cfg.ble_max_conn = 0;
+        cfg.normal_adv_size = 10;
+        cfg.mesh_adv_size = 10;
+        ESP_LOGI(TAG, "free heap before controller: %u max_acl=%u",
+                 static_cast<unsigned>(esp_get_free_heap_size()),
+                 static_cast<unsigned>(cfg.bt_max_acl_conn));
+        esp_err_t controller_err = esp_bt_controller_init(&cfg);
+        if (controller_err != ESP_OK) {
+            return controller_err;
+        }
+        controller_err = esp_bt_controller_enable(ESP_BT_MODE_CLASSIC_BT);
+        if (controller_err != ESP_OK) {
+            return controller_err;
         }
         ESP_LOGI(TAG, "free heap after controller: %u",
                  static_cast<unsigned>(esp_get_free_heap_size()));
