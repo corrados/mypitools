@@ -21,7 +21,7 @@ namespace {
 
 constexpr char TAG[] = "radio";
 constexpr size_t kQueueLength = 8;
-constexpr size_t kTaskStack = 4096;
+constexpr size_t kTaskStack = 3072;
 constexpr UBaseType_t kTaskPriority = 2;
 constexpr int kTimeoutMs = 5000;
 

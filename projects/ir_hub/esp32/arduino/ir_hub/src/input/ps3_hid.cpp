@@ -303,6 +303,16 @@ void connect_remote(const uint8_t* bda) {
 
     char address[18] = {};
     format_bda(s_remote_bda, address, sizeof(address));
+    const uint32_t free_heap = esp_get_free_heap_size();
+    const uint32_t largest = heap_caps_get_largest_free_block(MALLOC_CAP_8BIT);
+    ESP_LOGI(TAG, "pre-connect heap=%u largest=%u", static_cast<unsigned>(free_heap),
+             static_cast<unsigned>(largest));
+    if (free_heap < 8192 || largest < 4096) {
+        ESP_LOGW(TAG, "skipping connect: low heap");
+        s_connecting.store(false);
+        schedule_reconnect();
+        return;
+    }
     const UINT16 cid = L2CA_ConnectReq(kL2capPsmsHidInterrupt, s_remote_bda);
     if (cid == 0) {
         ESP_LOGW(TAG, "HID interrupt connect request to %s failed", address);
@@ -683,25 +693,10 @@ UINT16 register_l2cap_service(const char* name, UINT16 psm, UINT8 service_id) {
 
 esp_err_t start_bluetooth() {
     if (!btStarted()) {
-        if (!btMemRelease(BT_MODE_BLE)) {
+        ESP_LOGI(TAG, "free heap before controller: %u",
+                 static_cast<unsigned>(esp_get_free_heap_size()));
+        if (!btStartMode(BT_MODE_CLASSIC_BT)) {
             return ESP_FAIL;
-        }
-        esp_bt_controller_config_t cfg = BT_CONTROLLER_INIT_CONFIG_DEFAULT();
-        cfg.mode = ESP_BT_MODE_CLASSIC_BT;
-        cfg.bt_max_acl_conn = 2;
-        cfg.ble_max_conn = 0;
-        cfg.normal_adv_size = 10;
-        cfg.mesh_adv_size = 10;
-        ESP_LOGI(TAG, "free heap before controller: %u max_acl=%u",
-                 static_cast<unsigned>(esp_get_free_heap_size()),
-                 static_cast<unsigned>(cfg.bt_max_acl_conn));
-        esp_err_t controller_err = esp_bt_controller_init(&cfg);
-        if (controller_err != ESP_OK) {
-            return controller_err;
-        }
-        controller_err = esp_bt_controller_enable(ESP_BT_MODE_CLASSIC_BT);
-        if (controller_err != ESP_OK) {
-            return controller_err;
         }
         ESP_LOGI(TAG, "free heap after controller: %u",
                  static_cast<unsigned>(esp_get_free_heap_size()));
