@@ -27,7 +27,7 @@
 #endif
 
 #ifndef IR_HUB_WEB_SERVER_ENABLED
-#define IR_HUB_WEB_SERVER_ENABLED 1
+#define IR_HUB_WEB_SERVER_ENABLED 0
 #endif
 
 #ifndef IR_HUB_APP_CORE

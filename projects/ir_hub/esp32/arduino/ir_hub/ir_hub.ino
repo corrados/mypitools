@@ -14,7 +14,9 @@
 #include "net/adb.hpp"
 #include "net/radio_socket.hpp"
 #include "net/wifi.hpp"
+#if IR_HUB_WEB_SERVER_ENABLED
 #include "net/web_server.hpp"
+#endif
 #include "output/rgb_led.hpp"
 
 namespace {
@@ -100,9 +102,13 @@ void handle_serial_command() {
                 } else if (std::strcmp(command, "TASKS") == 0) {
                     print_tasks();
                 } else if (std::strcmp(command, "LATENCY") == 0) {
+#if IR_HUB_WEB_SERVER_ENABLED
                     char stats[1024] = {};
                     irhub::web_server::format_stats(stats, sizeof(stats));
                     Serial.printf("%s", stats);
+#else
+                    Serial.println("web=disabled");
+#endif
                 } else if (std::strcmp(command, "IP") == 0) {
                     Serial.printf("wifi=%d ip=%s rssi=%d\n", static_cast<int>(WiFi.status()),
                                   WiFi.localIP().toString().c_str(), WiFi.RSSI());
@@ -146,9 +152,9 @@ void setup() {
     require_ok(irhub::radio_socket::start(), "radio_socket::start");
     require_ok(irhub::adb::start(), "adb::start");
     require_ok(irhub::script_server::start(), "script_server::start");
-    if constexpr (irhub::config::kWebServerEnabled) {
-        require_ok(irhub::web_server::start(), "web_server::start");
-    }
+#if IR_HUB_WEB_SERVER_ENABLED
+    require_ok(irhub::web_server::start(), "web_server::start");
+#endif
     Serial.println("Services ready; waiting for ADB before Bluetooth");
     for (uint32_t waited = 0; waited < 15000 && !irhub::adb::connected(); waited += 100) {
         delay(100);

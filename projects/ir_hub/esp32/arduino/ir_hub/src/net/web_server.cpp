@@ -22,6 +22,8 @@
 #include "lwip/inet.h"
 #include "lwip/sockets.h"
 
+#if IR_HUB_WEB_SERVER_ENABLED
+
 namespace irhub::web_server {
 namespace {
 
@@ -425,3 +427,23 @@ esp_err_t start() {
 }
 
 }  // namespace irhub::web_server
+
+#else
+
+namespace irhub::web_server {
+
+size_t format_stats(char* out, size_t size) {
+    if (out != nullptr && size > 0) {
+        std::snprintf(out, size, "web=disabled\n");
+        return std::strlen(out);
+    }
+    return 0;
+}
+
+esp_err_t start() {
+    return ESP_OK;
+}
+
+}  // namespace irhub::web_server
+
+#endif
