@@ -712,8 +712,9 @@ esp_err_t start_bluetooth() {
         if (controller_err != ESP_OK) {
             return controller_err;
         }
-        ESP_LOGI(TAG, "free heap after controller: %u",
-                 static_cast<unsigned>(esp_get_free_heap_size()));
+        ESP_LOGI(TAG, "free heap after controller: %u internal=%u",
+                 static_cast<unsigned>(esp_get_free_heap_size()),
+                 static_cast<unsigned>(heap_caps_get_free_size(MALLOC_CAP_INTERNAL)));
     }
 
     esp_err_t err = ESP_OK;
