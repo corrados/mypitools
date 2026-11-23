@@ -103,6 +103,7 @@ QueueHandle_t s_queue = nullptr;
 WiFiClient s_client;
 mbedtls_pk_context s_key = {};
 bool s_key_ready = false;
+mbedtls_svc_key_id_t s_psa_key_id = MBEDTLS_SVC_KEY_ID_INIT;
 bool s_signature_sent = false;
 bool s_shell_ready = false;
 char s_shell_tail[kShellTailLength + 1] = {};
@@ -369,39 +370,43 @@ bool ensure_key() {
         return false;
     }
 
+    psa_key_attributes_t attributes = PSA_KEY_ATTRIBUTES_INIT;
+    psa_status_t status = mbedtls_pk_get_psa_attributes(&s_key, PSA_KEY_USAGE_SIGN_HASH, &attributes);
+    if (status == PSA_SUCCESS) {
+        psa_set_key_algorithm(&attributes, PSA_ALG_RSA_PKCS1V15_SIGN(PSA_ALG_SHA_1));
+        status = mbedtls_pk_import_into_psa(&s_key, &attributes, &s_psa_key_id);
+    }
+    psa_reset_key_attributes(&attributes);
+    if (status != PSA_SUCCESS) {
+        ESP_LOGE(TAG, "ADB PSA key import failed: -0x%04x",
+                 static_cast<unsigned>(-static_cast<int>(status)));
+        mbedtls_pk_free(&s_key);
+        s_psa_key_id = MBEDTLS_SVC_KEY_ID_INIT;
+        return false;
+    }
+
     s_key_ready = true;
     ESP_LOGI(TAG, "RSA key ready");
     return true;
 }
 
 bool sign_token(const uint8_t* token, size_t length, std::vector<uint8_t>& signature) {
-    if (length != 20) {
+    if (length != 20 || mbedtls_svc_key_id_is_null(s_psa_key_id)) {
         return false;
     }
-    psa_key_attributes_t attributes = PSA_KEY_ATTRIBUTES_INIT;
-    mbedtls_svc_key_id_t key_id = MBEDTLS_SVC_KEY_ID_INIT;
-    psa_status_t status = mbedtls_pk_get_psa_attributes(&s_key, PSA_KEY_USAGE_SIGN_HASH, &attributes);
-    if (status == 0) {
-        psa_set_key_algorithm(&attributes, PSA_ALG_RSA_PKCS1V15_SIGN(PSA_ALG_SHA_1));
-        status = mbedtls_pk_import_into_psa(&s_key, &attributes, &key_id);
-    }
     size_t signature_length = 0;
-    if (status == PSA_SUCCESS) {
-        signature.resize(256);
-        status = psa_sign_hash(key_id, PSA_ALG_RSA_PKCS1V15_SIGN(PSA_ALG_SHA_1), token, length,
-                               signature.data(), signature.size(), &signature_length);
-        if (status != PSA_SUCCESS) {
-            vTaskDelay(pdMS_TO_TICKS(20));
-            status = psa_sign_hash(key_id, PSA_ALG_RSA_PKCS1V15_SIGN(PSA_ALG_SHA_1), token, length,
-                                   signature.data(), signature.size(), &signature_length);
-        }
-    }
-    if (!mbedtls_svc_key_id_is_null(key_id)) {
-        psa_destroy_key(key_id);
-    }
-    psa_reset_key_attributes(&attributes);
+    signature.resize(256);
+    psa_status_t status = psa_sign_hash(s_psa_key_id, PSA_ALG_RSA_PKCS1V15_SIGN(PSA_ALG_SHA_1),
+                                        token, length, signature.data(), signature.size(),
+                                        &signature_length);
     if (status != PSA_SUCCESS) {
-        ESP_LOGE(TAG, "token signing failed: -0x%04x", static_cast<unsigned>(-static_cast<int>(status)));
+        vTaskDelay(pdMS_TO_TICKS(20));
+        status = psa_sign_hash(s_psa_key_id, PSA_ALG_RSA_PKCS1V15_SIGN(PSA_ALG_SHA_1), token,
+                               length, signature.data(), signature.size(), &signature_length);
+    }
+    if (status != PSA_SUCCESS) {
+        ESP_LOGE(TAG, "token signing failed: -0x%04x",
+                 static_cast<unsigned>(-static_cast<int>(status)));
         return false;
     }
     signature.resize(signature_length);
