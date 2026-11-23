@@ -115,6 +115,7 @@ uint32_t s_last_packet_ms = 0;
 std::atomic<bool> s_connected{false};
 uint32_t s_reconnect_delay_ms = kReconnectMs;
 uint32_t s_auth_wait_deadline_ms = 0;
+std::atomic<bool> s_enabled{true};
 AdbStats s_stats;
 
 void disconnect(const char* reason);
@@ -653,6 +654,13 @@ void adb_task(void*) {
     uint32_t next_attempt_ms = 0;
     while (true) {
       try {
+        if (!s_enabled.load()) {
+            if (s_client.connected()) {
+                disconnect("adb disabled");
+            }
+            vTaskDelay(pdMS_TO_TICKS(500));
+            continue;
+        }
         if (s_client.connected()) {
             if (s_auth_wait_deadline_ms != 0 &&
                 static_cast<int32_t>(millis() - s_auth_wait_deadline_ms) >= 0) {
@@ -784,6 +792,17 @@ bool submit(const char* command) {
 
 const AdbStats& stats() {
     return s_stats;
+}
+
+void set_enabled(bool enabled) {
+    s_enabled.store(enabled);
+    if (!enabled) {
+        disconnect("adb disabled");
+    }
+}
+
+bool enabled() {
+    return s_enabled.load();
 }
 
 bool connected() {

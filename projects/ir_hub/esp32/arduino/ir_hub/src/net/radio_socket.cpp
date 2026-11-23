@@ -16,6 +16,8 @@
 #include "lwip/netdb.h"
 #include "lwip/sockets.h"
 
+#if IR_HUB_RADIO_SOCKET_ENABLED
+
 namespace irhub::radio_socket {
 namespace {
 
@@ -160,3 +162,15 @@ bool switch_power(bool on) {
 }
 
 }  // namespace irhub::radio_socket
+
+#else
+
+namespace irhub::radio_socket {
+
+esp_err_t init() { return ESP_OK; }
+esp_err_t start() { return ESP_OK; }
+bool request(bool) { return false; }
+
+}  // namespace irhub::radio_socket
+
+#endif

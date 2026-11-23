@@ -19,6 +19,8 @@ esp_err_t start();
 bool submit(const char* command);
 const AdbStats& stats();
 bool connected();
+void set_enabled(bool enabled);
+bool enabled();
 bool public_key_line(std::string& out);
 std::string public_key_fingerprint();
 

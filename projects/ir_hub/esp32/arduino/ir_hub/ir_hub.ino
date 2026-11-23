@@ -160,13 +160,23 @@ void setup() {
         delay(100);
     }
     ESP_LOGI(TAG, "ADB ready before PS3 init: %d", irhub::adb::connected() ? 1 : 0);
-    ESP_LOGI(TAG, "free heap before PS3 init: %u", static_cast<unsigned>(ESP.getFreeHeap()));
+    if (irhub::config::kDisableServicesForPs3Pairing) {
+        irhub::adb::set_enabled(false);
+    }
+    ESP_LOGI(TAG, "free heap before PS3 init: %u internal=%u",
+             static_cast<unsigned>(ESP.getFreeHeap()),
+             static_cast<unsigned>(heap_caps_get_free_size(MALLOC_CAP_INTERNAL)));
     const esp_err_t ps3_err = irhub::input::init();
     if (ps3_err != ESP_OK) {
         ESP_LOGW(TAG, "PS3 remote init failed: %s", esp_err_to_name(ps3_err));
         Serial.printf("PS3 remote init failed: %s\n", esp_err_to_name(ps3_err));
     }
-    ESP_LOGI(TAG, "free heap after init: %u", static_cast<unsigned>(ESP.getFreeHeap()));
+    if (irhub::config::kDisableServicesForPs3Pairing) {
+        irhub::adb::set_enabled(true);
+    }
+    ESP_LOGI(TAG, "free heap after init: %u internal=%u",
+             static_cast<unsigned>(ESP.getFreeHeap()),
+             static_cast<unsigned>(heap_caps_get_free_size(MALLOC_CAP_INTERNAL)));
     Serial.println("IR hub started");
     Serial.println("Send a button name or 'IR DEVICE COMMAND' followed by newline");
 }

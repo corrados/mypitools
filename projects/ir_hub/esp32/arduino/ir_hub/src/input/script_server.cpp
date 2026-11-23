@@ -16,6 +16,8 @@
 #include "lwip/inet.h"
 #include "lwip/sockets.h"
 
+#if IR_HUB_SCRIPT_SERVER_ENABLED
+
 namespace irhub::script_server {
 namespace {
 
@@ -133,3 +135,13 @@ esp_err_t start() {
 }
 
 }  // namespace irhub::script_server
+
+#else
+
+namespace irhub::script_server {
+
+esp_err_t start() { return ESP_OK; }
+
+}  // namespace irhub::script_server
+
+#endif
