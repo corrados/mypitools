@@ -391,25 +391,21 @@ bool ensure_key() {
 }
 
 bool sign_token(const uint8_t* token, size_t length, std::vector<uint8_t>& signature) {
-    if (length != 20 || mbedtls_svc_key_id_is_null(s_psa_key_id)) {
+    if (length != 20) {
         return false;
     }
+    static uint8_t sig_buf[256];
     size_t signature_length = 0;
-    signature.resize(256);
-    psa_status_t status = psa_sign_hash(s_psa_key_id, PSA_ALG_RSA_PKCS1V15_SIGN(PSA_ALG_SHA_1),
-                                        token, length, signature.data(), signature.size(),
-                                        &signature_length);
-    if (status != PSA_SUCCESS) {
-        vTaskDelay(pdMS_TO_TICKS(20));
-        status = psa_sign_hash(s_psa_key_id, PSA_ALG_RSA_PKCS1V15_SIGN(PSA_ALG_SHA_1), token,
-                               length, signature.data(), signature.size(), &signature_length);
-    }
-    if (status != PSA_SUCCESS) {
-        ESP_LOGE(TAG, "token signing failed: -0x%04x",
-                 static_cast<unsigned>(-static_cast<int>(status)));
+    const int ret = mbedtls_pk_sign(&s_key, MBEDTLS_MD_SHA1, token, length, sig_buf, sizeof(sig_buf),
+                                    &signature_length);
+    if (ret != 0) {
+        ESP_LOGE(TAG, "token signing failed: -0x%04x heap=%u internal=%u",
+                 static_cast<unsigned>(-ret),
+                 static_cast<unsigned>(esp_get_free_heap_size()),
+                 static_cast<unsigned>(heap_caps_get_free_size(MALLOC_CAP_INTERNAL)));
         return false;
     }
-    signature.resize(signature_length);
+    signature.assign(sig_buf, sig_buf + signature_length);
     return true;
 }
 
