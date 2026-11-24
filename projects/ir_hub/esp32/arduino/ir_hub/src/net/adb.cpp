@@ -662,6 +662,13 @@ void adb_task(void*) {
             vTaskDelay(pdMS_TO_TICKS(500));
             continue;
         }
+        if (WiFi.status() != WL_CONNECTED) {
+            if (s_client.connected()) {
+                disconnect("wifi down");
+            }
+            vTaskDelay(pdMS_TO_TICKS(kReconnectMs));
+            continue;
+        }
         if (s_client.connected()) {
             if (s_auth_wait_deadline_ms != 0 &&
                 static_cast<int32_t>(millis() - s_auth_wait_deadline_ms) >= 0) {
