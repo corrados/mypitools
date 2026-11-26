@@ -38,7 +38,11 @@ int mbedtls_asn1_get_mpi(unsigned char **p, const unsigned char *end, mbedtls_mp
 #define MBEDTLS_DECLARE_PRIVATE_IDENTIFIERS
 #include "mbedtls/pk.h"
 #if __has_include("mbedtls/private/pk_private.h")
+// Core 4.0.0's pk_private.h has no extern "C" guards; without this the
+// mbedtls_pk_* declarations get C++ linkage and fail to link.
+extern "C" {
 #include "mbedtls/private/pk_private.h"
+}
 #endif
 #if __has_include("mbedtls/rsa.h")
 #include "mbedtls/rsa.h"
@@ -708,6 +712,10 @@ void adb_task(void*) {
                     break;
                 case kCmdCnxn:
                     s_auth_wait_deadline_ms = 0;
+                    // The 300 s no-packet guard is only for the auth phase. ADB
+                    // sends nothing on an idle shell, so keeping it armed here
+                    // drops an otherwise healthy connection every 5 minutes.
+                    s_last_packet_ms = 0;
                     s_reconnect_delay_ms = kReconnectMs;
                     ESP_LOGI(TAG, "ADB connected");
                     if (!open_shell()) {
