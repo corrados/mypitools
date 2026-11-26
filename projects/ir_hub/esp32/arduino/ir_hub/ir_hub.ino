@@ -126,7 +126,10 @@ void handle_serial_command() {
 }  // namespace
 
 size_t getArduinoLoopTaskStackSize(void) {
-    return 4096;
+    // 4096 left only ~288 bytes free at the high-water mark during Bluetooth
+    // setup; the core default of 8192 gives real headroom without costing
+    // another 8 KB of heap.
+    return 8192;
 }
 
 void setup() {
