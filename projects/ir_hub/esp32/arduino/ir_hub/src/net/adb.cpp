@@ -398,28 +398,8 @@ bool sign_token(const uint8_t* token, size_t length, std::vector<uint8_t>& signa
     if (length != 20) {
         return false;
     }
-    if (esp_get_free_heap_size() < 8192 ||
-        heap_caps_get_free_size(MALLOC_CAP_INTERNAL) < 8192) {
-        ESP_LOGW(TAG, "low heap for auth sign heap=%u internal=%u",
-                 static_cast<unsigned>(esp_get_free_heap_size()),
-                 static_cast<unsigned>(heap_caps_get_free_size(MALLOC_CAP_INTERNAL)));
-        return false;
-    }
     static uint8_t sig_buf[256];
     size_t signature_length = 0;
-    if (!mbedtls_svc_key_id_is_null(s_psa_key_id)) {
-        psa_status_t status = psa_sign_hash(s_psa_key_id, PSA_ALG_RSA_PKCS1V15_SIGN(PSA_ALG_SHA_1),
-                                            token, length, sig_buf, sizeof(sig_buf),
-                                            &signature_length);
-        if (status == PSA_SUCCESS) {
-            signature.assign(sig_buf, sig_buf + signature_length);
-            return true;
-        }
-        ESP_LOGW(TAG, "PSA sign failed: -0x%04x heap=%u internal=%u; trying pk_sign",
-                 static_cast<unsigned>(-static_cast<int>(status)),
-                 static_cast<unsigned>(esp_get_free_heap_size()),
-                 static_cast<unsigned>(heap_caps_get_free_size(MALLOC_CAP_INTERNAL)));
-    }
     const int ret = mbedtls_pk_sign(&s_key, MBEDTLS_MD_SHA1, token, length, sig_buf, sizeof(sig_buf),
                                     &signature_length);
     if (ret != 0) {
@@ -680,8 +660,10 @@ void adb_task(void*) {
     while (true) {
       try {
         if (!s_enabled.load()) {
-            s_connected.store(s_shell_ready && s_client.connected());
-            vTaskDelay(pdMS_TO_TICKS(100));
+            if (s_client.connected()) {
+                disconnect("adb disabled");
+            }
+            vTaskDelay(pdMS_TO_TICKS(500));
             continue;
         }
         if (WiFi.status() != WL_CONNECTED) {
@@ -831,9 +813,7 @@ const AdbStats& stats() {
 void set_enabled(bool enabled) {
     s_enabled.store(enabled);
     if (!enabled) {
-        s_connected.store(false);
-    } else {
-        s_connected.store(s_shell_ready && s_client.connected());
+        disconnect("adb disabled");
     }
 }
 
